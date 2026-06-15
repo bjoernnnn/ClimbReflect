@@ -28,6 +28,24 @@ struct WeeklyPoint: Identifiable {
     }
 }
 
+// MARK: - RPE-Datenpunkt
+
+struct RPEPoint: Identifiable {
+    let id = UUID()
+    let date: Date
+    let rpe: Int
+    let sessionType: SessionType
+}
+
+// MARK: - Sessiontyp-Verteilung
+
+struct TypeCount: Identifiable {
+    let id: String
+    let sessionType: SessionType
+    let count: Int
+    let share: Double
+}
+
 // MARK: - Engine: leitet Statistik, Wochenverlauf und Erfolge aus den Sessions ab
 
 enum StatsEngine {
@@ -61,6 +79,28 @@ enum StatsEngine {
             if point.sessions > 0 { streak += 1 } else { break }
         }
         return streak
+    }
+
+    /// RPE-Verlauf der letzten `limit` Sessions mit gesetztem RPE, chronologisch.
+    static func rpeHistory(_ sessions: [ClimbSession], limit: Int = 20) -> [RPEPoint] {
+        sessions
+            .filter { $0.perceivedEffort != nil }
+            .sorted { $0.date < $1.date }
+            .suffix(limit)
+            .compactMap { s in
+                guard let rpe = s.perceivedEffort else { return nil }
+                return RPEPoint(date: s.date, rpe: rpe, sessionType: s.sessionType)
+            }
+    }
+
+    /// Anzahl Sessions pro Typ, absteigend sortiert.
+    static func sessionTypeDistribution(_ sessions: [ClimbSession]) -> [TypeCount] {
+        var counts: [SessionType: Int] = [:]
+        for s in sessions { counts[s.sessionType, default: 0] += 1 }
+        let total = max(1, Double(sessions.count))
+        return counts
+            .map { TypeCount(id: $0.key.rawValue, sessionType: $0.key, count: $0.value, share: Double($0.value) / total) }
+            .sorted { $0.count > $1.count }
     }
 
     static func totalMinutes(_ sessions: [ClimbSession]) -> Int {

@@ -102,6 +102,7 @@ struct ManualSessionView: View {
         )
         context.insert(session)
         try? context.save()
+        NotificationService.shared.scheduleReflectionReminder(for: session)
         createdSession = session
         navigateToDetail = true
     }

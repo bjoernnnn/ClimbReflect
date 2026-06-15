@@ -35,3 +35,16 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"   # iPhone
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_PREVIEWS: YES
+
+  ClimbReflectTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - ../../../ClimbReflectTests
+    dependencies:
+      - target: ClimbReflect
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.ClimbReflectTests
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES

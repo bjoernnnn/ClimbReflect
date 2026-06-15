@@ -20,7 +20,7 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
 
 ## P0 – Kern-Schleife & Lauffähigkeit (zuerst)
 
-- [ ] **1. Manuelle Session-Erfassung**
+- [x] **1. Manuelle Session-Erfassung**
   - *Kontext:* Aktuell gibt es nur Mock-Daten + Health-Import. Ohne Redpoint kann
     niemand eine echte eigene Session anlegen → die zentrale Schleife der App fehlt.
   - *Dateien:* neu `Views/ManualSessionView.swift`; `Views/DashboardView.swift`
@@ -32,7 +32,7 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
   - *Fertig wenn:* Ohne HealthKit lässt sich eine Session anlegen, reflektieren und
     erscheint in „Letzte Sessions" und „Alle Sessions".
 
-- [ ] **2. Sessions löschen (und Basisdaten editieren)**
+- [x] **2. Sessions löschen (und Basisdaten editieren)**
   - *Kontext:* Keine Lösch-/Editiermöglichkeit; Mock-/Fehleinträge bleiben für immer.
   - *Dateien:* `Views/AllSessionsView.swift` (Swipe-to-Delete via `.onDelete` /
     SwiftData `context.delete`), optional `Views/SessionDetailView.swift`
@@ -40,7 +40,7 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
   - *Fertig wenn:* Eine Session kann aus der Liste gelöscht werden; Statistiken/Charts
     aktualisieren sich.
 
-- [ ] **3. HealthKit-Capability & Entitlement korrekt konfigurieren**
+- [x] **3. HealthKit-Capability & Entitlement korrekt konfigurieren**
   - *Kontext:* Der Redpoint-Import (Headline-Feature) scheitert zur Laufzeit, weil
     nur der Usage-String gesetzt ist, aber **nicht** die HealthKit-Capability /
     `com.apple.developer.healthkit`-Entitlement. Es existiert keine `.entitlements`-Datei.
@@ -52,7 +52,7 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
   - *Fertig wenn:* Auf echtem Gerät fragt der Import die Health-Freigabe an, ohne
     Entitlement-Crash; ohne HealthKit ist der Button ausgeblendet statt fehlerwerfend.
 
-- [ ] **4. Mock-Daten kennzeichnen / entschärfen**
+- [x] **4. Mock-Daten kennzeichnen / entschärfen**
   - *Kontext:* 14 Fake-Sessions sind nicht von echten unterscheidbar (Freitext
     wörtlich „Mock-Eintrag") und schalten beim Erststart ~6/8 Erfolge frei → Motivation
     und „deine Reise"-Framing entwertet.
@@ -67,13 +67,13 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
 
 ## P1 – Verständlichkeit, Vertrauen, Qualität
 
-- [ ] **5. Settings-Screen**
+- [x] **5. Settings-Screen**
   - *Dateien:* neu `Views/SettingsView.swift`; Einstieg über Dashboard-Toolbar.
   - *Aufgabe:* HealthKit-Status anzeigen, „Jetzt synchronisieren", „Beispieldaten
     löschen", Datenschutz-Hinweis („Alle Daten bleiben on-device"), Daten-Export (P2).
   - *Fertig wenn:* Nutzer sieht Sync-Status und kann ihn manuell auslösen.
 
-- [ ] **6. Onboarding & Auffindbarkeit des Imports**
+- [x] **6. Onboarding & Auffindbarkeit des Imports**
   - *Kontext:* Import-Button ist nur ein Icon (`heart.text.square`) ohne Label/Erklärung;
     Erstnutzer versteht ihn nicht, Tippen ohne Setup erzeugt nur einen Fehler-Alert.
   - *Dateien:* `Views/DashboardView.swift`; optional kurzer Onboarding-Sheet.
@@ -81,7 +81,7 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
     Hinweis/Tooltip; kurzer Erststart-Screen, der App-Zweck und Import erklärt.
   - *Fertig wenn:* Zweck des Buttons ist ohne Vorwissen klar; VoiceOver liest ihn vor.
 
-- [ ] **7. Repo-/Build-Hygiene aufräumen**
+- [x] **7. Repo-/Build-Hygiene aufräumen**
   - *Kontext:* Zwei konkurrierende Projektquellen (committetes Xcode-16-`.xcodeproj`
     auf Repo-Ebene **und** `project.yml` drei Ebenen tiefer), dreifache Verschachtelung
     `ClimbReflect/ClimbReflect/ClimbReflect/`, README-Befehl `cd ClimbReflect &&
@@ -93,7 +93,7 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
   - *Fertig wenn:* Ein frisch geklontes Repo baut nach den README-Schritten ohne
     Pfad-Workarounds; nur eine `.xcodeproj`-Definition im Repo.
 
-- [ ] **8. Kontrast, Dynamic Type, Textfeld-Platzhalter**
+- [x] **8. Kontrast, Dynamic Type, Textfeld-Platzhalter**
   - *Kontext:* `Theme.textTertiary` (0x5C6675) auf fast-schwarzem Grund liegt für kleinen
     Text vermutlich unter WCAG-AA. `TextEditor` hat keine Platzhalter → leere Kästen.
     Feste Schriftgrößen/Kartengrößen (z. B. 132×132) könnten bei großem Dynamic Type
@@ -106,7 +106,7 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
   - *Fertig wenn:* Achsen/Untertitel gut lesbar; Textfelder zeigen Hint; Layout hält bei
     XXL-Schrift.
 
-- [ ] **9. Redpoint-Annahme verifizieren & Fehlertexte schärfen**
+- [x] **9. Redpoint-Annahme verifizieren & Fehlertexte schärfen**
   - *Kontext:* Es ist unbestätigt, dass Redpoint `.climbing`-Workouts inkl. HF/Energie
     nach Apple Health schreibt. Falls nicht, liefert der Import nichts.
   - *Dateien:* `Services/RedpointHealthService.swift`.
@@ -119,7 +119,7 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
 
 ## P2 – Differenzierung & Wachstum
 
-- [ ] **10. Aussagekräftigere Fortschritts-Metriken**
+- [x] **10. Aussagekräftigere Fortschritts-Metriken**
   - *Kontext:* „Fortschritt = Minuten/Woche" misst nur Volumen, nicht Können.
   - *Dateien:* `Models/Achievement.swift` (`StatsEngine`),
     `Views/Components/ProgressChartView.swift`, ggf. neue Charts.
@@ -127,7 +127,7 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
     (falls erfasst). Limiter-Entwicklung über Zeit ergänzen.
   - *Fertig wenn:* Mindestens eine Metrik zeigt Entwicklung der Leistung, nicht nur Menge.
 
-- [ ] **11. Reflexions-Erinnerungen (Local Notifications)**
+- [x] **11. Reflexions-Erinnerungen (Local Notifications)**
   - *Kontext:* Wert entsteht erst nach vielen Einträgen → Retention sichern.
   - *Aufgabe:* Nach Import/neuer Session optionale Erinnerung „Session reflektieren?".
     Opt-in in Settings.
@@ -138,14 +138,17 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
   - *Dateien:* `ClimbReflectApp.swift` (`ModelConfiguration(... cloudKitDatabase:)`),
     Entitlements.
   - *Fertig wenn:* Daten überleben Neuinstallation / erscheinen auf zweitem Gerät.
+  - *Hinweis:* Erfordert CloudKit-Container im Apple Developer Portal → zurückgestellt.
 
-- [ ] **13. Unit-Tests für `StatsEngine`**
+- [x] **13. Unit-Tests für `StatsEngine`**
   - *Kontext:* Reine Funktionen, ideal testbar; Streak-/Wochenlogik aktuell ungesichert.
   - *Aufgabe:* Tests für `weeklyMinutes`, `weekStreak` (inkl. Lücken), Erfolgsschwellen,
     `sessionsThisWeek`.
   - *Fertig wenn:* Test-Target vorhanden, grün, deckt Grenzfälle ab.
+  - *Umsetzung:* `ClimbReflectTests/StatsEngineTests.swift` erstellt; Test-Target in
+    `project.yml` eingetragen. Nach `xcodegen generate` lauffähig.
 
-- [ ] **14. Datenexport / Backup**
+- [x] **14. Datenexport / Backup**
   - *Aufgabe:* Export der Sessions (z. B. JSON/CSV) aus Settings.
   - *Fertig wenn:* Nutzer kann seine Daten sichern/teilen.
 
@@ -155,11 +158,11 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
 
 ## Kleinere Fixes / Tech-Debt (nebenbei erledigbar)
 
-- [ ] **„Reflexion offen"-Logik vereinheitlichen:** `SessionRow` wertet nur
-  `perceivedEffort == nil` aus, `reflectionCompleted` ist breiter definiert. Gleiche
-  Quelle nutzen. (`Views/Components/SessionRow.swift`, `Views/SessionDetailView.swift`)
-- [ ] **Force-Unwrap entfernen:** `MockData.daysAgo` nutzt `!` bei der Datumsberechnung
-  → defensiv umbauen. (`Models/MockData.swift`)
+- [x] **„Reflexion offen"-Logik vereinheitlichen:** `SessionRow` wertet nun
+  `reflectionCompleted` aus (nicht nur `perceivedEffort`), gleiche Quelle wie
+  `SessionDetailView`. (`Views/Components/SessionRow.swift`, `Views/SessionDetailView.swift`)
+- [x] **Force-Unwrap entfernen:** `MockData.daysAgo` nutzt jetzt `guard` statt `!`
+  bei der Datumsberechnung. (`Models/MockData.swift`)
 - [ ] **Hintergrund-Grafik:** Optional Kletterwand-Charakter statt generischer Bergsilhouette
   und Hintergrund entsättigen, damit der Akzentverlauf der UI nicht konkurriert und der
   Textkontrast steigt. (`Background/MountainBackground.swift`)

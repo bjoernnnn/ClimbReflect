@@ -12,6 +12,9 @@ struct SettingsView: View {
     @State private var isImporting = false
     @State private var importMessage: String?
     @State private var showDeleteSamplesConfirm = false
+    @State private var exportURL: URL?
+    @State private var showExportSheet = false
+    @State private var notificationsEnabled = NotificationService.shared.isEnabled
 
     private var healthKitAvailable: Bool {
         #if canImport(HealthKit)
@@ -79,6 +82,13 @@ struct SettingsView: View {
                                 .foregroundStyle(Theme.textSecondary)
                         }
 
+                        Button {
+                            exportJSON()
+                        } label: {
+                            Label("Sessions exportieren (JSON)", systemImage: "square.and.arrow.up")
+                                .foregroundStyle(Theme.accent)
+                        }
+
                         if sampleCount > 0 {
                             Button(role: .destructive) {
                                 showDeleteSamplesConfirm = true
@@ -89,6 +99,35 @@ struct SettingsView: View {
                         }
                     } header: {
                         Text("Meine Daten").foregroundStyle(Theme.textTertiary)
+                    }
+                    .listRowBackground(Theme.surface)
+
+                    // MARK: Benachrichtigungen
+                    Section {
+                        Toggle(isOn: $notificationsEnabled) {
+                            Label("Reflexions-Erinnerung", systemImage: "bell.fill")
+                                .foregroundStyle(Theme.textPrimary)
+                        }
+                        .tint(Theme.accent)
+                        .onChange(of: notificationsEnabled) { _, enabled in
+                            if enabled {
+                                Task {
+                                    let granted = await NotificationService.shared.requestAuthorization()
+                                    if granted {
+                                        NotificationService.shared.isEnabled = true
+                                    } else {
+                                        notificationsEnabled = false
+                                    }
+                                }
+                            } else {
+                                NotificationService.shared.isEnabled = false
+                            }
+                        }
+                    } header: {
+                        Text("Benachrichtigungen").foregroundStyle(Theme.textTertiary)
+                    } footer: {
+                        Text("Sendet 2 Stunden nach einer Session eine Erinnerung, die Reflexion auszufüllen.")
+                            .foregroundStyle(Theme.textTertiary)
                     }
                     .listRowBackground(Theme.surface)
 
@@ -145,10 +184,17 @@ struct SettingsView: View {
             } message: {
                 Text("\(sampleCount) Beispielsession(s) werden unwiderruflich gelöscht.")
             }
+            .sheet(isPresented: $showExportSheet) {
+                if let url = exportURL {
+                    ShareSheet(items: [url])
+                }
+            }
         }
         .preferredColorScheme(.dark)
         .tint(Theme.accent)
     }
+
+    // MARK: - Aktionen
 
     private func syncFromHealth() async {
         isImporting = true
@@ -165,6 +211,57 @@ struct SettingsView: View {
         let toDelete = sessions.filter { $0.source == .manual && $0.learned == "Mock-Eintrag" }
         toDelete.forEach { context.delete($0) }
     }
+
+    private func exportJSON() {
+        struct ExportSession: Encodable {
+            let id: String
+            let date: Date
+            let durationMinutes: Int
+            let sessionType: String
+            let source: String
+            let perceivedEffort: Int?
+            let limiters: [String]
+            let learned: String?
+            let hardestPart: String?
+            let improveNext: String?
+            let reflectionCompleted: Bool
+        }
+        let data = sessions.map {
+            ExportSession(
+                id: $0.id.uuidString,
+                date: $0.date,
+                durationMinutes: $0.durationMinutes,
+                sessionType: $0.sessionTypeRaw,
+                source: $0.sourceRaw,
+                perceivedEffort: $0.perceivedEffort,
+                limiters: $0.limiterRaw,
+                learned: $0.learned,
+                hardestPart: $0.hardestPart,
+                improveNext: $0.improveNext,
+                reflectionCompleted: $0.reflectionCompleted
+            )
+        }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let jsonData = try? encoder.encode(data) else { return }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("ClimbReflect-Sessions.json")
+        try? jsonData.write(to: url)
+        exportURL = url
+        showExportSheet = true
+    }
+}
+
+// MARK: - UIActivityViewController wrapper
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }
 
 #Preview {

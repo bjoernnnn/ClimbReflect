@@ -17,9 +17,17 @@ import HealthKit
 
 enum HealthError: LocalizedError {
     case unavailable
+    case authorizationDenied
+    case noClimbingWorkouts
+
     var errorDescription: String? {
         switch self {
-        case .unavailable: "HealthKit ist auf diesem Gerät nicht verfügbar."
+        case .unavailable:
+            "HealthKit ist auf diesem Gerät nicht verfügbar. Der Import funktioniert nur auf einem echten iPhone."
+        case .authorizationDenied:
+            "Zugriff auf Apple Health wurde verweigert. Bitte unter iPhone-Einstellungen → Datenschutz & Sicherheit → Health → ClimbReflect die Leseberechtigung für Workouts erteilen."
+        case .noClimbingWorkouts:
+            "Keine Kletter-Workouts in Apple Health gefunden. Stelle sicher, dass Redpoint Workouts nach Apple Health exportiert (Redpoint → Einstellungen → Apple Health aktivieren)."
         }
     }
 }
@@ -39,6 +47,11 @@ final class RedpointHealthService {
             HKQuantityType(.activeEnergyBurned)
         ]
         try await store.requestAuthorization(toShare: [], read: read)
+        // Nach requestAuthorization prüfen ob tatsächlich Zugriff erteilt wurde
+        let status = store.authorizationStatus(for: HKObjectType.workoutType())
+        if status == .sharingDenied {
+            throw HealthError.authorizationDenied
+        }
     }
 
     /// Importiert alle Kletter-Workouts, die noch nicht in der DB sind.
@@ -53,6 +66,8 @@ final class RedpointHealthService {
             .compactMap(\.workoutUUID) ?? []
         let known = Set(existing)
 
+        if workouts.isEmpty { throw HealthError.noClimbingWorkouts }
+
         var added = 0
         for workout in workouts where !known.contains(workout.uuid) {
             let hr = try? await heartRate(for: workout)
@@ -60,13 +75,14 @@ final class RedpointHealthService {
                 workoutUUID: workout.uuid,
                 date: workout.startDate,
                 durationSeconds: workout.duration,
-                sessionType: .unknown,             // HealthKit kennt nur .climbing
+                sessionType: .unknown,
                 source: .healthKit,
                 avgHeartRate: hr?.avg,
                 maxHeartRate: hr?.max,
                 activeEnergyKcal: activeEnergyKcal(for: workout)
             )
             context.insert(session)
+            NotificationService.shared.scheduleReflectionReminder(for: session)
             added += 1
         }
         if added > 0 { try? context.save() }

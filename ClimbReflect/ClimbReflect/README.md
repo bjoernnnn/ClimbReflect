@@ -1,63 +1,72 @@
 # ClimbReflect
 
-Minimalistische iOS-App (SwiftUI + **SwiftData**, MVVM-nah, iOS 17+) mit dunklem Design,
-diagonalem, gefadetem Berg-Hintergrund, Erfolgen, Fortschritts-Chart und echter
-On-Device-Datenbank. Beim ersten Start mit Mock-Daten befüllt. Optionaler Import von
-Redpoint-Klettersessions über Apple Health (HealthKit).
+iOS-Tagebuch für Klettertraining (SwiftUI + SwiftData, MVVM, iOS 17+). Ergänzt
+die [Redpoint-App](https://www.redpoint.app): Daten kommen per HealthKit-Import,
+du fügst Reflexionen, Stärken/Schwächen und Lernnotizen hinzu.
 
-## Schnellstart (empfohlen, ein Befehl)
+## Schnellstart
 
-Voraussetzung: macOS mit Xcode und [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+Voraussetzung: macOS + Xcode 16+
 
 ```bash
-brew install xcodegen          # falls noch nicht installiert
-cd ClimbReflect
-xcodegen generate              # erzeugt ClimbReflect.xcodeproj
-open ClimbReflect.xcodeproj    # in Xcode öffnen → ▶ im iPhone-Simulator starten
+git clone https://github.com/bjoernnnn/ClimbReflect.git
+open ClimbReflect/ClimbReflect.xcodeproj   # ▶ → iPhone-Simulator
 ```
 
-## Alternativ: manuell in Xcode
+Das committete `.xcodeproj` ist die maßgebliche Projektdefinition. Das `project.yml`
+(XcodeGen-Quelle, drei Ebenen tiefer) dient als Referenz; nach Änderungen daran
+ggf. `xcodegen generate` im Verzeichnis `ClimbReflect/ClimbReflect/` ausführen.
 
-1. Xcode → **File ▸ New ▸ Project ▸ App** (Interface: SwiftUI, Storage: None).
-   Produktname `ClimbReflect`.
-2. Die von Xcode erzeugte `ContentView.swift` und `ClimbReflectApp.swift` **löschen**.
-3. Den gesamten Ordner `ClimbReflect/` aus diesem Paket per Drag & Drop in das
-   Projekt ziehen („Copy items if needed" + „Create groups").
-4. ▶ starten.
+## Redpoint-Import (HealthKit)
 
-## Optional: echter Redpoint-Import (HealthKit)
+Erfordert ein **echtes iPhone** (Simulator hat kein Workout-HealthKit):
 
-Standardmäßig läuft die App mit Mock-Daten (Button oben rechts wirft sonst nur einen
-Hinweis). Für echten Import von Redpoint-Sessions:
+1. In Xcode: **Signing & Capabilities → HealthKit** aktivieren (Entitlement-Datei
+   ist bereits im Repo unter `ClimbReflect/ClimbReflect/ClimbReflect/ClimbReflect.entitlements`).
+2. App starten → **Einstellungen → Jetzt synchronisieren**.
+3. Health-Freigabe bestätigen → Sessions erscheinen automatisch.
 
-1. Target ▸ **Signing & Capabilities** ▸ „+ Capability" ▸ **HealthKit** hinzufügen.
-2. Sicherstellen, dass `NSHealthShareUsageDescription` in der Info.plist steht
-   (beim XcodeGen-Weg bereits enthalten).
-3. Auf einem **echten iPhone** starten (Simulator hat kein vollständiges HealthKit
-   für Workouts), Zugriff erlauben, dann oben rechts auf das Health-Symbol tippen.
+Redpoint schreibt Kletter-Workouts (`.climbing`) inkl. Herzfrequenz und Energie nach
+Apple Health; die App dedupliziert über die HKWorkout-UUID.
 
-Redpoint schreibt Kletter-Workouts (`.climbing`) inkl. Herzfrequenz, Dauer und Energie
-nach Apple Health; die App liest diese und legt sie dedupliziert (über die Workout-UUID)
-als `ClimbSession` an.
+## Features
+
+| Feature | Beschreibung |
+|---------|-------------|
+| Dashboard | Stats, Wochenstreak, Erfolge, Fortschritts-Chart |
+| Tagebuch | RPE, Limiter, Freitext (gelernt / schwierig / verbessern) |
+| Analysen | Limiter-Häufigkeit, RPE-Verlauf, Sessiontypen |
+| Import | Redpoint-Workouts aus Apple Health (echtes Gerät) |
+| Export | JSON-Export aller Sessions (Einstellungen) |
+| Notifications | Opt-in Erinnerung, Session zu reflektieren |
 
 ## Projektstruktur
 
 ```
-ClimbReflect/
-├─ ClimbReflectApp.swift          App-Einstieg, SwiftData-Container, Mock-Seeding
-├─ Theme/Theme.swift              Dunkles Farb-Theme + Karten-Stil
-├─ Background/MountainBackground.swift   Diagonaler, gefadeter Berg (~26 %)
-├─ Models/
-│  ├─ Enums.swift                 SessionType, Limiter, Source
-│  ├─ ClimbSession.swift          @Model – persistente DB-Entität
-│  ├─ Achievement.swift           Erfolge + Statistik-/Wochen-Engine
-│  └─ MockData.swift              Startbefüllung der DB
-├─ Views/
-│  ├─ DashboardView.swift         Hauptscreen
-│  └─ Components/                 AchievementCard, ProgressChartView, StatTile, SessionRow
-└─ Services/RedpointHealthService.swift   HealthKit/Redpoint-Import
+ClimbReflect/                        ← Repo-Wurzel
+├─ ClimbReflect.xcodeproj            ← maßgebliches Xcode-Projekt
+└─ ClimbReflect/                     ← Quellgruppe
+   ├─ ClimbReflect/                  ← Xcode-Sync-Gruppe
+   │  ├─ ClimbReflect/               ← Swift-Quellen
+   │  │  ├─ ClimbReflectApp.swift
+   │  │  ├─ ClimbReflect.entitlements
+   │  │  ├─ Theme/
+   │  │  ├─ Background/
+   │  │  ├─ Models/                  ← ClimbSession, StatsEngine, Enums, MockData
+   │  │  ├─ Services/                ← RedpointHealthService, NotificationService
+   │  │  └─ Views/
+   │  │     ├─ DashboardView.swift
+   │  │     ├─ SessionDetailView.swift
+   │  │     ├─ AllSessionsView.swift
+   │  │     ├─ ManualSessionView.swift
+   │  │     ├─ SettingsView.swift
+   │  │     └─ Components/
+   │  ├─ project.yml                 ← XcodeGen-Referenz
+   │  └─ README.md                   ← diese Datei
+   └─ ClimbReflectTests/             ← Unit-Tests (StatsEngine)
 ```
 
 ## Daten zurücksetzen
 
-App vom Simulator/Gerät löschen und neu starten – dann wird wieder frisch geseedet.
+App im Simulator/Gerät löschen und neu installieren.  
+Oder: **Einstellungen → Beispieldaten löschen** (DEBUG-Build).

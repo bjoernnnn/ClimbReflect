@@ -328,12 +328,16 @@ struct SessionDetailView: View {
     }
 
     private func updateReflectionCompleted() {
+        let wasCompleted = session.reflectionCompleted
         session.reflectionCompleted =
             session.perceivedEffort != nil ||
             !session.limiterRaw.isEmpty ||
             session.learned != nil ||
             session.hardestPart != nil ||
             session.improveNext != nil
+        if !wasCompleted && session.reflectionCompleted {
+            NotificationService.shared.cancelReminder(for: session.id)
+        }
     }
 
     // MARK: - Textfelder

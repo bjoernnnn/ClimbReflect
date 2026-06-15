@@ -41,7 +41,11 @@ struct DashboardView: View {
 
                         ProgressChartView(points: weekly)
 
+                        RPETrendView(sessions: sessions)
+
                         LimiterFrequencyView(sessions: sessions)
+
+                        SessionTypeChartView(sessions: sessions)
 
                         recentSessions
                     }
