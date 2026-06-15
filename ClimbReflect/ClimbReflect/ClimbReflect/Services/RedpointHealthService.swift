@@ -17,15 +17,12 @@ import HealthKit
 
 enum HealthError: LocalizedError {
     case unavailable
-    case authorizationDenied
     case noClimbingWorkouts
 
     var errorDescription: String? {
         switch self {
         case .unavailable:
             "HealthKit ist auf diesem Gerät nicht verfügbar. Der Import funktioniert nur auf einem echten iPhone."
-        case .authorizationDenied:
-            "Zugriff auf Apple Health wurde verweigert. Bitte unter iPhone-Einstellungen → Datenschutz & Sicherheit → Health → ClimbReflect die Leseberechtigung für Workouts erteilen."
         case .noClimbingWorkouts:
             "Keine Kletter-Workouts in Apple Health gefunden. Stelle sicher, dass Redpoint Workouts nach Apple Health exportiert (Redpoint → Einstellungen → Apple Health aktivieren)."
         }
@@ -46,12 +43,10 @@ final class RedpointHealthService {
             HKQuantityType(.heartRate),
             HKQuantityType(.activeEnergyBurned)
         ]
+        // HealthKit erlaubt keine direkte Prüfung von Leserechten (Privacy-Design).
+        // Einfach anfordern und danach die Query ausführen – bei Ablehnung liefert
+        // die Query ein leeres Ergebnis, was wir gesondert behandeln.
         try await store.requestAuthorization(toShare: [], read: read)
-        // Nach requestAuthorization prüfen ob tatsächlich Zugriff erteilt wurde
-        let status = store.authorizationStatus(for: HKObjectType.workoutType())
-        if status == .sharingDenied {
-            throw HealthError.authorizationDenied
-        }
     }
 
     /// Importiert alle Kletter-Workouts, die noch nicht in der DB sind.
