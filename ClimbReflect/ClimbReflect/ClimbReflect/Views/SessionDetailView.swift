@@ -4,6 +4,9 @@ import SwiftData
 struct SessionDetailView: View {
     @Bindable var session: ClimbSession
     var onFertig: (() -> Void)? = nil
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+    @State private var showDeleteConfirm = false
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -44,13 +47,29 @@ struct SessionDetailView: View {
         }
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            if let onFertig {
-                ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
+                if let onFertig {
                     Button("Fertig", action: onFertig)
                         .fontWeight(.semibold)
                         .foregroundStyle(Theme.accent)
+                } else {
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .foregroundStyle(Theme.danger)
                 }
             }
+        }
+        .confirmationDialog("Session löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Löschen", role: .destructive) {
+                context.delete(session)
+                dismiss()
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Die Session und alle Reflexionsdaten werden unwiderruflich gelöscht.")
         }
         .preferredColorScheme(.dark)
     }

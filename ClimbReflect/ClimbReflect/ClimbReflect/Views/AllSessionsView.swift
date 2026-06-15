@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct AllSessionsView: View {
+    @Environment(\.modelContext) private var context
     @Query(sort: \ClimbSession.date, order: .reverse) private var sessions: [ClimbSession]
 
     var body: some View {
@@ -13,24 +14,33 @@ struct AllSessionsView: View {
                     .font(.subheadline)
                     .foregroundStyle(Theme.textSecondary)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 10) {
-                        ForEach(sessions) { session in
-                            NavigationLink(destination: SessionDetailView(session: session)) {
-                                SessionRow(session: session)
-                            }
-                            .buttonStyle(.plain)
+                List {
+                    ForEach(sessions) { session in
+                        NavigationLink(destination: SessionDetailView(session: session)) {
+                            SessionRow(session: session)
                         }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(.init(top: 5, leading: 20, bottom: 5, trailing: 20))
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
+                    .onDelete(perform: delete)
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
         .navigationTitle("Alle Sessions")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar { EditButton() }
         .preferredColorScheme(.dark)
+        .tint(Theme.accent)
+    }
+
+    private func delete(at offsets: IndexSet) {
+        for index in offsets {
+            context.delete(sessions[index])
+        }
     }
 }
 
