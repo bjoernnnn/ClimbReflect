@@ -7,13 +7,13 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		1151C11E2FE094D600D73FFD /* KletterTagebuch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KletterTagebuch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1151C11E2FE094D600D73FFD /* ClimbReflect.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClimbReflect.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1151C1202FE094D600D73FFD /* KletterTagebuch */ = {
+		1151C1202FE094D600D73FFD /* ClimbReflect */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = KletterTagebuch;
+			path = ClimbReflect;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +32,7 @@
 		1151C1152FE094D600D73FFD = {
 			isa = PBXGroup;
 			children = (
-				1151C1202FE094D600D73FFD /* KletterTagebuch */,
+				1151C1202FE094D600D73FFD /* ClimbReflect */,
 				1151C11F2FE094D600D73FFD /* Products */,
 			);
 			sourceTree = "<group>";
@@ -40,7 +40,7 @@
 		1151C11F2FE094D600D73FFD /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				1151C11E2FE094D600D73FFD /* KletterTagebuch.app */,
+				1151C11E2FE094D600D73FFD /* ClimbReflect.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1151C11D2FE094D600D73FFD /* KletterTagebuch */ = {
+		1151C11D2FE094D600D73FFD /* ClimbReflect */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1151C1292FE094D800D73FFD /* Build configuration list for PBXNativeTarget "KletterTagebuch" */;
+			buildConfigurationList = 1151C1292FE094D800D73FFD /* Build configuration list for PBXNativeTarget "ClimbReflect" */;
 			buildPhases = (
 				1151C11A2FE094D600D73FFD /* Sources */,
 				1151C11B2FE094D600D73FFD /* Frameworks */,
@@ -61,13 +61,13 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				1151C1202FE094D600D73FFD /* KletterTagebuch */,
+				1151C1202FE094D600D73FFD /* ClimbReflect */,
 			);
-			name = KletterTagebuch;
+			name = ClimbReflect;
 			packageProductDependencies = (
 			);
 			productName = KletterTagebuch;
-			productReference = 1151C11E2FE094D600D73FFD /* KletterTagebuch.app */;
+			productReference = 1151C11E2FE094D600D73FFD /* ClimbReflect.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -85,7 +85,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 1151C1192FE094D600D73FFD /* Build configuration list for PBXProject "KletterTagebuch" */;
+			buildConfigurationList = 1151C1192FE094D600D73FFD /* Build configuration list for PBXProject "ClimbReflect" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -99,7 +99,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				1151C11D2FE094D600D73FFD /* KletterTagebuch */,
+				1151C11D2FE094D600D73FFD /* ClimbReflect */,
 			);
 		};
 /* End PBXProject section */
@@ -178,7 +178,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -236,7 +236,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -313,7 +313,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1151C1192FE094D600D73FFD /* Build configuration list for PBXProject "KletterTagebuch" */ = {
+		1151C1192FE094D600D73FFD /* Build configuration list for PBXProject "ClimbReflect" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1151C1272FE094D800D73FFD /* Debug */,
@@ -322,7 +322,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1151C1292FE094D800D73FFD /* Build configuration list for PBXNativeTarget "KletterTagebuch" */ = {
+		1151C1292FE094D800D73FFD /* Build configuration list for PBXNativeTarget "ClimbReflect" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1151C12A2FE094D800D73FFD /* Debug */,

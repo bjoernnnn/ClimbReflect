@@ -1,0 +1,73 @@
+import Foundation
+import SwiftData
+
+// MARK: - SwiftData-Modell (echte, persistente On-Device-Datenbank)
+
+@Model
+final class ClimbSession {
+    @Attribute(.unique) var id: UUID
+    var workoutUUID: UUID?            // HKWorkout.uuid → Dedupe gegen Doppel-Import aus Redpoint
+    var date: Date
+    var durationSeconds: Double
+    var sessionTypeRaw: String
+    var sourceRaw: String
+
+    // Objektive Daten (kommen via HealthKit von Redpoint – alle optional)
+    var avgHeartRate: Double?
+    var maxHeartRate: Double?
+    var activeEnergyKcal: Double?
+
+    // Subjektive Reflexion
+    var reflectionCompleted: Bool
+    var perceivedEffort: Int?         // RPE 1–10
+    var limiterRaw: [String]          // Limiter.rawValue
+    var learned: String?
+    var hardestPart: String?
+    var improveNext: String?
+
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(id: UUID = UUID(),
+         workoutUUID: UUID? = nil,
+         date: Date,
+         durationSeconds: Double,
+         sessionType: SessionType = .unknown,
+         source: SessionSource = .manual,
+         avgHeartRate: Double? = nil,
+         maxHeartRate: Double? = nil,
+         activeEnergyKcal: Double? = nil,
+         reflectionCompleted: Bool = false,
+         perceivedEffort: Int? = nil,
+         limiters: [Limiter] = [],
+         learned: String? = nil,
+         hardestPart: String? = nil,
+         improveNext: String? = nil) {
+        self.id = id
+        self.workoutUUID = workoutUUID
+        self.date = date
+        self.durationSeconds = durationSeconds
+        self.sessionTypeRaw = sessionType.rawValue
+        self.sourceRaw = source.rawValue
+        self.avgHeartRate = avgHeartRate
+        self.maxHeartRate = maxHeartRate
+        self.activeEnergyKcal = activeEnergyKcal
+        self.reflectionCompleted = reflectionCompleted
+        self.perceivedEffort = perceivedEffort
+        self.limiterRaw = limiters.map(\.rawValue)
+        self.learned = learned
+        self.hardestPart = hardestPart
+        self.improveNext = improveNext
+        self.createdAt = .now
+        self.updatedAt = .now
+    }
+}
+
+// MARK: - Komfort-Helfer
+
+extension ClimbSession {
+    var sessionType: SessionType { SessionType(rawValue: sessionTypeRaw) ?? .unknown }
+    var source: SessionSource { SessionSource(rawValue: sourceRaw) ?? .manual }
+    var limiters: [Limiter] { limiterRaw.compactMap(Limiter.init(rawValue:)) }
+    var durationMinutes: Int { Int(durationSeconds / 60) }
+}
