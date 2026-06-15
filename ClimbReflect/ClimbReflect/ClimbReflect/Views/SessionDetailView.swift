@@ -3,6 +3,7 @@ import SwiftData
 
 struct SessionDetailView: View {
     @Bindable var session: ClimbSession
+    var onFertig: (() -> Void)? = nil
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -42,6 +43,15 @@ struct SessionDetailView: View {
             }
         }
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            if let onFertig {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Fertig", action: onFertig)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+        }
         .preferredColorScheme(.dark)
     }
 

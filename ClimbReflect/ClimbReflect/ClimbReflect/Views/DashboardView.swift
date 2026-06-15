@@ -7,6 +7,7 @@ struct DashboardView: View {
 
     @State private var importMessage: String?
     @State private var isImporting = false
+    @State private var showAddSession = false
 
     private var achievements: [Achievement] { StatsEngine.achievements(for: sessions) }
     private var weekly: [WeeklyPoint] { StatsEngine.weeklyMinutes(sessions) }
@@ -39,15 +40,27 @@ struct DashboardView: View {
             }
             .navigationTitle("")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showAddSession = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .tint(Theme.accent)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task { await importFromRedpoint() }
                     } label: {
                         Image(systemName: isImporting ? "arrow.triangle.2.circlepath" : "heart.text.square")
                     }
+                    .accessibilityLabel("Aus Apple Health importieren")
                     .tint(Theme.accent)
                     .disabled(isImporting)
                 }
+            }
+            .sheet(isPresented: $showAddSession) {
+                ManualSessionView()
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .alert("Apple Health / Redpoint",
@@ -108,11 +121,23 @@ struct DashboardView: View {
                 }
             }
             if sessions.isEmpty {
-                Text("Noch keine Sessions.")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 24)
+                Button { showAddSession = true } label: {
+                    VStack(spacing: 12) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 44))
+                            .foregroundStyle(Theme.accent)
+                        Text("Erste Session anlegen")
+                            .font(.headline)
+                            .foregroundStyle(Theme.textPrimary)
+                        Text("Oder importiere deine Einheiten aus Apple Health")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 32)
+                }
+                .buttonStyle(.plain)
             } else {
                 ForEach(sessions.prefix(5)) { session in
                     NavigationLink(destination: SessionDetailView(session: session)) {
