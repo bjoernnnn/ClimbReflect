@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if canImport(HealthKit)
+import HealthKit
+#endif
 
 struct DashboardView: View {
     @Environment(\.modelContext) private var context
@@ -8,6 +11,14 @@ struct DashboardView: View {
     @State private var importMessage: String?
     @State private var isImporting = false
     @State private var showAddSession = false
+
+    private var healthKitAvailable: Bool {
+        #if canImport(HealthKit)
+        return HKHealthStore.isHealthDataAvailable()
+        #else
+        return false
+        #endif
+    }
 
     private var achievements: [Achievement] { StatsEngine.achievements(for: sessions) }
     private var weekly: [WeeklyPoint] { StatsEngine.weeklyMinutes(sessions) }
@@ -49,14 +60,16 @@ struct DashboardView: View {
                     .tint(Theme.accent)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await importFromRedpoint() }
-                    } label: {
-                        Image(systemName: isImporting ? "arrow.triangle.2.circlepath" : "heart.text.square")
+                    if healthKitAvailable {
+                        Button {
+                            Task { await importFromRedpoint() }
+                        } label: {
+                            Image(systemName: isImporting ? "arrow.triangle.2.circlepath" : "heart.text.square")
+                        }
+                        .accessibilityLabel("Aus Apple Health importieren")
+                        .tint(Theme.accent)
+                        .disabled(isImporting)
                     }
-                    .accessibilityLabel("Aus Apple Health importieren")
-                    .tint(Theme.accent)
-                    .disabled(isImporting)
                 }
             }
             .sheet(isPresented: $showAddSession) {
