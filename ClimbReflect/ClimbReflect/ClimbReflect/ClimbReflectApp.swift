@@ -11,8 +11,9 @@ struct ClimbReflectApp: App {
         } catch {
             fatalError("SwiftData-Container konnte nicht erstellt werden: \(error)")
         }
-        // Beim ersten Start mit Mock-Daten befüllen.
+        #if DEBUG
         MockData.seedIfNeeded(container.mainContext)
+        #endif
     }
 
     var body: some Scene {

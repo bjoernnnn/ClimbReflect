@@ -22,7 +22,7 @@ enum MockData {
         let cal = Calendar.current
         let now = Date()
         func daysAgo(_ d: Int, hour: Int = 18) -> Date {
-            let base = cal.date(byAdding: .day, value: -d, to: now)!
+            guard let base = cal.date(byAdding: .day, value: -d, to: now) else { return now }
             return cal.date(bySettingHour: hour, minute: 0, second: 0, of: base) ?? base
         }
 
