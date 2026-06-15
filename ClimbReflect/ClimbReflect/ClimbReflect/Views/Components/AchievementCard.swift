@@ -31,7 +31,7 @@ struct AchievementCard: View {
                     .scaleEffect(x: 1, y: 0.7, anchor: .center)
             }
         }
-        .frame(width: 132, height: 132, alignment: .topLeading)
+        .frame(minWidth: 120, maxWidth: 160, minHeight: 120, alignment: .topLeading)
         .card(padding: 14)
         .opacity(achievement.isUnlocked ? 1 : 0.7)
         .overlay(alignment: .topTrailing) {

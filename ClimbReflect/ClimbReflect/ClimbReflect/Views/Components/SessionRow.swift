@@ -40,10 +40,11 @@ struct SessionRow: View {
                     Text("RPE \(rpe)")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(Theme.textTertiary)
-                } else {
+                }
+                if !session.reflectionCompleted {
                     Text("Reflexion offen")
                         .font(.caption2)
-                        .foregroundStyle(Theme.accent.opacity(0.7))
+                        .foregroundStyle(Theme.accent.opacity(0.8))
                 }
             }
         }

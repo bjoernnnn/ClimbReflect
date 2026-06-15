@@ -171,6 +171,7 @@ struct SessionDetailView: View {
             reflectionField(
                 "Was habe ich gelernt?",
                 icon: "lightbulb.fill",
+                placeholder: "z. B. Hüfteinsatz beim Überhang verbessert…",
                 text: Binding(
                     get: { session.learned ?? "" },
                     set: { session.learned = $0.isEmpty ? nil : $0 }
@@ -180,6 +181,7 @@ struct SessionDetailView: View {
             reflectionField(
                 "Was war am schwersten?",
                 icon: "exclamationmark.triangle.fill",
+                placeholder: "z. B. Fingerkraft am Ende der Session…",
                 text: Binding(
                     get: { session.hardestPart ?? "" },
                     set: { session.hardestPart = $0.isEmpty ? nil : $0 }
@@ -189,6 +191,7 @@ struct SessionDetailView: View {
             reflectionField(
                 "Was will ich verbessern?",
                 icon: "arrow.up.circle.fill",
+                placeholder: "z. B. Mehr Fokus auf Füße und Balance…",
                 text: Binding(
                     get: { session.improveNext ?? "" },
                     set: { session.improveNext = $0.isEmpty ? nil : $0 }
@@ -335,23 +338,33 @@ struct SessionDetailView: View {
 
     // MARK: - Textfelder
 
-    private func reflectionField(_ title: String, icon: String, text: Binding<String>) -> some View {
+    private func reflectionField(_ title: String, icon: String, placeholder: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(title, systemImage: icon)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.textSecondary)
 
-            TextEditor(text: text)
-                .font(.subheadline)
-                .foregroundStyle(Theme.textPrimary)
-                .scrollContentBackground(.hidden)
-                .frame(minHeight: 72)
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
-                .onChange(of: text.wrappedValue) { _, _ in
-                    updateReflectionCompleted()
-                    session.updatedAt = .now
+            ZStack(alignment: .topLeading) {
+                if text.wrappedValue.isEmpty {
+                    Text(placeholder)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textTertiary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 18)
+                        .allowsHitTesting(false)
                 }
+                TextEditor(text: text)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textPrimary)
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 72)
+                    .padding(10)
+            }
+            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
+            .onChange(of: text.wrappedValue) { _, _ in
+                updateReflectionCompleted()
+                session.updatedAt = .now
+            }
         }
     }
 }

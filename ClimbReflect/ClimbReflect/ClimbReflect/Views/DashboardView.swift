@@ -11,6 +11,7 @@ struct DashboardView: View {
     @State private var importMessage: String?
     @State private var isImporting = false
     @State private var showAddSession = false
+    @State private var showSettings = false
 
     private var healthKitAvailable: Bool {
         #if canImport(HealthKit)
@@ -52,10 +53,17 @@ struct DashboardView: View {
             .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showAddSession = true
-                    } label: {
-                        Image(systemName: "plus")
+                    HStack(spacing: 16) {
+                        Button {
+                            showAddSession = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
                     }
                     .tint(Theme.accent)
                 }
@@ -74,6 +82,9 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showAddSession) {
                 ManualSessionView()
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .alert("Apple Health / Redpoint",

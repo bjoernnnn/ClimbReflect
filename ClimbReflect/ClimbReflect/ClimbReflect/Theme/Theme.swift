@@ -12,7 +12,7 @@ enum Theme {
     // Text
     static let textPrimary   = Color(hex: 0xF2F5F9)
     static let textSecondary = Color(hex: 0x8B97A7)
-    static let textTertiary  = Color(hex: 0x5C6675)
+    static let textTertiary  = Color(hex: 0x7A8799)
 
     // Akzente
     static let accent  = Color(hex: 0x37E29A)         // Mint/Grün
