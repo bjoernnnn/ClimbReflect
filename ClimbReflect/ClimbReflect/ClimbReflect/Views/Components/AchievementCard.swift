@@ -20,18 +20,21 @@ struct AchievementCard: View {
                 Text(achievement.title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(achievement.isUnlocked ? Theme.textPrimary : Theme.textSecondary)
+                    .lineLimit(2)
+                    .frame(minHeight: 36, alignment: .topLeading)
                 Text(achievement.subtitle)
                     .font(.caption2)
                     .foregroundStyle(Theme.textTertiary)
+                    .lineLimit(2)
             }
 
-            if !achievement.isUnlocked {
-                ProgressView(value: achievement.progress)
-                    .tint(Theme.accent)
-                    .scaleEffect(x: 1, y: 0.7, anchor: .center)
-            }
+            // Fortschrittsbalken – Platz immer reserviert, damit Höhe konstant bleibt
+            ProgressView(value: achievement.isUnlocked ? 1.0 : achievement.progress)
+                .tint(Theme.accent)
+                .scaleEffect(x: 1, y: 0.7, anchor: .center)
+                .opacity(achievement.isUnlocked ? 0 : 1)
         }
-        .frame(minWidth: 120, maxWidth: 160, minHeight: 120, alignment: .topLeading)
+        .frame(width: 150, height: 150, alignment: .topLeading)
         .card(padding: 14)
         .opacity(achievement.isUnlocked ? 1 : 0.7)
         .overlay(alignment: .topTrailing) {

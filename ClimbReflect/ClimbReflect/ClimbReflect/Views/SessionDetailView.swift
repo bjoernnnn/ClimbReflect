@@ -22,18 +22,24 @@ struct SessionDetailView: View {
         ZStack {
             MountainBackground()
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    sessionHeader
-                    if session.avgHeartRate != nil || session.activeEnergyKcal != nil {
-                        redpointCard
-                    }
-                    ascentsCard
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: []) {
+                    // ── Übersicht (füllt Viewport exakt – wirkt wie eigener Screen) ──
+                    overviewSection
+                        .containerRelativeFrame(.vertical, alignment: .top)
+
+                    // ── Begehungen (weich einrastend beim Scrollen) ──
+                    ascentsSection
+                        .padding(.top, 4)
+
+                    // ── Reflexion ──
                     reflectionCard
+                        .padding(.top, 16)
+                        .padding(.bottom, 40)
                 }
+                .scrollTargetLayout()
                 .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 40)
             }
+            .scrollTargetBehavior(.viewAligned)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -77,6 +83,47 @@ struct SessionDetailView: View {
             Text("Die Session und alle Reflexionsdaten werden unwiderruflich gelöscht.")
         }
         .preferredColorScheme(.dark)
+    }
+
+    // MARK: - Übersicht (erster Screen)
+
+    private var overviewSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sessionHeader
+            if session.avgHeartRate != nil || session.activeEnergyKcal != nil {
+                redpointCard
+            }
+            // Kurzstat-Leiste
+            let tops = session.ascents.filter { $0.result == .top }.count
+            let total = session.ascents.count
+            if total > 0 {
+                HStack(spacing: 12) {
+                    Label("\(tops) Top\(tops == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(Theme.accent)
+                    Label("\(total - tops) Versuch\(total - tops == 1 ? "" : "e")",
+                          systemImage: "arrow.clockwise.circle")
+                        .foregroundStyle(Theme.gold)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                    Text("Begehungen")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                }
+                .font(.subheadline.weight(.semibold))
+                .card()
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 8)
+    }
+
+    // MARK: - Begehungen-Sektion (zweiter Screen)
+
+    private var ascentsSection: some View {
+        ascentsCard
     }
 
     // MARK: - Header

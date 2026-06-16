@@ -116,67 +116,73 @@ struct LiveSessionView: View {
         .navigationBarBackButtonHidden(true)
     }
 
-    // MARK: - Tab 1 (Klettern): Session-Info + Verlauf
+    // MARK: - Tab 1 (Klettern): Session-Info + Verlauf (Weather-App-Muster)
 
     private var sessionInfoPage: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                climbingStatsSection
-                    .containerRelativeFrame(.vertical)
+        // GeometryReader außerhalb der ScrollView: einzige zuverlässige
+        // Methode auf watchOS, um die exakt verfügbare Höhe zu messen.
+        GeometryReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
 
-                if !workoutManager.attempts.isEmpty {
-                    historySection.padding(.bottom, 12)
+                    // ── Seite 1: Stats ──
+                    VStack(spacing: 8) {
+                        Spacer(minLength: 0)
+
+                        Text(elapsedFormatted)
+                            .font(.system(.title, design: .monospaced, weight: .bold))
+                            .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
+
+                        if !isLuminanceReduced { vitalsRow }
+
+                        HStack(spacing: 8) {
+                            statBadge(value: "\(workoutManager.attempts.count)",
+                                      label: "Versuche", icon: "figure.climbing",
+                                      color: WatchTheme.textSecond)
+                            statBadge(value: "\(topCount)",
+                                      label: "Tops", icon: "checkmark.circle.fill",
+                                      color: WatchTheme.accent)
+                        }
+
+                        if workoutManager.pendingClassifications > 0 { pendingBanner }
+
+                        Spacer(minLength: 0)
+
+                        if !workoutManager.attempts.isEmpty { scrollHint }
+
+                        actionStateIndicator.padding(.bottom, 4)
+                    }
+                    // Exakte Höhe via GeometryReader → Spacer füllen korrekt
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .padding(.horizontal, 8)
+                    .overlay {
+                        if workoutManager.attemptState == .awaitingResult {
+                            quickResultOverlay
+                        }
+                    }
+
+                    // ── Seite 2: Verlauf ─ durch Scrollen erreichbar ──
+                    if !workoutManager.attempts.isEmpty {
+                        LazyVStack(spacing: 5) {
+                            ForEach(workoutManager.attempts.reversed()) { attempt in
+                                ascentRow(attempt)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.top, 12)
+                        .padding(.bottom, 20)
+                        .animation(.spring(duration: 0.3), value: workoutManager.attempts.count)
+                    }
                 }
+                .scrollTargetLayout()
             }
+            .scrollTargetBehavior(.viewAligned)
         }
         .background(WatchTheme.bg)
         .sheet(item: $selectedAttempt) { attempt in
             AscentDetailView(attempt: attempt) {
                 workoutManager.removeAttempt(id: attempt.id)
-            }
-        }
-    }
-
-    private var climbingStatsSection: some View {
-        ZStack {
-            VStack(spacing: 8) {
-                Spacer(minLength: 0)
-
-                Text(elapsedFormatted)
-                    .font(.system(.title, design: .monospaced, weight: .bold))
-                    .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
-
-                if !isLuminanceReduced {
-                    vitalsRow
-                }
-
-                HStack(spacing: 8) {
-                    statBadge(value: "\(workoutManager.attempts.count)",
-                              label: "Versuche", icon: "figure.climbing", color: WatchTheme.textSecond)
-                    statBadge(value: "\(topCount)",
-                              label: "Tops", icon: "checkmark.circle.fill", color: WatchTheme.accent)
-                }
-
-                if workoutManager.pendingClassifications > 0 {
-                    pendingBanner
-                }
-
-                Spacer(minLength: 0)
-
-                if !workoutManager.attempts.isEmpty {
-                    scrollHint
-                }
-
-                actionStateIndicator
-                    .padding(.bottom, 4)
-            }
-            // frame(maxHeight:) is essential: ohne es wissen die Spacer
-            // nicht wie hoch der ZStack ist und füllen ihn nicht aus.
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal, 8)
-
-            if workoutManager.attemptState == .awaitingResult {
-                quickResultOverlay
             }
         }
     }
@@ -310,20 +316,6 @@ struct LiveSessionView: View {
             .padding(.horizontal, 8)
         }
         .background(WatchTheme.bg)
-    }
-
-    // MARK: - Verlauf-Sektion
-
-    private var historySection: some View {
-        LazyVStack(spacing: 5) {
-            ForEach(workoutManager.attempts.reversed()) { attempt in
-                ascentRow(attempt)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.top, 16)
-        .animation(.spring(duration: 0.3), value: workoutManager.attempts.count)
     }
 
     private func ascentRow(_ attempt: WatchAttempt) -> some View {

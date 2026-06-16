@@ -33,13 +33,20 @@ struct AscentRowView: View {
                         .background(Capsule().fill(Theme.gold.opacity(0.12)))
                     }
                 }
-                if ascent.attempts > 1 || ascent.result != .top {
-                    Text(ascent.result == .top
-                         ? "\(ascent.attempts) Versuche bis zum Top"
-                         : "\(ascent.attempts) Versuch\(ascent.attempts == 1 ? "" : "e")")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
+                HStack(spacing: 8) {
+                    if ascent.attempts > 1 || ascent.result != .top {
+                        Text(ascent.result == .top
+                             ? "\(ascent.attempts) Versuche bis zum Top"
+                             : "\(ascent.attempts) Versuch\(ascent.attempts == 1 ? "" : "e")")
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    if ascent.altitudeGain >= 1 {
+                        Label(String(format: "%.0f m", ascent.altitudeGain),
+                              systemImage: "arrow.up.right")
+                            .foregroundStyle(Theme.textTertiary)
+                    }
                 }
+                .font(.caption)
             }
 
             Spacer()
