@@ -17,6 +17,8 @@ struct SessionDetailView: View {
     }()
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+    private let twoColumns = [GridItem(.flexible()), GridItem(.flexible())]
+    private let ropeTypes: [SessionType] = [.lead, .topRope, .autoBelay]
 
     var body: some View {
         ZStack {
@@ -80,7 +82,8 @@ struct SessionDetailView: View {
     private var overviewSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             sessionHeader
-            if session.avgHeartRate != nil || session.activeEnergyKcal != nil {
+            let showAlt = ropeTypes.contains(session.sessionType) && session.altitudeTotalGain > 0
+            if session.avgHeartRate != nil || session.activeEnergyKcal != nil || showAlt {
                 redpointCard
             }
             // Kurzstat-Leiste
@@ -148,27 +151,47 @@ struct SessionDetailView: View {
     // MARK: - Vitalwerte
 
     private var redpointCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        let showAlt = ropeTypes.contains(session.sessionType) && session.altitudeTotalGain > 0
+        let metricCount = (session.avgHeartRate != nil ? 1 : 0)
+            + (session.maxHeartRate != nil ? 1 : 0)
+            + (session.activeEnergyKcal != nil ? 1 : 0)
+            + (showAlt ? 1 : 0)
+        return VStack(alignment: .leading, spacing: 14) {
             Label("Vitalwerte", systemImage: "heart.fill")
                 .font(.headline)
                 .foregroundStyle(Theme.textPrimary)
 
-            HStack(spacing: 10) {
-                if let avg = session.avgHeartRate {
-                    metricTile("Ø HF", value: "\(Int(avg)) bpm",
-                               symbol: "heart.fill", color: Theme.danger)
+            if metricCount >= 4 {
+                LazyVGrid(columns: twoColumns, spacing: 10) {
+                    metricsContent(showAlt: showAlt)
                 }
-                if let max = session.maxHeartRate {
-                    metricTile("Max HF", value: "\(Int(max)) bpm",
-                               symbol: "heart.fill", color: Theme.danger.opacity(0.7))
-                }
-                if let kcal = session.activeEnergyKcal {
-                    metricTile("Energie", value: "\(Int(kcal)) kcal",
-                               symbol: "flame.fill", color: Theme.gold)
+            } else {
+                HStack(spacing: 10) {
+                    metricsContent(showAlt: showAlt)
                 }
             }
         }
         .card()
+    }
+
+    @ViewBuilder
+    private func metricsContent(showAlt: Bool) -> some View {
+        if let avg = session.avgHeartRate {
+            metricTile("Ø HF", value: "\(Int(avg)) bpm",
+                       symbol: "heart.fill", color: Theme.danger)
+        }
+        if let max = session.maxHeartRate {
+            metricTile("Max HF", value: "\(Int(max)) bpm",
+                       symbol: "heart.fill", color: Theme.danger.opacity(0.7))
+        }
+        if let kcal = session.activeEnergyKcal {
+            metricTile("Energie", value: "\(Int(kcal)) kcal",
+                       symbol: "flame.fill", color: Theme.gold)
+        }
+        if showAlt {
+            metricTile("Höhenmeter", value: "\(Int(session.altitudeTotalGain)) m",
+                       symbol: "arrow.up.forward", color: Theme.accent)
+        }
     }
 
     private func metricTile(_ label: String, value: String, symbol: String, color: Color) -> some View {

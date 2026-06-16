@@ -16,6 +16,7 @@ final class ClimbSession {
     var avgHeartRate: Double?
     var maxHeartRate: Double?
     var activeEnergyKcal: Double?
+    var altitudeTotalGain: Double = 0
 
     // Subjektive Reflexion
     var reflectionCompleted: Bool = false

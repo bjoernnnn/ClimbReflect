@@ -6,7 +6,7 @@ struct ClimbReflectApp: App {
     let container: ModelContainer
 
     init() {
-        let schema = Schema([ClimbSession.self, Ascent.self])
+        let schema = Schema([ClimbSession.self, Ascent.self, Project.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {

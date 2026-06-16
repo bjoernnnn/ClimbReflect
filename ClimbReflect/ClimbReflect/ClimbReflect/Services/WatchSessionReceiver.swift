@@ -114,6 +114,8 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             activeEnergyKcal: dto.activeEnergyKcal
         )
 
+        climbSession.altitudeTotalGain = dto.altitudeTotalGain
+
         // RPE aus dem Fragebogen
         if let rpe = dto.rpe { climbSession.perceivedEffort = rpe }
 

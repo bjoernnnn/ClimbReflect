@@ -262,6 +262,18 @@ final class WorkoutManager: NSObject, ObservableObject {
         return dto
     }
 
+    /// Session verwerfen – kein HKWorkout wird gespeichert, kein DTO gesendet.
+    func discardWorkout() {
+        detector.stopMotionDetection()
+        timer?.invalidate()
+        timer = nil
+        session?.end()  // end() ohne finishWorkout() → HKWorkout wird nicht geschrieben
+        Task { await altimeter.stop() }
+        clearLiveStatus()
+        WKInterfaceDevice.current().play(.failure)
+        finishSession()
+    }
+
     /// Reset erst NACH Fragebogen + Zusammenfassung aufrufen,
     /// damit LiveSessionView nicht vorzeitig abgebaut wird.
     func finishSession() {

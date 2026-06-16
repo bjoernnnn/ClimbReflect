@@ -16,6 +16,7 @@ struct LiveSessionView: View {
     @State private var navPath = [WatchNavStep]()
     @State private var sessionDTO: WatchSessionDTO? = nil
     @State private var selectedAttempt: WatchAttempt? = nil
+    @State private var showDiscardConfirm = false
 
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
@@ -64,6 +65,14 @@ struct LiveSessionView: View {
             }
             Button("Weiter", role: .cancel) {}
         }
+        .confirmationDialog("Session verwerfen?", isPresented: $showDiscardConfirm, titleVisibility: .visible) {
+            Button("Verwerfen", role: .destructive) {
+                workoutManager.discardWorkout()
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Diese Session wird nicht gespeichert.")
+        }
         .navigationDestination(for: WatchNavStep.self) { step in
             switch step {
             case .questionnaire:
@@ -101,6 +110,14 @@ struct LiveSessionView: View {
                 }
             }
             Button("Weiter", role: .cancel) {}
+        }
+        .confirmationDialog("Training verwerfen?", isPresented: $showDiscardConfirm, titleVisibility: .visible) {
+            Button("Verwerfen", role: .destructive) {
+                workoutManager.discardWorkout()
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Dieses Training wird nicht gespeichert.")
         }
         .navigationDestination(for: WatchNavStep.self) { step in
             switch step {
@@ -309,10 +326,6 @@ struct LiveSessionView: View {
                 vitalsRow
                     .opacity(isLuminanceReduced ? 0.6 : 1.0)
 
-                statBadge(value: "\(Int(workoutManager.activeEnergyKcal))",
-                          label: "kcal", icon: "flame.fill", color: WatchTheme.gold)
-                    .frame(maxWidth: .infinity)
-
                 Spacer(minLength: 0).frame(height: 8)
             }
             .padding(.horizontal, 8)
@@ -400,6 +413,17 @@ struct LiveSessionView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
                     .background(WatchTheme.danger.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+
+            Button { showDiscardConfirm = true } label: {
+                Label("Verwerfen", systemImage: "trash")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(WatchTheme.textTert)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                    .background(WatchTheme.elevated)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)

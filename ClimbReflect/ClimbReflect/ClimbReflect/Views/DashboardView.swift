@@ -33,8 +33,19 @@ struct DashboardView: View {
     private var inProgressAchievements: [Achievement] { achievements.filter { !$0.isUnlocked } }
     private var formSignal: StatsEngine.FormSignal { StatsEngine.formSignal(sessions) }
 
-    private var heroGrade: (grade: String, system: GradeSystem)? {
-        let tops = sessions.filter(\.isClimbing).flatMap(\.ascents).filter { $0.result == .top }
+    @AppStorage("boulderScale") private var boulderScale: String = GradeSystem.fontainebleau.rawValue
+    @AppStorage("routeScale") private var routeScale: String = GradeSystem.french.rawValue
+
+    private var heroBoulder: (grade: String, system: GradeSystem)? {
+        let tops = sessions.filter { $0.sessionType == .boulder }
+            .flatMap(\.ascents).filter { $0.result == .top }
+        guard let best = tops.max(by: { $0.sortOrder < $1.sortOrder }) else { return nil }
+        return (best.gradeRaw, best.gradeSystem)
+    }
+
+    private var heroRoute: (grade: String, system: GradeSystem)? {
+        let tops = sessions.filter { [.lead, .topRope, .autoBelay].contains($0.sessionType) }
+            .flatMap(\.ascents).filter { $0.result == .top }
         guard let best = tops.max(by: { $0.sortOrder < $1.sortOrder }) else { return nil }
         return (best.gradeRaw, best.gradeSystem)
     }
@@ -52,8 +63,8 @@ struct DashboardView: View {
                             LiveSessionBanner(status: status)
                         }
 
-                        if let hero = heroGrade {
-                            heroTrophyCard(grade: hero.grade, system: hero.system)
+                        if heroBoulder != nil || heroRoute != nil {
+                            heroTrophyRow
                         }
 
                         statRow
@@ -152,16 +163,12 @@ struct DashboardView: View {
                     .resizable()
                     .frame(width: 32, height: 32)
                     .clipShape(RoundedRectangle(cornerRadius: 7))
-            } else {
-                Image(systemName: "figure.climbing")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(Theme.accent)
             }
             Text("ClimbReflect")
                 .font(.system(size: 26, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.accent)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
         .padding(.top, 8)
     }
 
@@ -271,37 +278,46 @@ struct DashboardView: View {
         .scrollClipDisabled()
     }
 
-    private func heroTrophyCard(grade: String, system: GradeSystem) -> some View {
-        let displayGrade = GradeConverter.display(grade: grade, storedIn: system)
-        return HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Theme.gold.opacity(0.15))
-                    .frame(width: 64, height: 64)
+    private var heroTrophyRow: some View {
+        HStack(spacing: 12) {
+            heroCard(title: "Bouldern", hero: heroBoulder)
+            heroCard(title: "Klettern", hero: heroRoute)
+        }
+    }
+
+    private func heroCard(title: String, hero: (grade: String, system: GradeSystem)?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
                 Image(systemName: "trophy.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(Theme.gold)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Bester Ascent")
-                    .font(.caption)
+                    .font(.system(size: 11))
+                    .foregroundStyle(hero != nil ? Theme.gold : Theme.textTertiary)
+                Text(title)
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(Theme.textSecondary)
-                Text(displayGrade)
-                    .font(.system(size: 36, weight: .black, design: .rounded))
+            }
+            if let h = hero {
+                Text(GradeConverter.display(grade: h.grade, storedIn: h.system))
+                    .font(.system(size: 30, weight: .black, design: .rounded))
                     .foregroundStyle(Theme.gold)
-                Text(system.label)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            } else {
+                Text("–")
+                    .font(.system(size: 30, weight: .black, design: .rounded))
+                    .foregroundStyle(Theme.textTertiary)
+                Text("Noch kein Top")
                     .font(.caption2)
                     .foregroundStyle(Theme.textTertiary)
             }
-            Spacer()
         }
-        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Theme.surface)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(Theme.gold.opacity(0.25), lineWidth: 1)
+                        .stroke(hero != nil ? Theme.gold.opacity(0.25) : Color.clear, lineWidth: 1)
                 )
         )
     }
