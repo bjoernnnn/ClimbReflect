@@ -64,6 +64,16 @@ final class WorkoutManager: NSObject, ObservableObject {
         trainingTarget = target
         attemptState = .idle
 
+        // Timer und UI-State sofort starten – unabhängig von HealthKit.
+        // HealthKit kann beim ersten Start Permission-Dialog zeigen oder fehlschlagen;
+        // der Timer läuft dadurch auch ohne HK-Session korrekt.
+        let startDate = Date()
+        workoutStartDate = startDate
+        isRunning = true
+        isPaused = false
+        startTimer()
+
+        // HealthKit-Session aufsetzen (best-effort)
         let config = HKWorkoutConfiguration()
         config.activityType = type == .training ? .functionalStrengthTraining : .climbing
         config.locationType = .indoor
@@ -72,40 +82,32 @@ final class WorkoutManager: NSObject, ObservableObject {
             let ws = try HKWorkoutSession(healthStore: store, configuration: config)
             let wb = ws.associatedWorkoutBuilder()
             wb.dataSource = HKLiveWorkoutDataSource(healthStore: store, workoutConfiguration: config)
-
             ws.delegate = self
             wb.delegate = self
-
             self.session = ws
             self.builder = wb
-
-            let startDate = Date()
-            workoutStartDate = startDate
             ws.startActivity(with: startDate)
             try await wb.beginCollection(at: startDate)
+        } catch {
+            // HK-Fehler: Timer läuft weiter, DTO wird aus lokalen Daten erstellt
+            print("[WorkoutManager] HealthKit-Setup fehlgeschlagen: \(error)")
+        }
 
-            isRunning = true
-            isPaused = false
-            startTimer()
+        await altimeter.start()
 
-            await altimeter.start()
-
-            // C5: Im Trainingsmodus kein Auto-Detektor
-            if !isTraining {
-                detector.onSuggestion = { [weak self] in
-                    Task { @MainActor in
-                        self?.suggestAttempt = true
-                        self?.pendingClassifications += 1
-                    }
-                }
-                if type.usesBarometer {
-                    // Seil: AltimeterService-Feedback an AttemptDetector via Barometer-Poll
-                } else {
-                    detector.startMotionDetection(currentHR: heartRate)
+        // C5: Im Trainingsmodus kein Auto-Detektor
+        if !isTraining {
+            detector.onSuggestion = { [weak self] in
+                Task { @MainActor in
+                    self?.suggestAttempt = true
+                    self?.pendingClassifications += 1
                 }
             }
-        } catch {
-            print("[WorkoutManager] startWorkout error: \(error)")
+            if type.usesBarometer {
+                // Seil: AltimeterService-Feedback an AttemptDetector via Barometer-Poll
+            } else {
+                detector.startMotionDetection(currentHR: heartRate)
+            }
         }
     }
 
@@ -218,16 +220,21 @@ final class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Session beenden (W7)
 
     func endWorkout() async -> WatchSessionDTO? {
-        guard let ws = session, let wb = builder else { return nil }
         detector.stopMotionDetection()
         await altimeter.stop()
         timer?.invalidate()
+        timer = nil
 
         let endDate = Date()
-        ws.end()
-        try? await wb.endCollection(at: endDate)
-        let finishedWorkout = try? await wb.finishWorkout()
-        let resolvedUUID = finishedWorkout?.uuid
+
+        // HK-Session beenden (best-effort – kann nil sein wenn HK-Setup fehlschlug)
+        var resolvedUUID: UUID? = nil
+        if let ws = session, let wb = builder {
+            ws.end()
+            try? await wb.endCollection(at: endDate)
+            let finishedWorkout = try? await wb.finishWorkout()
+            resolvedUUID = finishedWorkout?.uuid
+        }
 
         let duration = workoutStartDate.map { endDate.timeIntervalSince($0) } ?? 0
         let altTotal = await altimeter.totalGain
@@ -291,9 +298,12 @@ final class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Timer
 
     private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self else { return }
+        timer?.invalidate()
+        // RunLoop.main + .common: Timer feuert auch während UI-Scrolling/Interaktion.
+        // Timer.scheduledTimer würde im async-Kontext ggf. auf falschem RunLoop landen.
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
+                guard let self else { return }
                 self.elapsedSeconds += 1
                 if self.sessionType.usesBarometer {
                     let alt = await self.altimeter.totalGain
@@ -307,6 +317,8 @@ final class WorkoutManager: NSObject, ObservableObject {
                 }
             }
         }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 }
 
