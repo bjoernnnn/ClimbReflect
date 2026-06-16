@@ -2,8 +2,16 @@ import Foundation
 import Combine
 import HealthKit
 import WatchKit
+import WatchConnectivity
 
 // W1.1: HKWorkoutSession + HKLiveWorkoutBuilder für .climbing auf Apple Watch
+
+// D1: State-Machine für den Action Button
+enum AttemptState: Equatable {
+    case idle
+    case active(startTime: Date)
+    case awaitingResult
+}
 
 @MainActor
 final class WorkoutManager: NSObject, ObservableObject {
@@ -18,8 +26,12 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var maxHeartRate: Double = 0
     @Published var activeEnergyKcal: Double = 0
     @Published var attempts: [WatchAttempt] = []
-    @Published var suggestAttempt = false          // W4: Detektions-Vorschlag
-    @Published var pendingClassifications: Int = 0 // Wie viele auto-erkannte Versuche noch offen
+    @Published var suggestAttempt = false
+    @Published var pendingClassifications: Int = 0
+    @Published var attemptState: AttemptState = .idle  // D1
+    @Published var trainingTarget: WatchTrainingTarget? = nil  // C5
+
+    var isTraining: Bool { sessionType == .training }
 
     // MARK: - Private
 
@@ -28,6 +40,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var builder: HKLiveWorkoutBuilder?
     private var timer: Timer?
     private var workoutStartDate: Date?
+    private var liveStatusTickCount = 0
 
     let altimeter = AltimeterService()
     private let detector = AttemptDetector()
@@ -46,8 +59,10 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     // MARK: - Session Start (W1.2)
 
-    func startWorkout(type: WatchSessionType) async {
+    func startWorkout(type: WatchSessionType, target: WatchTrainingTarget? = nil) async {
         sessionType = type
+        trainingTarget = target
+        attemptState = .idle
 
         let config = HKWorkoutConfiguration()
         config.activityType = .climbing
@@ -68,27 +83,76 @@ final class WorkoutManager: NSObject, ObservableObject {
             workoutStartDate = startDate
             ws.startActivity(with: startDate)
             try await wb.beginCollection(at: startDate)
-            // UUID kommt erst nach finishWorkout() — wird in endWorkout() gesetzt
 
             isRunning = true
             isPaused = false
             startTimer()
 
             await altimeter.start()
-            detector.onSuggestion = { [weak self] in
-                Task { @MainActor in
-                    self?.suggestAttempt = true
-                    self?.pendingClassifications += 1
+
+            // C5: Im Trainingsmodus kein Auto-Detektor
+            if !isTraining {
+                detector.onSuggestion = { [weak self] in
+                    Task { @MainActor in
+                        self?.suggestAttempt = true
+                        self?.pendingClassifications += 1
+                    }
                 }
-            }
-            if type.usesBarometer {
-                // Seil: AltimeterService-Feedback an AttemptDetector
-                // (Polling via timer, da AltimeterService ein Actor ist)
-            } else {
-                detector.startMotionDetection(currentHR: heartRate)
+                if type.usesBarometer {
+                    // Seil: AltimeterService-Feedback an AttemptDetector via Barometer-Poll
+                } else {
+                    detector.startMotionDetection(currentHR: heartRate)
+                }
             }
         } catch {
             print("[WorkoutManager] startWorkout error: \(error)")
+        }
+    }
+
+    // MARK: - D1: Action Button State Machine
+
+    func handleActionButton() {
+        if isTraining {
+            // Im Training: Pause/Resume
+            if isPaused { resumeWorkout() } else { pauseWorkout() }
+            return
+        }
+        switch attemptState {
+        case .idle:
+            // Versuch starten
+            attemptState = .active(startTime: .now)
+            WKInterfaceDevice.current().play(.start)
+            Task { await altimeter.startAscentTracking() }
+
+        case .active:
+            // Versuch beenden → Ergebnis abfragen
+            attemptState = .awaitingResult
+            WKInterfaceDevice.current().play(.click)
+
+        case .awaitingResult:
+            break
+        }
+    }
+
+    /// Schnelles Banken aus dem Action-Button-Flow (ohne Grad-Auswahl)
+    func quickBank(result: WatchAscentResult) async {
+        let gain = await altimeter.stopAscentTracking()
+        let attempt = WatchAttempt(
+            gradeSystem: WatchGradeSystem(rawValue: UserDefaults.standard.string(forKey: "watchGradeSystem") ?? "fontainebleau") ?? sessionType.defaultGradeSystem,
+            grade: nil,
+            result: result,
+            style: result == .top ? nil : nil,
+            altitudeGain: gain,
+            heartRateAtBanking: heartRate > 0 ? heartRate : nil,
+            sessionType: sessionType
+        )
+        attempts.append(attempt)
+        attemptState = .idle
+        await altimeter.startAscentTracking()
+        switch result {
+        case .top:     WKInterfaceDevice.current().play(.success)
+        case .attempt: WKInterfaceDevice.current().play(.click)
+        case .quit:    WKInterfaceDevice.current().play(.failure)
         }
     }
 
@@ -98,12 +162,14 @@ final class WorkoutManager: NSObject, ObservableObject {
         session?.pause()
         isPaused = true
         timer?.invalidate()
+        broadcastLiveStatus()
     }
 
     func resumeWorkout() {
         session?.resume()
         isPaused = false
         startTimer()
+        broadcastLiveStatus()
     }
 
     // MARK: - Versuch löschen
@@ -139,11 +205,12 @@ final class WorkoutManager: NSObject, ObservableObject {
         await altimeter.startAscentTracking()
         if pendingClassifications > 0 { pendingClassifications -= 1 }
         suggestAttempt = pendingClassifications > 0
-        // W8.2: Unterscheidbare Haptik pro Ergebnis
+        // Falls aus Action-Button-Flow → State zurücksetzen
+        if attemptState == .awaitingResult { attemptState = .idle }
         switch result {
-        case .top:     WKInterfaceDevice.current().play(.success)   // langer Puls = Top
-        case .attempt: WKInterfaceDevice.current().play(.click)     // kurzer Klick = Versuch
-        case .quit:    WKInterfaceDevice.current().play(.failure)   // Puls = Aufgegeben
+        case .top:     WKInterfaceDevice.current().play(.success)
+        case .attempt: WKInterfaceDevice.current().play(.click)
+        case .quit:    WKInterfaceDevice.current().play(.failure)
         case nil:      WKInterfaceDevice.current().play(.click)
         }
     }
@@ -159,7 +226,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         let endDate = Date()
         ws.end()
         try? await wb.endCollection(at: endDate)
-        // UUID aus dem fertigen HKWorkout auslesen (einziger zuverlässiger Weg auf watchOS)
         let finishedWorkout = try? await wb.finishWorkout()
         let resolvedUUID = finishedWorkout?.uuid
 
@@ -177,8 +243,13 @@ final class WorkoutManager: NSObject, ObservableObject {
             activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil,
             altitudeTotalGain: altTotal,
             ascents: attempts.map { $0.toDTO() },
-            rpe: nil, focusRaw: nil, energyRaw: nil
+            rpe: nil,
+            focusRaw: trainingTarget?.rawValue,
+            energyRaw: nil
         )
+
+        // Live-Status löschen
+        clearLiveStatus()
 
         // Reset
         isRunning = false
@@ -190,11 +261,31 @@ final class WorkoutManager: NSObject, ObservableObject {
         heartRate = 0
         maxHeartRate = 0
         activeEnergyKcal = 0
+        attemptState = .idle
+        trainingTarget = nil
 
-        // W8.2: Training-beendet-Haptik
         WKInterfaceDevice.current().play(.stop)
 
         return dto
+    }
+
+    // MARK: - E1: Live-Status an iPhone senden
+
+    private func broadcastLiveStatus() {
+        guard WCSession.default.activationState == .activated else { return }
+        let status = WatchLiveStatus(
+            elapsedSeconds: elapsedSeconds,
+            sessionTypeRaw: sessionType.rawValue,
+            attemptCount: attempts.count,
+            isPaused: isPaused
+        )
+        guard let data = try? JSONEncoder().encode(status) else { return }
+        try? WCSession.default.updateApplicationContext([WatchLiveStatus.key: data])
+    }
+
+    private func clearLiveStatus() {
+        guard WCSession.default.activationState == .activated else { return }
+        try? WCSession.default.updateApplicationContext([WatchLiveStatus.key: Data()])
     }
 
     // MARK: - Timer
@@ -204,10 +295,15 @@ final class WorkoutManager: NSObject, ObservableObject {
             guard let self else { return }
             Task { @MainActor in
                 self.elapsedSeconds += 1
-                // Barometer-Poll für Seil-Detektion
                 if self.sessionType.usesBarometer {
                     let alt = await self.altimeter.totalGain
                     self.detector.updateAltitude(alt)
+                }
+                // E1: Live-Status alle 5 Sekunden senden
+                self.liveStatusTickCount += 1
+                if self.liveStatusTickCount >= 5 {
+                    self.liveStatusTickCount = 0
+                    self.broadcastLiveStatus()
                 }
             }
         }

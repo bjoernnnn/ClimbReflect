@@ -7,6 +7,7 @@ import HealthKit
 struct DashboardView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \ClimbSession.date, order: .reverse) private var sessions: [ClimbSession]
+    @ObservedObject private var watchReceiver = WatchSessionReceiver.shared
 
     @State private var importMessage: String?
     @State private var isImporting = false
@@ -36,7 +37,13 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 24) {
                         header
 
+                        if let status = watchReceiver.liveStatus {
+                            LiveSessionBanner(status: status)
+                        }
+
                         statRow
+
+                        trainingWeaknessCard
 
                         FormSignalView(signal: formSignal)
 
@@ -132,9 +139,42 @@ struct DashboardView: View {
 
     private var statRow: some View {
         HStack(spacing: 12) {
-            StatTile(value: "\(sessions.count)", label: "Sessions gesamt", symbol: "figure.climbing")
-            StatTile(value: "\(StatsEngine.weekStreak(sessions))", label: "Wochenstreak", symbol: "flame.fill")
+            StatTile(value: "\(sessions.filter(\.isClimbing).count)", label: "Klettersessions", symbol: "figure.climbing")
+            StatTile(value: "\(StatsEngine.climbWeekStreak(sessions))", label: "Kletter-Streak", symbol: "flame.fill")
             StatTile(value: "\(StatsEngine.sessionsThisWeek(sessions))", label: "Diese Woche", symbol: "calendar")
+        }
+    }
+
+    private var trainingWeaknessCard: some View {
+        let weakness = StatsEngine.trainingWeakness(sessions)
+        return Group {
+            if let limiter = weakness.topLimiter {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle().fill(Theme.danger.opacity(0.12)).frame(width: 40, height: 40)
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(Theme.danger)
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Häufigste Schwäche: \(limiter.label)")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                        if weakness.monthlyTrainingCount > 0 {
+                            Label("\(weakness.monthlyTrainingCount)× diesen Monat trainiert", systemImage: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(Theme.accent)
+                        } else {
+                            Text("Noch kein gezieltes Training diesen Monat")
+                                .font(.caption)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(14)
+                .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
+            }
         }
     }
 

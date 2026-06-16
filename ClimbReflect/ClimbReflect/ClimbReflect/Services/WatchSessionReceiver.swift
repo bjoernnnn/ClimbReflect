@@ -10,6 +10,8 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
     static let shared = WatchSessionReceiver()
     static let projectsKey = "knownProjects"
 
+    @Published var liveStatus: WatchLiveStatus?
+
     private var modelContext: ModelContext?
 
     func configure(modelContext: ModelContext) {
@@ -36,7 +38,12 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
 
     nonisolated func session(_ session: WCSession,
                              activationDidCompleteWith activationState: WCSessionActivationState,
-                             error: Error?) {}
+                             error: Error?) {
+        // Beim Aktivieren ggf. vorhandenen Live-Status aus applicationContext lesen
+        Task { @MainActor [self] in
+            self.readLiveStatusFromContext(session.receivedApplicationContext)
+        }
+    }
 
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
     nonisolated func sessionDidDeactivate(_ session: WCSession) {
@@ -44,13 +51,39 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
     }
 
     nonisolated func session(_ session: WCSession,
+                             didReceiveApplicationContext applicationContext: [String: Any]) {
+        Task { @MainActor [self] in
+            self.readLiveStatusFromContext(applicationContext)
+        }
+    }
+
+    // E1: Live-Status aus applicationContext dekodieren
+    private func readLiveStatusFromContext(_ context: [String: Any]) {
+        guard let raw = context[WatchLiveStatus.key] else { return }  // key absent → ignore
+        if let data = raw as? Data, !data.isEmpty,
+           let status = try? JSONDecoder().decode(WatchLiveStatus.self, from: data) {
+            liveStatus = status
+        } else {
+            liveStatus = nil  // empty Data → session ended
+        }
+    }
+
+    // E2: Befehle von iPhone an Watch weiterleiten (Pause/Resume/End)
+    nonisolated func session(_ session: WCSession,
+                             didReceiveMessage message: [String: Any],
+                             replyHandler: @escaping ([String: Any]) -> Void) {
+        replyHandler([:])
+    }
+
+    nonisolated func session(_ session: WCSession,
                              didReceiveUserInfo userInfo: [String: Any] = [:]) {
-        // Data ist Sendable → sicher aus nonisolated-Kontext an @MainActor übergeben
-        guard let data = userInfo["watchSessionDTO"] as? Data else { return }
+        guard let data = userInfo[WatchSessionDTO.transferKey] as? Data else { return }
         Task { @MainActor [self] in
             guard let dto = try? JSONDecoder().decode(WatchSessionDTO.self, from: data)
             else { return }
             self.insert(dto: dto)
+            // Session beendet → Live-Status löschen
+            self.liveStatus = nil
         }
     }
 
@@ -71,6 +104,14 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             activeEnergyKcal: dto.activeEnergyKcal
         )
 
+        // RPE aus dem Fragebogen
+        if let rpe = dto.rpe { climbSession.perceivedEffort = rpe }
+
+        // Training: focusRaw = Limiter rawValue (Zielkapazität)
+        if sessionType == .training, let f = dto.focusRaw, let limiter = Limiter(rawValue: f) {
+            climbSession.limiterRaw = [limiter.rawValue]
+        }
+
         ctx.insert(climbSession)
 
         for ascentDTO in dto.ascents {
@@ -83,6 +124,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
                 date: ascentDTO.date,
                 session: climbSession
             )
+            ascent.altitudeGain = ascentDTO.altitudeGain
             ctx.insert(ascent)
         }
 

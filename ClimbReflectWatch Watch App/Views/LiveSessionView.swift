@@ -1,7 +1,8 @@
 import SwiftUI
 import WatchKit
 
-// Tab-Reihenfolge: [Steuerung] ← [Session] → [Klassifizieren]
+// Tab-Reihenfolge Klettern:  [Steuerung] ← [Session] → [Klassifizieren]
+// Tab-Reihenfolge Training:  [Steuerung] ← [Session]
 // Nach Ende: Fragebogen → Zusammenfassung
 
 enum WatchNavStep: Hashable {
@@ -20,53 +21,111 @@ struct LiveSessionView: View {
 
     var body: some View {
         NavigationStack(path: $navPath) {
-            TabView(selection: $currentTab) {
-                controlsPage.tag(0)
-                sessionInfoPage.tag(1)
-                AttemptLogView(onBank: { currentTab = 1 }).tag(2)
+            if workoutManager.isTraining {
+                trainingTabView
+            } else {
+                climbingTabView
             }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-            .background(WatchTheme.bg)
-            .confirmationDialog("Session beenden?", isPresented: $showEndConfirm) {
-                Button("Beenden", role: .destructive) {
+        }
+        .onAppear {
+            // E2: iPhone-Befehle verarbeiten
+            SyncService.shared.onCommand = { [workoutManager] cmd in
+                switch cmd {
+                case "pause":   workoutManager.pauseWorkout()
+                case "resume":  workoutManager.resumeWorkout()
+                case "end":
                     Task {
-                        sessionDTO = await workoutManager.endWorkout()
-                        navPath = [.questionnaire]
+                        let dto = await workoutManager.endWorkout()
+                        // Keine Fragebogen für Fernsteuerung – direkt senden
+                        if let d = dto { SyncService.shared.send(dto: d) }
                     }
-                }
-                Button("Weiter", role: .cancel) {}
-            }
-            .navigationDestination(for: WatchNavStep.self) { step in
-                switch step {
-                case .questionnaire:
-                    if let dto = sessionDTO {
-                        SessionEndQuestionnaireView(dto: dto) { enriched in
-                            SyncService.shared.send(dto: enriched)
-                            sessionDTO = enriched
-                            navPath = [.summary]
-                        }
-                    }
-                case .summary:
-                    SessionSummaryView(dto: sessionDTO, onDone: { navPath = [] })
+                default: break
                 }
             }
-            .navigationBarBackButtonHidden(true)
         }
     }
 
-    // MARK: - Tab 1: Session-Info + Verlauf (nach unten scrollen)
+    // MARK: - Klettern: 3-Tab-View
+
+    private var climbingTabView: some View {
+        TabView(selection: $currentTab) {
+            controlsPage.tag(0)
+            sessionInfoPage.tag(1)
+            AttemptLogView(onBank: { currentTab = 1 }).tag(2)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .always))
+        .background(WatchTheme.bg)
+        .confirmationDialog("Session beenden?", isPresented: $showEndConfirm) {
+            Button("Beenden", role: .destructive) {
+                Task {
+                    sessionDTO = await workoutManager.endWorkout()
+                    navPath = [.questionnaire]
+                }
+            }
+            Button("Weiter", role: .cancel) {}
+        }
+        .navigationDestination(for: WatchNavStep.self) { step in
+            switch step {
+            case .questionnaire:
+                if let dto = sessionDTO {
+                    SessionEndQuestionnaireView(dto: dto) { enriched in
+                        SyncService.shared.send(dto: enriched)
+                        sessionDTO = enriched
+                        navPath = [.summary]
+                    }
+                }
+            case .summary:
+                SessionSummaryView(dto: sessionDTO, onDone: { navPath = [] })
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+    }
+
+    // MARK: - Training: 2-Tab-View
+
+    private var trainingTabView: some View {
+        TabView(selection: $currentTab) {
+            controlsPage.tag(0)
+            trainingInfoPage.tag(1)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .always))
+        .background(WatchTheme.bg)
+        .confirmationDialog("Training beenden?", isPresented: $showEndConfirm) {
+            Button("Beenden", role: .destructive) {
+                Task {
+                    sessionDTO = await workoutManager.endWorkout()
+                    navPath = [.questionnaire]
+                }
+            }
+            Button("Weiter", role: .cancel) {}
+        }
+        .navigationDestination(for: WatchNavStep.self) { step in
+            switch step {
+            case .questionnaire:
+                if let dto = sessionDTO {
+                    SessionEndQuestionnaireView(dto: dto, skipFocus: true) { enriched in
+                        SyncService.shared.send(dto: enriched)
+                        sessionDTO = enriched
+                        navPath = [.summary]
+                    }
+                }
+            case .summary:
+                SessionSummaryView(dto: sessionDTO, onDone: { navPath = [] })
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+    }
+
+    // MARK: - Tab 1 (Klettern): Session-Info + Verlauf
 
     private var sessionInfoPage: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // ── Bereich 1: Vitals (füllt den Screen genau) ──
-                statsSection
+                climbingStatsSection
                     .containerRelativeFrame(.vertical)
 
-                // ── Bereich 2: Verlauf (nach unten scrollen) ──
                 if !workoutManager.attempts.isEmpty {
-                    historySection
-                        .padding(.bottom, 12)
+                    historySection.padding(.bottom, 12)
                 }
             }
         }
@@ -78,67 +137,184 @@ struct LiveSessionView: View {
         }
     }
 
-    private var statsSection: some View {
-        VStack(spacing: 8) {
-            Spacer(minLength: 0)
+    private var climbingStatsSection: some View {
+        ZStack {
+            VStack(spacing: 8) {
+                Spacer(minLength: 0)
 
-            // Timer
-            Text(elapsedFormatted)
-                .font(.system(.title, design: .monospaced, weight: .bold))
-                .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
+                Text(elapsedFormatted)
+                    .font(.system(.title, design: .monospaced, weight: .bold))
+                    .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
 
-            // Vitalzeichen
-            if !isLuminanceReduced {
-                HStack(spacing: 0) {
-                    vitalCell(value: heartStr, unit: "BPM",
-                              icon: "heart.fill", color: WatchTheme.danger)
-                    vitalSep
-                    vitalCell(value: "\(Int(workoutManager.activeEnergyKcal))", unit: "kcal",
-                              icon: "flame.fill", color: WatchTheme.gold)
-                    vitalSep
-                    vitalCell(value: maxHRStr, unit: "Max",
-                              icon: "arrow.up.heart.fill", color: WatchTheme.danger.opacity(0.7))
+                if !isLuminanceReduced {
+                    vitalsRow
                 }
-                .background(WatchTheme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
 
-            // Stats-Badges
-            HStack(spacing: 8) {
-                statBadge(value: "\(workoutManager.attempts.count)",
-                          label: "Versuche", icon: "figure.climbing", color: WatchTheme.textSecond)
-                statBadge(value: "\(topCount)",
-                          label: "Tops", icon: "checkmark.circle.fill", color: WatchTheme.accent)
-            }
-
-            // Pending-Banner
-            if workoutManager.pendingClassifications > 0 {
-                pendingBanner
-            }
-
-            Spacer(minLength: 0)
-
-            // Scroll-Hinweis (nur wenn Einträge vorhanden)
-            if !workoutManager.attempts.isEmpty {
-                VStack(spacing: 2) {
-                    Image(systemName: "chevron.compact.down")
-                        .font(.system(size: 14))
-                        .foregroundStyle(WatchTheme.textTert)
-                    Text("Verlauf")
-                        .font(.system(size: 9))
-                        .foregroundStyle(WatchTheme.textTert)
+                HStack(spacing: 8) {
+                    statBadge(value: "\(workoutManager.attempts.count)",
+                              label: "Versuche", icon: "figure.climbing", color: WatchTheme.textSecond)
+                    statBadge(value: "\(topCount)",
+                              label: "Tops", icon: "checkmark.circle.fill", color: WatchTheme.accent)
                 }
-                .padding(.bottom, 4)
+
+                if workoutManager.pendingClassifications > 0 {
+                    pendingBanner
+                }
+
+                Spacer(minLength: 0)
+
+                if !workoutManager.attempts.isEmpty {
+                    scrollHint
+                }
+
+                // D1: Action-Button-Indikator
+                actionStateIndicator
+                    .padding(.bottom, 4)
+            }
+            .padding(.horizontal, 8)
+
+            // D1: Ergebnis-Overlay nach Versuch
+            if workoutManager.attemptState == .awaitingResult {
+                quickResultOverlay
             }
         }
-        .padding(.horizontal, 8)
+    }
+
+    // MARK: - D1: Action-Button Indikator & Quick-Result-Overlay
+
+    private var actionStateIndicator: some View {
+        Group {
+            switch workoutManager.attemptState {
+            case .idle:
+                EmptyView()
+            case .active:
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(WatchTheme.danger)
+                        .frame(width: 8, height: 8)
+                        .symbolEffect(.pulse, options: .repeating)
+                    Text("Versuch läuft")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(WatchTheme.danger)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(WatchTheme.danger.opacity(0.12))
+                .clipShape(Capsule())
+            case .awaitingResult:
+                EmptyView()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var quickResultOverlay: some View {
+        VStack(spacing: 10) {
+            Text("Ergebnis?")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(WatchTheme.textPrimary)
+
+            HStack(spacing: 8) {
+                quickResultButton(label: "Top", icon: "checkmark.circle.fill",
+                                  color: WatchTheme.accent, result: .top)
+                quickResultButton(label: "Versuch", icon: "arrow.clockwise.circle",
+                                  color: WatchTheme.gold, result: .attempt)
+            }
+
+            Button {
+                Task { await workoutManager.quickBank(result: .quit) }
+            } label: {
+                Label("Abbruch", systemImage: "xmark.circle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(WatchTheme.danger)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 7)
+                    .background(WatchTheme.danger.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                workoutManager.attemptState = .idle
+            } label: {
+                Text("Abbrechen")
+                    .font(.system(size: 10))
+                    .foregroundStyle(WatchTheme.textTert)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(14)
+        .background(WatchTheme.bg.opacity(0.97))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .padding(8)
+    }
+
+    private func quickResultButton(label: String, icon: String, color: Color, result: WatchAscentResult) -> some View {
+        let btn = Button {
+            Task { await workoutManager.quickBank(result: result) }
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 22))
+                    .foregroundStyle(color)
+                Text(label)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(WatchTheme.textPrimary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(color.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        return AnyView(result == .top ? AnyView(btn.handGestureShortcut(.primaryAction)) : AnyView(btn))
+    }
+
+    // MARK: - Tab 1 (Training): Trainings-Info
+
+    private var trainingInfoPage: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                Spacer(minLength: 0).frame(height: 8)
+
+                Text(elapsedFormatted)
+                    .font(.system(.title, design: .monospaced, weight: .bold))
+                    .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
+
+                if let target = workoutManager.trainingTarget {
+                    HStack(spacing: 6) {
+                        Image(systemName: target.symbol)
+                            .font(.system(size: 13))
+                            .foregroundStyle(WatchTheme.accent)
+                        Text(target.label)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(WatchTheme.textPrimary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(WatchTheme.accent.opacity(0.12))
+                    .clipShape(Capsule())
+                }
+
+                if !isLuminanceReduced {
+                    vitalsRow
+                }
+
+                statBadge(value: "\(Int(workoutManager.activeEnergyKcal))",
+                          label: "kcal", icon: "flame.fill", color: WatchTheme.gold)
+                    .frame(maxWidth: .infinity)
+
+                Spacer(minLength: 0).frame(height: 8)
+            }
+            .padding(.horizontal, 8)
+        }
+        .background(WatchTheme.bg)
     }
 
     // MARK: - Verlauf-Sektion
 
     private var historySection: some View {
         VStack(spacing: 0) {
-            // Trennlinie mit Label
             HStack(spacing: 6) {
                 Rectangle().fill(WatchTheme.elevated).frame(height: 1)
                 Text("VERLAUF")
@@ -150,7 +326,6 @@ struct LiveSessionView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
 
-            // Ascent-Rows (neueste zuerst)
             LazyVStack(spacing: 5) {
                 ForEach(workoutManager.attempts.reversed()) { attempt in
                     ascentRow(attempt)
@@ -225,6 +400,7 @@ struct LiveSessionView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)
+            .handGestureShortcut(.primaryAction)
 
             Button(role: .destructive) { showEndConfirm = true } label: {
                 Label("Session beenden", systemImage: "stop.fill")
@@ -270,6 +446,35 @@ struct LiveSessionView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Shared UI
+
+    private var vitalsRow: some View {
+        HStack(spacing: 0) {
+            vitalCell(value: heartStr, unit: "BPM",
+                      icon: "heart.fill", color: WatchTheme.danger)
+            vitalSep
+            vitalCell(value: "\(Int(workoutManager.activeEnergyKcal))", unit: "kcal",
+                      icon: "flame.fill", color: WatchTheme.gold)
+            vitalSep
+            vitalCell(value: maxHRStr, unit: "Max",
+                      icon: "arrow.up.heart.fill", color: WatchTheme.danger.opacity(0.7))
+        }
+        .background(WatchTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private var scrollHint: some View {
+        VStack(spacing: 2) {
+            Image(systemName: "chevron.compact.down")
+                .font(.system(size: 14))
+                .foregroundStyle(WatchTheme.textTert)
+            Text("Verlauf")
+                .font(.system(size: 9))
+                .foregroundStyle(WatchTheme.textTert)
+        }
+        .padding(.bottom, 4)
     }
 
     // MARK: - Hilfsmethoden

@@ -133,7 +133,7 @@
 			name = ClimbReflect;
 			packageProductDependencies = (
 			);
-			productName = KletterTagebuch;
+			productName = ClimbReflect;
 			productReference = 1151C11E2FE094D600D73FFD /* ClimbReflect.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -229,7 +229,7 @@
 				DEVELOPMENT_TEAM = DCXAD9B8Q3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = ClimbReflectWatch;
+				INFOPLIST_KEY_CFBundleDisplayName = ClimbReflect;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "ClimbReflect liest Herzfrequenz und Energie während des Klettertrainings.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "ClimbReflect speichert Kletterworkouts in Apple Health.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ClimbReflect erkennt Kletterbewegungen, um Versuche vorzuschlagen.";
@@ -267,7 +267,7 @@
 				DEVELOPMENT_TEAM = DCXAD9B8Q3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = ClimbReflectWatch;
+				INFOPLIST_KEY_CFBundleDisplayName = ClimbReflect;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "ClimbReflect liest Herzfrequenz und Energie während des Klettertrainings.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "ClimbReflect speichert Kletterworkouts in Apple Health.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ClimbReflect erkennt Kletterbewegungen, um Versuche vorzuschlagen.";

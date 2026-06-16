@@ -64,6 +64,9 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
         pendingDTOs = dtos
     }
 
+    // E2: Befehle vom iPhone empfangen (Pause/Resume/End)
+    var onCommand: ((String) -> Void)?
+
     // MARK: - W5.2: Projekte-Update vom iPhone empfangen
 
     static let projectsKey = "knownProjects"
@@ -75,6 +78,15 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
                 self.knownProjects = projects
             }
         }
+    }
+
+    func session(_ session: WCSession,
+                 didReceiveMessage message: [String: Any],
+                 replyHandler: @escaping ([String: Any]) -> Void) {
+        if let command = message["watchCommand"] as? String {
+            DispatchQueue.main.async { self.onCommand?(command) }
+        }
+        replyHandler([:])
     }
 
     // MARK: - WCSessionDelegate

@@ -46,9 +46,20 @@ struct TypeCount: Identifiable {
     let share: Double
 }
 
+// MARK: - Trainings-Schwäche
+
+struct TrainingWeakness {
+    let topLimiter: Limiter?
+    let monthlyTrainingCount: Int
+}
+
 // MARK: - Engine: leitet Statistik, Wochenverlauf und Erfolge aus den Sessions ab
 
 enum StatsEngine {
+
+    private static func climbing(_ sessions: [ClimbSession]) -> [ClimbSession] {
+        sessions.filter { $0.isClimbing }
+    }
 
     /// Klettermin. pro Woche der letzten `weeks` Wochen (inkl. leerer Wochen).
     static func weeklyMinutes(_ sessions: [ClimbSession], weeks: Int = 8,
@@ -79,6 +90,11 @@ enum StatsEngine {
             if point.sessions > 0 { streak += 1 } else { break }
         }
         return streak
+    }
+
+    /// Wie weekStreak, aber nur Klettersessions (Training ausgeschlossen).
+    static func climbWeekStreak(_ sessions: [ClimbSession], calendar: Calendar = .current) -> Int {
+        weekStreak(climbing(sessions), calendar: calendar)
     }
 
     /// RPE-Verlauf der letzten `limit` Sessions mit gesetztem RPE, chronologisch.
@@ -125,7 +141,7 @@ enum StatsEngine {
     }
 
     static func sendStats(_ sessions: [ClimbSession]) -> SendStats {
-        let all = sessions.flatMap(\.ascents)
+        let all = climbing(sessions).flatMap(\.ascents)
         let tops = all.filter { $0.result == .top }
         let flashes = tops.filter { $0.style == .flash }
         let total = max(1, all.count)
@@ -142,7 +158,7 @@ enum StatsEngine {
 
     static func gradePyramid(_ sessions: [ClimbSession],
                              system: GradeSystem) -> [PyramidEntry] {
-        let allAscents = sessions.flatMap(\.ascents).filter {
+        let allAscents = climbing(sessions).flatMap(\.ascents).filter {
             $0.gradeSystem == system
         }
         guard !allAscents.isEmpty else { return [] }
@@ -172,6 +188,22 @@ enum StatsEngine {
         sessions.reduce(0) { $0 + $1.durationMinutes }
     }
 
+    /// Häufigster Limiter aus Klettersessions + Trainings dagegen diesen Monat.
+    static func trainingWeakness(_ sessions: [ClimbSession]) -> TrainingWeakness {
+        var limiterCounts: [Limiter: Int] = [:]
+        for s in climbing(sessions) {
+            for l in s.limiters { limiterCounts[l, default: 0] += 1 }
+        }
+        guard let topLimiter = limiterCounts.max(by: { $0.value < $1.value })?.key else {
+            return TrainingWeakness(topLimiter: nil, monthlyTrainingCount: 0)
+        }
+        let monthAgo = Calendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now
+        let count = sessions
+            .filter { !$0.isClimbing && $0.date >= monthAgo && $0.limiters.contains(topLimiter) }
+            .count
+        return TrainingWeakness(topLimiter: topLimiter, monthlyTrainingCount: count)
+    }
+
     static func sessionsThisWeek(_ sessions: [ClimbSession]) -> Int {
         weeklyMinutes(sessions, weeks: 1).first?.sessions ?? 0
     }
@@ -185,7 +217,8 @@ enum StatsEngine {
     }
 
     static func formSignal(_ sessions: [ClimbSession]) -> FormSignal {
-        let recent = sessions.sorted { $0.date > $1.date }.prefix(6)
+        let climbSessions = climbing(sessions)
+        let recent = climbSessions.sorted { $0.date > $1.date }.prefix(6)
         guard recent.count >= 4 else { return .formGood }
 
         let avgRPE = recent.compactMap(\.perceivedEffort).map(Double.init)
@@ -198,7 +231,7 @@ enum StatsEngine {
 
         if rpe >= 8.0 && sendRate < 0.35 { return .deloadSuggested }
 
-        let allSorted = sessions.sorted { $0.date < $1.date }
+        let allSorted = climbSessions.sorted { $0.date < $1.date }
         let half = allSorted.count / 2
         if half >= 2 {
             let older = allSorted.prefix(half).flatMap(\.ascents)
@@ -221,7 +254,7 @@ enum StatsEngine {
     }
 
     static func antistyleRates(_ sessions: [ClimbSession]) -> [StyleSendRate] {
-        let all = sessions.flatMap(\.ascents)
+        let all = climbing(sessions).flatMap(\.ascents)
         guard !all.isEmpty else { return [] }
 
         var result: [StyleSendRate] = []
@@ -288,8 +321,9 @@ enum StatsEngine {
                              minutes: 0, avgRPE: nil, highestGrade: nil,
                              highestGradeSystem: nil, newPB: false)
         }
-        let thisWeek = sessions.filter { $0.date >= interval.start && $0.date < interval.end }
-        let prevSessions = sessions.filter { $0.date < interval.start }
+        let thisWeekAll = sessions.filter { $0.date >= interval.start && $0.date < interval.end }
+        let thisWeek = thisWeekAll.filter { $0.isClimbing }
+        let prevSessions = climbing(sessions).filter { $0.date < interval.start }
 
         let allAscents = thisWeek.flatMap(\.ascents)
         let tops = allAscents.filter { $0.result == .top }
@@ -300,15 +334,15 @@ enum StatsEngine {
         let prevMaxOrder = prevTops.map(\.sortOrder).max() ?? -1
         let newPB = (highest?.sortOrder ?? -1) > prevMaxOrder
 
-        let rpes = thisWeek.compactMap(\.perceivedEffort).map(Double.init)
+        let rpes = thisWeekAll.compactMap(\.perceivedEffort).map(Double.init)
         let avgRPE = rpes.isEmpty ? nil : rpes.reduce(0, +) / Double(rpes.count)
 
         return WeekRecap(
             weekStart: interval.start,
             weekEnd: interval.end,
             tops: tops.count,
-            sessions: thisWeek.count,
-            minutes: thisWeek.reduce(0) { $0 + $1.durationMinutes },
+            sessions: thisWeekAll.count,
+            minutes: thisWeekAll.reduce(0) { $0 + $1.durationMinutes },
             avgRPE: avgRPE,
             highestGrade: highest?.gradeRaw,
             highestGradeSystem: highest?.gradeSystem,
@@ -328,7 +362,8 @@ enum StatsEngine {
     }
 
     static func climbAchievements(for sessions: [ClimbSession]) -> [ClimbAchievement] {
-        let allAscents = sessions.flatMap(\.ascents)
+        let climbSessions = climbing(sessions)
+        let allAscents = climbSessions.flatMap(\.ascents)
         let tops = allAscents.filter { $0.result == .top }
         let flashes = tops.filter { $0.style == .flash }
 
@@ -336,7 +371,7 @@ enum StatsEngine {
         let maxGrade = tops.max { $0.sortOrder < $1.sortOrder }
 
         // 3 Flashes in einer Session
-        let bestFlashSession = sessions
+        let bestFlashSession = climbSessions
             .map { ($0, $0.ascents.filter { $0.style == .flash }.count) }
             .max { $0.1 < $1.1 }
 
@@ -350,7 +385,7 @@ enum StatsEngine {
         }
 
         // Comeback (Session nach ≥14 Tagen Pause)
-        let sortedDates = sessions.map(\.date).sorted()
+        let sortedDates = climbSessions.map(\.date).sorted()
         let comeback = zip(sortedDates, sortedDates.dropFirst())
             .contains { Calendar.current.dateComponents([.day], from: $0.0, to: $0.1).day ?? 0 >= 14 }
 

@@ -156,6 +156,33 @@ enum WatchSessionEnergy: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Trainingsziel (C5 – rawValue == Limiter.rawValue auf iPhone)
+
+enum WatchTrainingTarget: String, CaseIterable, Identifiable {
+    case fingerStrength, endurance, technique, mobility, mental
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .fingerStrength: "Fingerkraft"
+        case .endurance:      "Ausdauer"
+        case .technique:      "Technik"
+        case .mobility:       "Beweglichkeit"
+        case .mental:         "Mental"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .fingerStrength: "hand.raised.fill"
+        case .endurance:      "wind"
+        case .technique:      "lightbulb.fill"
+        case .mobility:       "figure.flexibility"
+        case .mental:         "brain.head.profile"
+        }
+    }
+}
+
 // MARK: - Stil
 
 enum WatchAscentStyle: String, CaseIterable, Identifiable {

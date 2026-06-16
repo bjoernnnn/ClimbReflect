@@ -4,17 +4,20 @@ import SwiftUI
 
 struct SportSelectionView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
-    @State private var selected: WatchSessionType = .boulder
+    @State private var showTrainingSetup = false
     @State private var navigateToSession = false
 
     var body: some View {
         NavigationStack {
             List(WatchSessionType.allCases) { type in
                 Button {
-                    selected = type
-                    Task {
-                        await workoutManager.startWorkout(type: type)
-                        navigateToSession = true
+                    if type == .training {
+                        showTrainingSetup = true
+                    } else {
+                        Task {
+                            await workoutManager.startWorkout(type: type)
+                            navigateToSession = true
+                        }
                     }
                 } label: {
                     HStack(spacing: 10) {
@@ -30,6 +33,15 @@ struct SportSelectionView: View {
             .navigationTitle("Klettern")
             .navigationDestination(isPresented: $navigateToSession) {
                 LiveSessionView()
+            }
+            .sheet(isPresented: $showTrainingSetup) {
+                TrainingSetupView { target in
+                    showTrainingSetup = false
+                    Task {
+                        await workoutManager.startWorkout(type: .training, target: target)
+                        navigateToSession = true
+                    }
+                }
             }
         }
     }

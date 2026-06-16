@@ -64,9 +64,9 @@ struct SettingsView: View {
                             }
                             .disabled(isImporting)
                         } header: {
-                            Text("Redpoint / Apple Health").foregroundStyle(Theme.textTertiary)
+                            Text("Apple Health (optional)").foregroundStyle(Theme.textTertiary)
                         } footer: {
-                            Text("Importiert Kletter-Workouts aus Redpoint (Apple Health). Bereits importierte Sessions werden nicht doppelt angelegt.")
+                            Text("Importiert Kletter-Workouts aus Apple Health / Redpoint. Die Watch-Aufzeichnung ist die primäre Quelle — dieser Import ist optional.")
                                 .foregroundStyle(Theme.textTertiary)
                         }
                         .listRowBackground(Theme.surface)

@@ -89,4 +89,5 @@ extension ClimbSession {
     var limiters: [Limiter] { limiterRaw.compactMap(Limiter.init(rawValue:)) }
     var durationMinutes: Int { Int(durationSeconds / 60) }
     var techniqueFocus: TechniqueFocus? { techniqueFocusRaw.flatMap(TechniqueFocus.init(rawValue:)) }
+    var isClimbing: Bool { sessionType != .training }
 }

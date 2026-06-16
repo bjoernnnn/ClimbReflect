@@ -4,27 +4,34 @@ import SwiftUI
 
 struct SessionEndQuestionnaireView: View {
     let dto: WatchSessionDTO
+    let skipFocus: Bool      // C5: im Training ist Fokus bereits via Zielkapazität gesetzt
     let onComplete: (WatchSessionDTO) -> Void
+
+    init(dto: WatchSessionDTO, skipFocus: Bool = false, onComplete: @escaping (WatchSessionDTO) -> Void) {
+        self.dto = dto
+        self.skipFocus = skipFocus
+        self.onComplete = onComplete
+    }
 
     @State private var step = 0
     @State private var rpe: Int = 6
     @State private var focus: WatchSessionFocus? = nil
     @State private var energy: WatchSessionEnergy? = nil
 
+    private var stepCount: Int { skipFocus ? 2 : 3 }
+
     var body: some View {
         ZStack {
             WatchTheme.bg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Fortschritts-Punkte
                 progressDots
                     .padding(.top, 4)
                     .padding(.bottom, 8)
 
-                // Aktiver Schritt
                 Group {
                     if step == 0 { rpeStep }
-                    else if step == 1 { focusStep }
+                    else if step == 1 && !skipFocus { focusStep }
                     else { energyStep }
                 }
                 .transition(.asymmetric(
@@ -71,7 +78,7 @@ struct SessionEndQuestionnaireView: View {
             }
             .padding(.horizontal, 4)
 
-            nextButton(label: "Weiter") { withAnimation { step = 1 } }
+            nextButton(label: "Weiter") { withAnimation { step = skipFocus ? 2 : 1 } }
         }
         .padding(.horizontal, 8)
     }
@@ -153,12 +160,17 @@ struct SessionEndQuestionnaireView: View {
 
     // MARK: - Hilfsmethoden
 
+    // Normalisiert step → dot-Index (bei skipFocus: step 0→0, step 2→1)
+    private var dotIndex: Int {
+        skipFocus && step == 2 ? 1 : step
+    }
+
     private var progressDots: some View {
         HStack(spacing: 6) {
-            ForEach(0..<3) { i in
+            ForEach(0..<stepCount, id: \.self) { i in
                 Circle()
-                    .fill(i == step ? WatchTheme.accent : WatchTheme.surface)
-                    .frame(width: i == step ? 6 : 5, height: i == step ? 6 : 5)
+                    .fill(i == dotIndex ? WatchTheme.accent : WatchTheme.surface)
+                    .frame(width: i == dotIndex ? 6 : 5, height: i == dotIndex ? 6 : 5)
                     .animation(.easeInOut, value: step)
             }
         }
