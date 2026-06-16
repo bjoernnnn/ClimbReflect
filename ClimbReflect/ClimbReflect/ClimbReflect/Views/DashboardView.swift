@@ -47,6 +47,8 @@ struct DashboardView: View {
 
                         SessionTypeChartView(sessions: sessions)
 
+                        GradePyramidView(sessions: sessions)
+
                         recentSessions
                     }
                     .padding(.horizontal, 20)

@@ -7,7 +7,7 @@ struct ClimbReflectApp: App {
 
     init() {
         do {
-            container = try ModelContainer(for: ClimbSession.self)
+            container = try ModelContainer(for: ClimbSession.self, Ascent.self)
         } catch {
             fatalError("SwiftData-Container konnte nicht erstellt werden: \(error)")
         }

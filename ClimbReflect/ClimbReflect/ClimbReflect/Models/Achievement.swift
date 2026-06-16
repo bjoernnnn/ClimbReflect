@@ -103,6 +103,71 @@ enum StatsEngine {
             .sorted { $0.count > $1.count }
     }
 
+    // MARK: Grad-Pyramide (P3.3)
+
+    struct PyramidEntry: Identifiable {
+        let id: String
+        let grade: String
+        let gradeSystem: GradeSystem
+        let tops: Int
+        let attempts: Int
+        let sortOrder: Int
+    }
+
+    // MARK: Send-Rate & Flash-Quote (P3.4)
+
+    struct SendStats {
+        let totalAscents: Int
+        let tops: Int
+        let flashes: Int
+        let sendRate: Double     // tops / totalAscents
+        let flashRate: Double    // flashes / tops
+    }
+
+    static func sendStats(_ sessions: [ClimbSession]) -> SendStats {
+        let all = sessions.flatMap(\.ascents)
+        let tops = all.filter { $0.result == .top }
+        let flashes = tops.filter { $0.style == .flash }
+        let total = max(1, all.count)
+        return SendStats(
+            totalAscents: all.count,
+            tops: tops.count,
+            flashes: flashes.count,
+            sendRate: Double(tops.count) / Double(total),
+            flashRate: tops.isEmpty ? 0 : Double(flashes.count) / Double(tops.count)
+        )
+    }
+
+    // MARK: Grad-Pyramide (P3.3)
+
+    static func gradePyramid(_ sessions: [ClimbSession],
+                             system: GradeSystem) -> [PyramidEntry] {
+        let allAscents = sessions.flatMap(\.ascents).filter {
+            $0.gradeSystem == system
+        }
+        guard !allAscents.isEmpty else { return [] }
+
+        var groups: [String: (tops: Int, attempts: Int)] = [:]
+        for a in allAscents {
+            let key = a.gradeRaw
+            var entry = groups[key, default: (0, 0)]
+            if a.result == .top { entry.tops += 1 } else { entry.attempts += 1 }
+            groups[key] = entry
+        }
+        return groups.compactMap { grade, counts in
+            guard counts.tops > 0 || counts.attempts > 0 else { return nil }
+            return PyramidEntry(
+                id: grade,
+                grade: grade,
+                gradeSystem: system,
+                tops: counts.tops,
+                attempts: counts.attempts,
+                sortOrder: system.sortOrder(of: grade)
+            )
+        }
+        .sorted { $0.sortOrder > $1.sortOrder }
+    }
+
     static func totalMinutes(_ sessions: [ClimbSession]) -> Int {
         sessions.reduce(0) { $0 + $1.durationMinutes }
     }

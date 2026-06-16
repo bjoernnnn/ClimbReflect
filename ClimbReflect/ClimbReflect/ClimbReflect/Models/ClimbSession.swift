@@ -25,6 +25,12 @@ final class ClimbSession {
     var hardestPart: String?
     var improveNext: String?
 
+    // Technik-Fokus (P3.6)
+    var techniqueFocusRaw: String?     // TechniqueFocus.rawValue
+    var focusRating: Int?              // 1–5 Selbstbewertung
+
+    @Relationship(deleteRule: .cascade, inverse: \Ascent.session) var ascents: [Ascent] = []
+
     var createdAt: Date
     var updatedAt: Date
 
@@ -42,7 +48,9 @@ final class ClimbSession {
          limiters: [Limiter] = [],
          learned: String? = nil,
          hardestPart: String? = nil,
-         improveNext: String? = nil) {
+         improveNext: String? = nil,
+         techniqueFocus: TechniqueFocus? = nil,
+         focusRating: Int? = nil) {
         self.id = id
         self.workoutUUID = workoutUUID
         self.date = date
@@ -58,6 +66,8 @@ final class ClimbSession {
         self.learned = learned
         self.hardestPart = hardestPart
         self.improveNext = improveNext
+        self.techniqueFocusRaw = techniqueFocus?.rawValue
+        self.focusRating = focusRating
         self.createdAt = .now
         self.updatedAt = .now
     }
@@ -70,4 +80,5 @@ extension ClimbSession {
     var source: SessionSource { SessionSource(rawValue: sourceRaw) ?? .manual }
     var limiters: [Limiter] { limiterRaw.compactMap(Limiter.init(rawValue:)) }
     var durationMinutes: Int { Int(durationSeconds / 60) }
+    var techniqueFocus: TechniqueFocus? { techniqueFocusRaw.flatMap(TechniqueFocus.init(rawValue:)) }
 }

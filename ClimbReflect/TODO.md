@@ -156,6 +156,109 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
 
 ---
 
+## P3 – Vom Logbuch zum Performance-Tool (Kletter-Erfolge im Kern)
+
+Diese Stufe verschiebt den Fokus von „Session geloggt" zu „Boulder/Route gesendet".
+Aktuell kennt die App nur *Sessions* (Zeitblöcke), nicht *Begehungen* (einzelne Boulder/
+Routen mit Grad und Ergebnis) – deshalb sind die „Erfolge" bisher App-Nutzungs-Erfolge,
+keine echten Kletter-Erfolge/-Misserfolge. **P3.1 ist das Fundament; alles weitere baut
+darauf auf** – daher zwingend zuerst.
+
+> Leitprinzip: **Nachhaltigen Fortschritt belohnen, nicht rohes Volumen oder Streaks um
+> jeden Preis.** Klettern hat echtes Verletzungsrisiko (Ringbänder/Finger). Erholung,
+> Comebacks und bewusstes Techniküben dürfen ebenso „Erfolge" sein wie harte Sends.
+
+- [x] **P3.1 Begehung als neue Einheit (Grad + Ergebnis)** — *Fundament*
+  - *Kontext:* Ohne Grad und Top/Versuch gibt es keine messbaren Kletter-Erfolge.
+  - *Dateien:* neu `Models/Ascent.swift` (`@Model`, `@Relationship` zu `ClimbSession`);
+    `Models/Enums.swift` (`GradeSystem` [Fb/V-Scale Boulder, French/UIAA Route], `Grade`,
+    `AscentResult` = top/versuch/aufgegeben, `AscentStyle` = flash/onsight/redpoint/projekt);
+    `Models/ClimbSession.swift` (`@Relationship var ascents: [Ascent]`);
+    `Views/SessionDetailView.swift` (Begehungen erfassen/auflisten/löschen).
+    SwiftData-Schema-Migration beachten (additiv, daher i. d. R. unkritisch).
+  - *Aufgabe:* In einer Session mehrere Begehungen anlegen: Grad (Skala wählbar),
+    Ergebnis, Stil, Versuchszahl, optionale Notiz.
+  - *Fertig wenn:* Ich kann pro Session mehrere Boulder/Routen mit Grad und Ergebnis
+    erfassen; sie persistieren und erscheinen in der Detailansicht.
+
+- [x] **P3.2 Send-Moment feiern**
+  - *Kontext:* Das Top ist der Dopamin-Moment – aktuell nur eine Zeile.
+  - *Dateien:* neu Celebration-Component (Animation + Haptik via
+    `UINotificationFeedbackGenerator`); `Views/SessionDetailView.swift`.
+  - *Aufgabe:* Bei Ergebnis „Top" kurze Feier; „Neuer Höchstgrad!"-Badge, wenn der Grad
+    ein persönliches Maximum ist.
+  - *Fertig wenn:* Ein Top auslösen gibt sicht-/spürbares Feedback; neuer PB wird erkannt.
+
+- [x] **P3.3 Grad-Pyramide**
+  - *Kontext:* Standard-Überblickswerkzeug der Kletterer (breite leichte Basis vs. harte Spitze).
+  - *Dateien:* neu `Views/Components/GradePyramidView.swift`; `Models/Achievement.swift`
+    (StatsEngine: Sends pro Grad aggregieren).
+  - *Aufgabe:* Gestapelte Pyramide der Sends pro Grad (getrennt Boulder/Route), Zeitraum filterbar.
+  - *Fertig wenn:* Dashboard zeigt die Send-Verteilung über die Grade; Höchstgrad erkennbar.
+
+- [x] **P3.4 Send-Rate & Flash-Quote über Zeit**
+  - *Dateien:* `Models/Achievement.swift` (StatsEngine: sends/attempts, flashRate); neu Chart-Component.
+  - *Aufgabe:* Verhältnis Tops/Versuche und Flash-Quote als Trend.
+  - *Fertig wenn:* Ich sehe, wie sich meine Erfolgsquote entwickelt – Misserfolge als Signal, nicht Makel.
+
+- [ ] **P3.5 Projekte-Board (Mehr-Session-Sends)**
+  - *Kontext:* Das mehrwöchige Arbeiten an einem Boulder bis zum Send ist Kernmotivation.
+  - *Dateien:* neu `Views/ProjectsView.swift`; Verknüpfung gleicher Boulder über Sessions
+    (z. B. `projectName`/`projectID` am `Ascent`).
+  - *Aufgabe:* Liste „in Arbeit": Versuche über Sessions zählen, Beta-Notizen, „gesendet" mit Datum.
+  - *Fertig wenn:* Ich kann ein Projekt anlegen, Versuche sammeln und den Send markieren.
+
+- [x] **P3.6 Technik-Fokus pro Session + Auswertung** — *Kernziel „Technik verbessern"*
+  - *Kontext:* Besser werden braucht bewusstes Üben (deliberate practice), nicht nur Sends.
+  - *Dateien:* `Models/ClimbSession.swift` (`techniqueFocus`, `focusRating`);
+    `Views/ManualSessionView.swift` + `Views/SessionDetailView.swift`; neu Trend-Chart.
+  - *Aufgabe:* Fokus wählen (stille Füße, Hüfte an die Wand, Dynamos committen, Heel-/Toe-Hooks …),
+    nach der Session 1–5 selbst bewerten; Chart „Fokus über Zeit"; optional „Skill der Woche".
+  - *Fertig wenn:* Ich kann je Session einen Technikfokus setzen/bewerten und die Entwicklung sehen.
+
+- [ ] **P3.7 Stil-Tags an der Begehung + Antistyle-Radar**
+  - *Kontext:* Misserfolge in eine Trainingskarte verwandeln – wo falle ich ab?
+  - *Dateien:* `Models/Enums.swift` (`WallAngle` Platte/senkrecht/Überhang/Dach, `HoldType`
+    Leisten/Sloper/Pinch/Pockets, `ClimbStyle` technisch/kraftvoll/dynamisch); `Models/Ascent.swift`;
+    StatsEngine (Send-Rate × Stil); neu `Views/Components/AntistyleRadarView.swift`.
+  - *Aufgabe:* Begehung taggen; Heatmap/Radar der Send-Rate pro Stil; optional Fokus-Vorschlag aus der Schwäche.
+  - *Fertig wenn:* Ich sehe, in welchem Stil ich abfalle, und bekomme daraus eine Trainingsrichtung.
+
+- [ ] **P3.8 Beta-Bibliothek**
+  - *Dateien:* durchsuchbare `Ascent`-Notizen; neu Such-/Listenansicht.
+  - *Aufgabe:* Schlüsselzüge/Beta an Begehungen, durchsuchbar.
+  - *Fertig wenn:* Ich finde frühere Beta wieder.
+
+- [ ] **P3.9 Adaptive, kletter-bezogene Erfolge (statt fixer Schwellen)**
+  - *Kontext:* Behebt den Schwachpunkt „alle Erfolge gleichzeitig entsperrt"; Bezug zur eigenen Baseline.
+  - *Dateien:* `Models/Achievement.swift` (StatsEngine), ggf. persistente Baseline.
+  - *Aufgabe:* Erfolge wie „2 Grade über 30-Tage-Schnitt", „3 Flashes in einer Session",
+    „Projekt nach 8+ Versuchen gesendet", „neuer Höchstgrad" – plus wellbeing-positive Erfolge
+    („Ruhetag genommen", „Comeback nach Pause").
+  - *Fertig wenn:* Mind. 4 adaptive, kletter-bezogene Erfolge, die nicht alle gleichzeitig auslösen.
+
+- [ ] **P3.10 Wochen-Recap-Karte (teilbar)**
+  - *Aufgabe:* „Diese Woche: X Tops · neuer Höchstgrad · Antistyle · Ø RPE" als teilbares Bild.
+  - *Fertig wenn:* Am Wochenende erscheint eine teilbare Zusammenfassung.
+
+- [ ] **P3.11 „Dein Kletterjahr" / Highlight-Reel + Crux-Clips**
+  - *Dateien:* Foto/Video an `Ascent` (Files/PhotosPicker); Jahresansicht.
+  - *Aufgabe:* Kurzclip/Foto je Begehung; Jahresrückblick der härtesten Sends.
+  - *Fertig wenn:* Medien hängen an Begehungen; ein Jahresrückblick lässt sich erzeugen.
+
+- [ ] **P3.12 Form-/Plateau-Signal (behutsam)**
+  - *Dateien:* StatsEngine (RPE × Send-Rate); dezente Hinweis-Component.
+  - *Aufgabe:* Flash-Quote sinkt + RPE steigt → „Deload erwägen"; Grad flach + RPE hoch über
+    N Wochen → „Technikwoche". Bewusst zurückhaltend, kein Push zu Übertraining.
+  - *Fertig wenn:* Bei klaren Mustern erscheint ein dezenter, gesundheitsbewusster Hinweis.
+
+- [ ] **P3.13 Gym-/Set-Kontext (optional)**
+  - *Aufgabe:* Begehung an Halle/Sektion/Set hängen, indoor/outdoor trennen; fairer Pyramiden-Zeitraum
+    (Hallen schrauben regelmäßig um).
+  - *Fertig wenn:* Sends lassen sich nach Ort/Set filtern.
+
+---
+
 ## Kleinere Fixes / Tech-Debt (nebenbei erledigbar)
 
 - [x] **„Reflexion offen"-Logik vereinheitlichen:** `SessionRow` wertet nun
@@ -175,5 +278,7 @@ betroffene *Dateien*, die *Aufgabe* und ein *Fertig-wenn*-Kriterium.
 
 ## Fortschritt
 
-Erledigte Punkte abhaken (`[x]`). Empfehlung: P0 vollständig, dann Review/Test auf
-echtem Gerät, danach P1. P2 nach Bedarf.
+Erledigte Punkte abhaken (`[x]`). P0–P1 sind erledigt, P2 weitgehend (offen: CloudKit,
+iPad/Widget/Lokalisierung). **Nächster großer Bogen: P3** – er macht aus dem Logbuch ein
+echtes Performance-Tool. Innerhalb P3 zwingend mit **P3.1 (Begehung mit Grad + Ergebnis)**
+beginnen, da alle weiteren P3-Punkte darauf aufbauen.

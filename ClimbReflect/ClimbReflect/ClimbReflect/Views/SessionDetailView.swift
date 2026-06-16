@@ -7,6 +7,7 @@ struct SessionDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
+    @State private var showAddAscent = false
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -26,6 +27,7 @@ struct SessionDetailView: View {
                     if session.avgHeartRate != nil || session.activeEnergyKcal != nil {
                         redpointCard
                     }
+                    ascentsCard
                     reflectionCard
                 }
                 .padding(.horizontal, 20)
@@ -61,6 +63,9 @@ struct SessionDetailView: View {
                     .foregroundStyle(Theme.danger)
                 }
             }
+        }
+        .sheet(isPresented: $showAddAscent) {
+            AddAscentView(session: session)
         }
         .confirmationDialog("Session löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Löschen", role: .destructive) {
@@ -148,6 +153,62 @@ struct SessionDetailView: View {
         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bgElevated))
     }
 
+    // MARK: - Begehungen (P3.1)
+
+    private var ascentsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("Begehungen", systemImage: "figure.climbing")
+                    .font(.headline)
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Button {
+                    showAddAscent = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+
+            let sorted = session.ascents.sorted { $0.createdAt < $1.createdAt }
+            if sorted.isEmpty {
+                Text("Noch keine Begehungen erfasst.\nTippe auf + um Boulder oder Routen hinzuzufügen.")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(sorted) { ascent in
+                        AscentRowView(ascent: ascent)
+                        if ascent.id != sorted.last?.id {
+                            Divider().background(Theme.surfaceStroke)
+                        }
+                    }
+                }
+
+                let tops = sorted.filter { $0.result == .top }
+                if !tops.isEmpty {
+                    HStack(spacing: 16) {
+                        Label("\(tops.count) Top\(tops.count == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(Theme.accent)
+                        let attempts = sorted.filter { $0.result == .attempt }.count
+                        if attempts > 0 {
+                            Label("\(attempts) Versuch\(attempts == 1 ? "" : "e")",
+                                  systemImage: "arrow.clockwise.circle.fill")
+                                .foregroundStyle(Theme.gold)
+                        }
+                    }
+                    .font(.caption.weight(.semibold))
+                    .padding(.top, 4)
+                }
+            }
+        }
+        .card()
+    }
+
     // MARK: - Tagebuch / Reflexion
 
     private var reflectionCard: some View {
@@ -165,6 +226,10 @@ struct SessionDetailView: View {
             Divider().background(Theme.surfaceStroke)
 
             limiterPicker
+
+            Divider().background(Theme.surfaceStroke)
+
+            techniqueFocusPicker
 
             Divider().background(Theme.surfaceStroke)
 
@@ -337,6 +402,91 @@ struct SessionDetailView: View {
             session.improveNext != nil
         if !wasCompleted && session.reflectionCompleted {
             NotificationService.shared.cancelReminder(for: session.id)
+        }
+    }
+
+    // MARK: - Technik-Fokus (P3.6)
+
+    private var techniqueFocusPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Technik-Fokus")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textSecondary)
+                Spacer()
+                if session.techniqueFocus != nil {
+                    Button("Löschen") {
+                        session.techniqueFocusRaw = nil
+                        session.focusRating = nil
+                        session.updatedAt = .now
+                    }
+                    .font(.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(TechniqueFocus.allCases) { focus in
+                        let selected = session.techniqueFocus == focus
+                        Button {
+                            session.techniqueFocusRaw = focus.rawValue
+                            if session.focusRating == nil { session.focusRating = 3 }
+                            updateReflectionCompleted()
+                            session.updatedAt = .now
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: focus.symbol)
+                                Text(focus.label)
+                            }
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(Capsule().fill(selected ? Theme.accent2 : Theme.bgElevated))
+                            .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            if session.techniqueFocus != nil {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Wie hat's geklappt?")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                        Spacer()
+                        let stars = "★★★★★"
+                        let rating = session.focusRating ?? 0
+                        Text(String(repeating: "★", count: rating) + String(repeating: "☆", count: 5 - rating))
+                            .foregroundStyle(Theme.gold)
+                            .font(.subheadline)
+                    }
+                    HStack(spacing: 6) {
+                        ForEach(1...5, id: \.self) { value in
+                            let selected = session.focusRating == value
+                            Button {
+                                session.focusRating = value
+                                session.updatedAt = .now
+                            } label: {
+                                Text("\(value)")
+                                    .font(.caption.weight(.bold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(selected ? Theme.gold : Theme.bgElevated)
+                                    )
+                                    .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .animation(.easeInOut(duration: 0.2), value: session.techniqueFocus != nil)
+            }
         }
     }
 
