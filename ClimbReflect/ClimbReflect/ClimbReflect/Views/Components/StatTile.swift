@@ -17,7 +17,7 @@ struct StatTile: View {
                 .font(.caption)
                 .foregroundStyle(Theme.textSecondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .card(padding: 14)
     }
 }

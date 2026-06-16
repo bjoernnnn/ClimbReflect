@@ -315,17 +315,6 @@ struct LiveSessionView: View {
 
     private var historySection: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 6) {
-                Rectangle().fill(WatchTheme.elevated).frame(height: 1)
-                Text("VERLAUF")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(WatchTheme.textTert)
-                    .fixedSize()
-                Rectangle().fill(WatchTheme.elevated).frame(height: 1)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 10)
-
             LazyVStack(spacing: 5) {
                 ForEach(workoutManager.attempts.reversed()) { attempt in
                     ascentRow(attempt)
@@ -345,9 +334,16 @@ struct LiveSessionView: View {
                     .foregroundStyle(attempt.result?.color ?? WatchTheme.textTert)
                     .frame(width: 18)
 
-                Text(attempt.grade ?? "–")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(WatchTheme.textPrimary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(attempt.grade ?? "–")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(WatchTheme.textPrimary)
+                    if attempt.altitudeGain > 0.5 {
+                        Text(String(format: "%.0f m", attempt.altitudeGain))
+                            .font(.system(size: 9))
+                            .foregroundStyle(WatchTheme.textTert)
+                    }
+                }
 
                 if let style = attempt.style {
                     Text(style.label)
@@ -466,15 +462,10 @@ struct LiveSessionView: View {
     }
 
     private var scrollHint: some View {
-        VStack(spacing: 2) {
-            Image(systemName: "chevron.compact.down")
-                .font(.system(size: 14))
-                .foregroundStyle(WatchTheme.textTert)
-            Text("Verlauf")
-                .font(.system(size: 9))
-                .foregroundStyle(WatchTheme.textTert)
-        }
-        .padding(.bottom, 4)
+        Image(systemName: "chevron.compact.down")
+            .font(.system(size: 14))
+            .foregroundStyle(WatchTheme.textTert)
+            .padding(.bottom, 4)
     }
 
     // MARK: - Hilfsmethoden

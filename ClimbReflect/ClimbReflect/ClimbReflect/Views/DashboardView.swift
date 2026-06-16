@@ -139,8 +139,8 @@ struct DashboardView: View {
 
     private var statRow: some View {
         HStack(spacing: 12) {
-            StatTile(value: "\(sessions.filter(\.isClimbing).count)", label: "Klettersessions", symbol: "figure.climbing")
-            StatTile(value: "\(StatsEngine.climbWeekStreak(sessions))", label: "Kletter-Streak", symbol: "flame.fill")
+            StatTile(value: "\(sessions.filter(\.isClimbing).count)", label: "Sessions", symbol: "figure.climbing")
+            StatTile(value: "\(StatsEngine.climbWeekStreak(sessions))", label: "Streak", symbol: "flame.fill")
             StatTile(value: "\(StatsEngine.sessionsThisWeek(sessions))", label: "Diese Woche", symbol: "calendar")
         }
     }
@@ -196,7 +196,7 @@ struct DashboardView: View {
                             .foregroundStyle(a.isUnlocked ? Theme.textPrimary : Theme.textTertiary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
-                            .frame(width: 72)
+                            .frame(width: 72, height: 28, alignment: .top)
                     }
                     .padding(.vertical, 10)
                     .padding(.horizontal, 8)

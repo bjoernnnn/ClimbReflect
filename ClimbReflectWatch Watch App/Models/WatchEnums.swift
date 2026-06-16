@@ -156,29 +156,38 @@ enum WatchSessionEnergy: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Trainingsziel (C5 – rawValue == Limiter.rawValue auf iPhone)
+// MARK: - Trainingsziel (C5)
 
 enum WatchTrainingTarget: String, CaseIterable, Identifiable {
     case fingerStrength, endurance, technique, mobility, mental
+    case strengthTraining, flexibility, campus, hangboard
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .fingerStrength: "Fingerkraft"
-        case .endurance:      "Ausdauer"
-        case .technique:      "Technik"
-        case .mobility:       "Beweglichkeit"
-        case .mental:         "Mental"
+        case .fingerStrength:   "Fingerkraft"
+        case .endurance:        "Ausdauer"
+        case .technique:        "Technik"
+        case .mobility:         "Beweglichkeit"
+        case .mental:           "Mental"
+        case .strengthTraining: "Krafttraining"
+        case .flexibility:      "Flexibilität"
+        case .campus:           "Campus Board"
+        case .hangboard:        "Hangboard"
         }
     }
 
     var symbol: String {
         switch self {
-        case .fingerStrength: "hand.raised.fill"
-        case .endurance:      "wind"
-        case .technique:      "lightbulb.fill"
-        case .mobility:       "figure.flexibility"
-        case .mental:         "brain.head.profile"
+        case .fingerStrength:   "hand.raised.fill"
+        case .endurance:        "wind"
+        case .technique:        "lightbulb.fill"
+        case .mobility:         "figure.walk"
+        case .mental:           "brain.head.profile"
+        case .strengthTraining: "dumbbell.fill"
+        case .flexibility:      "figure.flexibility"
+        case .campus:           "rectangle.grid.1x2.fill"
+        case .hangboard:        "rectangle.fill"
         }
     }
 }
