@@ -167,6 +167,56 @@ enum AscentStyle: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Wand-Winkel, Grifftyp, Kletter-Stil (P3.7)
+
+enum WallAngle: String, Codable, CaseIterable, Identifiable {
+    case slab, vertical, overhang, roof
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .slab:     "Platte"
+        case .vertical: "Senkrecht"
+        case .overhang: "Überhang"
+        case .roof:     "Dach"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .slab:     "rectangle.portrait.slash"
+        case .vertical: "rectangle.portrait"
+        case .overhang: "chevron.up"
+        case .roof:     "arrow.up.to.line"
+        }
+    }
+}
+
+enum HoldType: String, Codable, CaseIterable, Identifiable {
+    case crimps, slopers, pinches, pockets, jugs, volumes
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .crimps:  "Crimps"
+        case .slopers: "Sloper"
+        case .pinches: "Pinch"
+        case .pockets: "Taschen"
+        case .jugs:    "Henkel"
+        case .volumes: "Volumen"
+        }
+    }
+}
+
+enum ClimbStyle: String, Codable, CaseIterable, Identifiable {
+    case technical, powerful, dynamic
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .technical: "Technisch"
+        case .powerful:  "Kraftvoll"
+        case .dynamic:   "Dynamisch"
+        }
+    }
+}
+
 // MARK: - Limiter
 
 enum Limiter: String, Codable, CaseIterable, Identifiable {

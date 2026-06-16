@@ -22,8 +22,10 @@ struct DashboardView: View {
     }
 
     private var achievements: [Achievement] { StatsEngine.achievements(for: sessions) }
+    private var climbAchievements: [StatsEngine.ClimbAchievement] { StatsEngine.climbAchievements(for: sessions) }
     private var weekly: [WeeklyPoint] { StatsEngine.weeklyMinutes(sessions) }
     private var unlockedCount: Int { achievements.filter(\.isUnlocked).count }
+    private var formSignal: StatsEngine.FormSignal { StatsEngine.formSignal(sessions) }
 
     var body: some View {
         NavigationStack {
@@ -36,7 +38,12 @@ struct DashboardView: View {
 
                         statRow
 
-                        sectionHeader("Erfolge", trailing: "\(unlockedCount)/\(achievements.count)")
+                        FormSignalView(signal: formSignal)
+
+                        sectionHeader("Kletter-Erfolge", trailing: nil)
+                        climbAchievementsRow
+
+                        sectionHeader("App-Erfolge", trailing: "\(unlockedCount)/\(achievements.count)")
                         achievementsRow
 
                         ProgressChartView(points: weekly)
@@ -127,6 +134,58 @@ struct DashboardView: View {
         }
     }
 
+    private var climbAchievementsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(climbAchievements) { a in
+                    VStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(a.isUnlocked ? a.color.opacity(0.15) : Theme.bgElevated)
+                                .frame(width: 52, height: 52)
+                            Image(systemName: a.symbol)
+                                .font(.system(size: 22))
+                                .foregroundStyle(a.isUnlocked ? a.color : Theme.textTertiary)
+                        }
+                        Text(a.title)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(a.isUnlocked ? Theme.textPrimary : Theme.textTertiary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .frame(width: 72)
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 8)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(a.isUnlocked ? a.color.opacity(0.3) : Color.clear, lineWidth: 1)
+                    )
+                }
+
+                NavigationLink(destination: BetaLibraryView()) {
+                    VStack(spacing: 8) {
+                        ZStack {
+                            Circle().fill(Theme.bgElevated).frame(width: 52, height: 52)
+                            Image(systemName: "text.magnifyingglass")
+                                .font(.system(size: 20))
+                                .foregroundStyle(Theme.accent)
+                        }
+                        Text("Beta")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Theme.accent)
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 8)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 2)
+        }
+        .scrollClipDisabled()
+    }
+
     private var achievementsRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
@@ -144,8 +203,14 @@ struct DashboardView: View {
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)
                 Spacer()
+                NavigationLink(destination: ProjectsView()) {
+                    Text("Projekte")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                Text("·").foregroundStyle(Theme.textTertiary)
                 NavigationLink(destination: AllSessionsView()) {
-                    Text("Alle anzeigen")
+                    Text("Alle")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.accent)
                 }

@@ -13,6 +13,10 @@ struct AddAscentView: View {
     @State private var style: AscentStyle = .redpoint
     @State private var attempts: Int = 1
     @State private var note: String = ""
+    @State private var wallAngle: WallAngle? = nil
+    @State private var holdType: HoldType? = nil
+    @State private var climbStyle: ClimbStyle? = nil
+    @State private var projectName: String = ""
     @State private var showCelebration = false
 
     private var grades: [String] { gradeSystem.grades }
@@ -77,6 +81,36 @@ struct AddAscentView: View {
                     }
                     .listRowBackground(Theme.surface)
 
+                    // MARK: Stil-Tags (P3.7)
+                    Section {
+                        tagRow("Wandwinkel", options: WallAngle.allCases,
+                               label: { $0.label }, selection: $wallAngle)
+                        tagRow("Grifftyp", options: HoldType.allCases,
+                               label: { $0.label }, selection: $holdType)
+                        tagRow("Kletterstil", options: ClimbStyle.allCases,
+                               label: { $0.label }, selection: $climbStyle)
+                    } header: {
+                        Text("Stil-Tags (optional)").foregroundStyle(Theme.textTertiary)
+                    }
+                    .listRowBackground(Theme.surface)
+
+                    // MARK: Projekt (P3.5)
+                    Section {
+                        HStack {
+                            Image(systemName: "target")
+                                .foregroundStyle(Theme.accent)
+                                .frame(width: 20)
+                            TextField("Projektname (optional)", text: $projectName)
+                                .foregroundStyle(Theme.textPrimary)
+                        }
+                    } header: {
+                        Text("Projekt").foregroundStyle(Theme.textTertiary)
+                    } footer: {
+                        Text("Gleicher Name über Sessions hinweg verbindet Versuche zu einem Projekt.")
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                    .listRowBackground(Theme.surface)
+
                     // MARK: Notiz
                     Section {
                         ZStack(alignment: .topLeading) {
@@ -131,6 +165,38 @@ struct AddAscentView: View {
         }
     }
 
+    @ViewBuilder
+    private func tagRow<T: Identifiable & Hashable>(
+        _ title: String,
+        options: [T],
+        label: @escaping (T) -> String,
+        selection: Binding<T?>
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.textTertiary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(options, id: \.id) { opt in
+                        let selected = selection.wrappedValue == opt
+                        Button {
+                            selection.wrappedValue = selected ? nil : opt
+                        } label: {
+                            Text(label(opt))
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Capsule().fill(selected ? Theme.accent : Theme.bgElevated))
+                                .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
     private func save() {
         let ascent = Ascent(
             gradeSystem: gradeSystem,
@@ -140,6 +206,10 @@ struct AddAscentView: View {
             attempts: attempts,
             note: note.isEmpty ? nil : note,
             date: session.date,
+            wallAngle: wallAngle,
+            holdType: holdType,
+            climbStyle: climbStyle,
+            projectName: projectName.isEmpty ? nil : projectName,
             session: session
         )
         context.insert(ascent)

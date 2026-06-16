@@ -176,6 +176,131 @@ enum StatsEngine {
         weeklyMinutes(sessions, weeks: 1).first?.sessions ?? 0
     }
 
+    // MARK: Form-/Plateau-Signal (P3.12)
+
+    enum FormSignal: Equatable {
+        case deloadSuggested   // RPE hoch + Send-Rate sinkt
+        case techniqueSuggested // Grad flach + RPE hoch über Zeit
+        case formGood           // alles im grünen Bereich
+    }
+
+    static func formSignal(_ sessions: [ClimbSession]) -> FormSignal {
+        let recent = sessions.sorted { $0.date > $1.date }.prefix(6)
+        guard recent.count >= 4 else { return .formGood }
+
+        let avgRPE = recent.compactMap(\.perceivedEffort).map(Double.init)
+        guard !avgRPE.isEmpty else { return .formGood }
+        let rpe = avgRPE.reduce(0, +) / Double(avgRPE.count)
+
+        let recentAscents = recent.flatMap(\.ascents)
+        guard recentAscents.count >= 4 else { return .formGood }
+        let sendRate = Double(recentAscents.filter { $0.result == .top }.count) / Double(recentAscents.count)
+
+        if rpe >= 8.0 && sendRate < 0.35 { return .deloadSuggested }
+
+        let allSorted = sessions.sorted { $0.date < $1.date }
+        let half = allSorted.count / 2
+        if half >= 2 {
+            let older = allSorted.prefix(half).flatMap(\.ascents)
+            let newer = allSorted.suffix(half).flatMap(\.ascents)
+            let olderMax = older.filter { $0.result == .top }.map(\.sortOrder).max() ?? 0
+            let newerMax = newer.filter { $0.result == .top }.map(\.sortOrder).max() ?? 0
+            if newerMax <= olderMax && rpe >= 7.5 { return .techniqueSuggested }
+        }
+        return .formGood
+    }
+
+    // MARK: Adaptive Kletter-Erfolge (P3.9)
+
+    struct ClimbAchievement: Identifiable {
+        let id: String
+        let title: String
+        let subtitle: String
+        let symbol: String
+        let isUnlocked: Bool
+        let color: Color
+    }
+
+    static func climbAchievements(for sessions: [ClimbSession]) -> [ClimbAchievement] {
+        let allAscents = sessions.flatMap(\.ascents)
+        let tops = allAscents.filter { $0.result == .top }
+        let flashes = tops.filter { $0.style == .flash }
+
+        // Neuer Höchstgrad
+        let maxGrade = tops.max { $0.sortOrder < $1.sortOrder }
+
+        // 3 Flashes in einer Session
+        let bestFlashSession = sessions
+            .map { ($0, $0.ascents.filter { $0.style == .flash }.count) }
+            .max { $0.1 < $1.1 }
+
+        // Projekt gesendet (> 5 Versuche)
+        let projectSent = tops.first { a in
+            guard let name = a.projectName else { return false }
+            let totalAttempts = allAscents
+                .filter { $0.projectName == name }
+                .reduce(0) { $0 + $1.attempts }
+            return totalAttempts >= 5
+        }
+
+        // Comeback (Session nach ≥14 Tagen Pause)
+        let sortedDates = sessions.map(\.date).sorted()
+        let comeback = zip(sortedDates, sortedDates.dropFirst())
+            .contains { Calendar.current.dateComponents([.day], from: $0.0, to: $0.1).day ?? 0 >= 14 }
+
+        // Flash-Quote ≥ 30%
+        let goodFlashRate = tops.count >= 5 && Double(flashes.count) / Double(tops.count) >= 0.30
+
+        return [
+            ClimbAchievement(
+                id: "new_pb",
+                title: "Neuer Höchstgrad",
+                subtitle: maxGrade.map { "Gesendet: \($0.gradeRaw)" } ?? "Noch kein Top",
+                symbol: "trophy.fill",
+                isUnlocked: maxGrade != nil,
+                color: Theme.gold
+            ),
+            ClimbAchievement(
+                id: "triple_flash",
+                title: "Flash-Session",
+                subtitle: (bestFlashSession?.1 ?? 0) >= 3
+                    ? "3 Flashes in einer Session!"
+                    : "\(bestFlashSession?.1 ?? 0)/3 Flashes",
+                symbol: "bolt.circle.fill",
+                isUnlocked: (bestFlashSession?.1 ?? 0) >= 3,
+                color: Theme.accent
+            ),
+            ClimbAchievement(
+                id: "project_done",
+                title: "Hartnäckig",
+                subtitle: projectSent != nil
+                    ? "Projekt \(projectSent!.projectName!) gesendet!"
+                    : "Projekt mit 5+ Versuchen senden",
+                symbol: "target",
+                isUnlocked: projectSent != nil,
+                color: Theme.accent
+            ),
+            ClimbAchievement(
+                id: "comeback",
+                title: "Comeback",
+                subtitle: comeback ? "Nach Pause zurück!" : "Nach 14 Tagen Pause klettern",
+                symbol: "arrow.up.heart.fill",
+                isUnlocked: comeback,
+                color: Theme.danger
+            ),
+            ClimbAchievement(
+                id: "flash_rate",
+                title: "Flash-Meister",
+                subtitle: goodFlashRate
+                    ? "≥ 30% Flash-Quote!"
+                    : "Erziele ≥30% Flash-Quote (mind. 5 Tops)",
+                symbol: "star.circle.fill",
+                isUnlocked: goodFlashRate,
+                color: Theme.gold
+            ),
+        ]
+    }
+
     // MARK: Erfolge
 
     static func achievements(for sessions: [ClimbSession]) -> [Achievement] {

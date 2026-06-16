@@ -201,7 +201,7 @@ darauf auf** – daher zwingend zuerst.
   - *Aufgabe:* Verhältnis Tops/Versuche und Flash-Quote als Trend.
   - *Fertig wenn:* Ich sehe, wie sich meine Erfolgsquote entwickelt – Misserfolge als Signal, nicht Makel.
 
-- [ ] **P3.5 Projekte-Board (Mehr-Session-Sends)**
+- [x] **P3.5 Projekte-Board (Mehr-Session-Sends)**
   - *Kontext:* Das mehrwöchige Arbeiten an einem Boulder bis zum Send ist Kernmotivation.
   - *Dateien:* neu `Views/ProjectsView.swift`; Verknüpfung gleicher Boulder über Sessions
     (z. B. `projectName`/`projectID` am `Ascent`).
@@ -216,7 +216,7 @@ darauf auf** – daher zwingend zuerst.
     nach der Session 1–5 selbst bewerten; Chart „Fokus über Zeit"; optional „Skill der Woche".
   - *Fertig wenn:* Ich kann je Session einen Technikfokus setzen/bewerten und die Entwicklung sehen.
 
-- [ ] **P3.7 Stil-Tags an der Begehung + Antistyle-Radar**
+- [x] **P3.7 Stil-Tags an der Begehung + Antistyle-Radar**
   - *Kontext:* Misserfolge in eine Trainingskarte verwandeln – wo falle ich ab?
   - *Dateien:* `Models/Enums.swift` (`WallAngle` Platte/senkrecht/Überhang/Dach, `HoldType`
     Leisten/Sloper/Pinch/Pockets, `ClimbStyle` technisch/kraftvoll/dynamisch); `Models/Ascent.swift`;
@@ -224,12 +224,12 @@ darauf auf** – daher zwingend zuerst.
   - *Aufgabe:* Begehung taggen; Heatmap/Radar der Send-Rate pro Stil; optional Fokus-Vorschlag aus der Schwäche.
   - *Fertig wenn:* Ich sehe, in welchem Stil ich abfalle, und bekomme daraus eine Trainingsrichtung.
 
-- [ ] **P3.8 Beta-Bibliothek**
+- [x] **P3.8 Beta-Bibliothek**
   - *Dateien:* durchsuchbare `Ascent`-Notizen; neu Such-/Listenansicht.
   - *Aufgabe:* Schlüsselzüge/Beta an Begehungen, durchsuchbar.
   - *Fertig wenn:* Ich finde frühere Beta wieder.
 
-- [ ] **P3.9 Adaptive, kletter-bezogene Erfolge (statt fixer Schwellen)**
+- [x] **P3.9 Adaptive, kletter-bezogene Erfolge (statt fixer Schwellen)**
   - *Kontext:* Behebt den Schwachpunkt „alle Erfolge gleichzeitig entsperrt"; Bezug zur eigenen Baseline.
   - *Dateien:* `Models/Achievement.swift` (StatsEngine), ggf. persistente Baseline.
   - *Aufgabe:* Erfolge wie „2 Grade über 30-Tage-Schnitt", „3 Flashes in einer Session",
@@ -246,7 +246,7 @@ darauf auf** – daher zwingend zuerst.
   - *Aufgabe:* Kurzclip/Foto je Begehung; Jahresrückblick der härtesten Sends.
   - *Fertig wenn:* Medien hängen an Begehungen; ein Jahresrückblick lässt sich erzeugen.
 
-- [ ] **P3.12 Form-/Plateau-Signal (behutsam)**
+- [x] **P3.12 Form-/Plateau-Signal (behutsam)**
   - *Dateien:* StatsEngine (RPE × Send-Rate); dezente Hinweis-Component.
   - *Aufgabe:* Flash-Quote sinkt + RPE steigt → „Deload erwägen"; Grad flach + RPE hoch über
     N Wochen → „Technikwoche". Bewusst zurückhaltend, kein Push zu Übertraining.
