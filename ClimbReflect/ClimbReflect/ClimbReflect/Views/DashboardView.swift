@@ -56,6 +56,10 @@ struct DashboardView: View {
 
                         GradePyramidView(sessions: sessions)
 
+                        AntistyleRadarView(sessions: sessions)
+
+                        WeeklyRecapView(sessions: sessions)
+
                         recentSessions
                     }
                     .padding(.horizontal, 20)

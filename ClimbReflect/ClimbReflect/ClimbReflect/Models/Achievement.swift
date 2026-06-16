@@ -210,6 +210,112 @@ enum StatsEngine {
         return .formGood
     }
 
+    // MARK: Antistyle-Auswertung (P3.7)
+
+    struct StyleSendRate: Identifiable {
+        let id: String
+        let label: String
+        let category: String   // "Wandwinkel" | "Grifftyp" | "Kletterart"
+        let sendRate: Double   // 0.0–1.0
+        let totalAscents: Int
+    }
+
+    static func antistyleRates(_ sessions: [ClimbSession]) -> [StyleSendRate] {
+        let all = sessions.flatMap(\.ascents)
+        guard !all.isEmpty else { return [] }
+
+        var result: [StyleSendRate] = []
+
+        for angle in WallAngle.allCases {
+            let group = all.filter { $0.wallAngle == angle }
+            guard !group.isEmpty else { continue }
+            let tops = group.filter { $0.result == .top }.count
+            result.append(StyleSendRate(
+                id: "angle_\(angle.rawValue)",
+                label: angle.label,
+                category: "Wandwinkel",
+                sendRate: Double(tops) / Double(group.count),
+                totalAscents: group.count
+            ))
+        }
+        for hold in HoldType.allCases {
+            let group = all.filter { $0.holdType == hold }
+            guard !group.isEmpty else { continue }
+            let tops = group.filter { $0.result == .top }.count
+            result.append(StyleSendRate(
+                id: "hold_\(hold.rawValue)",
+                label: hold.label,
+                category: "Grifftyp",
+                sendRate: Double(tops) / Double(group.count),
+                totalAscents: group.count
+            ))
+        }
+        for style in ClimbStyle.allCases {
+            let group = all.filter { $0.climbStyle == style }
+            guard !group.isEmpty else { continue }
+            let tops = group.filter { $0.result == .top }.count
+            result.append(StyleSendRate(
+                id: "style_\(style.rawValue)",
+                label: style.label,
+                category: "Kletterart",
+                sendRate: Double(tops) / Double(group.count),
+                totalAscents: group.count
+            ))
+        }
+        return result.sorted { $0.sendRate < $1.sendRate }  // Schwächen zuerst
+    }
+
+    // MARK: Wochen-Recap (P3.10)
+
+    struct WeekRecap {
+        let weekStart: Date
+        let weekEnd: Date
+        let tops: Int
+        let sessions: Int
+        let minutes: Int
+        let avgRPE: Double?
+        let highestGrade: String?
+        let highestGradeSystem: GradeSystem?
+        let newPB: Bool        // neuer Höchstgrad im Vergleich zu Vorwochen
+    }
+
+    static func currentWeekRecap(_ sessions: [ClimbSession]) -> WeekRecap {
+        var cal = Calendar.current
+        cal.firstWeekday = 2
+        let now = Date()
+        guard let interval = cal.dateInterval(of: .weekOfYear, for: now) else {
+            return WeekRecap(weekStart: now, weekEnd: now, tops: 0, sessions: 0,
+                             minutes: 0, avgRPE: nil, highestGrade: nil,
+                             highestGradeSystem: nil, newPB: false)
+        }
+        let thisWeek = sessions.filter { $0.date >= interval.start && $0.date < interval.end }
+        let prevSessions = sessions.filter { $0.date < interval.start }
+
+        let allAscents = thisWeek.flatMap(\.ascents)
+        let tops = allAscents.filter { $0.result == .top }
+        let topsSorted = tops.sorted { $0.sortOrder > $1.sortOrder }
+        let highest = topsSorted.first
+
+        let prevTops = prevSessions.flatMap(\.ascents).filter { $0.result == .top }
+        let prevMaxOrder = prevTops.map(\.sortOrder).max() ?? -1
+        let newPB = (highest?.sortOrder ?? -1) > prevMaxOrder
+
+        let rpes = thisWeek.compactMap(\.perceivedEffort).map(Double.init)
+        let avgRPE = rpes.isEmpty ? nil : rpes.reduce(0, +) / Double(rpes.count)
+
+        return WeekRecap(
+            weekStart: interval.start,
+            weekEnd: interval.end,
+            tops: tops.count,
+            sessions: thisWeek.count,
+            minutes: thisWeek.reduce(0) { $0 + $1.durationMinutes },
+            avgRPE: avgRPE,
+            highestGrade: highest?.gradeRaw,
+            highestGradeSystem: highest?.gradeSystem,
+            newPB: newPB
+        )
+    }
+
     // MARK: Adaptive Kletter-Erfolge (P3.9)
 
     struct ClimbAchievement: Identifiable {

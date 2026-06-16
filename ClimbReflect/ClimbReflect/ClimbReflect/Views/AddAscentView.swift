@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct AddAscentView: View {
     @Environment(\.modelContext) private var context
@@ -17,6 +18,9 @@ struct AddAscentView: View {
     @State private var holdType: HoldType? = nil
     @State private var climbStyle: ClimbStyle? = nil
     @State private var projectName: String = ""
+    @State private var setName: String = ""
+    @State private var selectedPhoto: PhotosPickerItem? = nil
+    @State private var photoData: Data? = nil
     @State private var showCelebration = false
 
     private var grades: [String] { gradeSystem.grades }
@@ -94,7 +98,7 @@ struct AddAscentView: View {
                     }
                     .listRowBackground(Theme.surface)
 
-                    // MARK: Projekt (P3.5)
+                    // MARK: Projekt + Set (P3.5 + P3.13)
                     Section {
                         HStack {
                             Image(systemName: "target")
@@ -103,11 +107,64 @@ struct AddAscentView: View {
                             TextField("Projektname (optional)", text: $projectName)
                                 .foregroundStyle(Theme.textPrimary)
                         }
+                        HStack {
+                            Image(systemName: "tag")
+                                .foregroundStyle(Theme.accent)
+                                .frame(width: 20)
+                            TextField("Set / Sektion (optional)", text: $setName)
+                                .foregroundStyle(Theme.textPrimary)
+                        }
                     } header: {
-                        Text("Projekt").foregroundStyle(Theme.textTertiary)
+                        Text("Projekt & Set").foregroundStyle(Theme.textTertiary)
                     } footer: {
-                        Text("Gleicher Name über Sessions hinweg verbindet Versuche zu einem Projekt.")
+                        Text("Gleicher Projektname verbindet Versuche über Sessions. Set z. B. \"Gelb rechts\" oder \"Sektor B\".")
                             .foregroundStyle(Theme.textTertiary)
+                    }
+                    .listRowBackground(Theme.surface)
+
+                    // MARK: Foto/Clip (P3.11)
+                    Section {
+                        PhotosPicker(selection: $selectedPhoto,
+                                     matching: .images,
+                                     photoLibrary: .shared()) {
+                            HStack(spacing: 10) {
+                                if let data = photoData, let uiImage = UIImage(data: data) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 60, height: 60)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                } else {
+                                    Image(systemName: "camera.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(Theme.accent)
+                                        .frame(width: 60, height: 60)
+                                        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bgElevated))
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(photoData != nil ? "Foto ändern" : "Foto hinzufügen")
+                                        .font(.subheadline)
+                                        .foregroundStyle(Theme.textPrimary)
+                                    Text("optional · Crux, Beta, Memento")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.textTertiary)
+                                }
+                            }
+                        }
+                        .onChange(of: selectedPhoto) { _, item in
+                            Task {
+                                photoData = try? await item?.loadTransferable(type: Data.self)
+                            }
+                        }
+                        if photoData != nil {
+                            Button(role: .destructive) { photoData = nil; selectedPhoto = nil } label: {
+                                Label("Foto entfernen", systemImage: "trash")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.danger)
+                            }
+                        }
+                    } header: {
+                        Text("Foto (optional)").foregroundStyle(Theme.textTertiary)
                     }
                     .listRowBackground(Theme.surface)
 
@@ -212,6 +269,8 @@ struct AddAscentView: View {
             projectName: projectName.isEmpty ? nil : projectName,
             session: session
         )
+        ascent.setName = setName.isEmpty ? nil : setName
+        ascent.photoData = photoData
         context.insert(ascent)
         try? context.save()
 

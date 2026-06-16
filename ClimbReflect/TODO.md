@@ -237,11 +237,11 @@ darauf auf** – daher zwingend zuerst.
     („Ruhetag genommen", „Comeback nach Pause").
   - *Fertig wenn:* Mind. 4 adaptive, kletter-bezogene Erfolge, die nicht alle gleichzeitig auslösen.
 
-- [ ] **P3.10 Wochen-Recap-Karte (teilbar)**
+- [x] **P3.10 Wochen-Recap-Karte (teilbar)**
   - *Aufgabe:* „Diese Woche: X Tops · neuer Höchstgrad · Antistyle · Ø RPE" als teilbares Bild.
   - *Fertig wenn:* Am Wochenende erscheint eine teilbare Zusammenfassung.
 
-- [ ] **P3.11 „Dein Kletterjahr" / Highlight-Reel + Crux-Clips**
+- [x] **P3.11 „Dein Kletterjahr" / Highlight-Reel + Crux-Clips**
   - *Dateien:* Foto/Video an `Ascent` (Files/PhotosPicker); Jahresansicht.
   - *Aufgabe:* Kurzclip/Foto je Begehung; Jahresrückblick der härtesten Sends.
   - *Fertig wenn:* Medien hängen an Begehungen; ein Jahresrückblick lässt sich erzeugen.
@@ -252,7 +252,7 @@ darauf auf** – daher zwingend zuerst.
     N Wochen → „Technikwoche". Bewusst zurückhaltend, kein Push zu Übertraining.
   - *Fertig wenn:* Bei klaren Mustern erscheint ein dezenter, gesundheitsbewusster Hinweis.
 
-- [ ] **P3.13 Gym-/Set-Kontext (optional)**
+- [x] **P3.13 Gym-/Set-Kontext (optional)**
   - *Aufgabe:* Begehung an Halle/Sektion/Set hängen, indoor/outdoor trennen; fairer Pyramiden-Zeitraum
     (Hallen schrauben regelmäßig um).
   - *Fertig wenn:* Sends lassen sich nach Ort/Set filtern.
@@ -266,7 +266,7 @@ darauf auf** – daher zwingend zuerst.
   `SessionDetailView`. (`Views/Components/SessionRow.swift`, `Views/SessionDetailView.swift`)
 - [x] **Force-Unwrap entfernen:** `MockData.daysAgo` nutzt jetzt `guard` statt `!`
   bei der Datumsberechnung. (`Models/MockData.swift`)
-- [ ] **Hintergrund-Grafik:** Optional Kletterwand-Charakter statt generischer Bergsilhouette
+- [x] **Hintergrund-Grafik:** Optional Kletterwand-Charakter statt generischer Bergsilhouette
   und Hintergrund entsättigen, damit der Akzentverlauf der UI nicht konkurriert und der
   Textkontrast steigt. (`Background/MountainBackground.swift`)
 - [ ] **Assets:** App-Icon und `AccentColor` sind leere Platzhalter – echtes Icon/Farbe

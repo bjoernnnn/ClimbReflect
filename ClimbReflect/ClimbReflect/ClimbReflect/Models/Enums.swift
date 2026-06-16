@@ -32,6 +32,7 @@ enum SessionType: String, Codable, CaseIterable, Identifiable {
 enum SessionSource: String, Codable {
     case healthKit   // von Redpoint über Apple Health
     case manual
+    case watch       // direkt von Apple Watch via WatchConnectivity
 }
 
 // MARK: - Grad-System

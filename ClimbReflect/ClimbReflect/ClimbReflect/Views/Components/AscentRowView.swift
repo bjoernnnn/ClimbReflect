@@ -44,9 +44,19 @@ struct AscentRowView: View {
 
             Spacer()
 
-            Text(ascent.result.label)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(ascent.result.color)
+            HStack(spacing: 6) {
+                // P3.11: Foto-Thumbnail falls vorhanden
+                if let data = ascent.photoData, let img = UIImage(data: data) {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 36, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                Text(ascent.result.label)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(ascent.result.color)
+            }
         }
         .padding(.vertical, 4)
     }

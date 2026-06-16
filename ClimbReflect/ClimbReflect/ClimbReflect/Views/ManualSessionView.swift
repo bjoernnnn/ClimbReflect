@@ -8,6 +8,8 @@ struct ManualSessionView: View {
     @State private var date = Date()
     @State private var durationMinutes = 60
     @State private var sessionType = SessionType.boulder
+    @State private var gymName = ""
+    @State private var outdoor = false
     @State private var createdSession: ClimbSession?
     @State private var navigateToDetail = false
 
@@ -67,6 +69,21 @@ struct ManualSessionView: View {
             .listRowBackground(Theme.surface)
 
             Section {
+                Toggle(isOn: $outdoor) {
+                    Label("Outdoor", systemImage: "mountain.2.fill")
+                        .foregroundStyle(Theme.textPrimary)
+                }
+                .tint(Theme.accent)
+                if !outdoor {
+                    TextField("Halle (optional)", text: $gymName)
+                        .foregroundStyle(Theme.textPrimary)
+                }
+            } header: {
+                Text("Wo?").foregroundStyle(Theme.textTertiary)
+            }
+            .listRowBackground(Theme.surface)
+
+            Section {
                 ForEach(SessionType.allCases.filter { $0 != .unknown }) { type in
                     Button { sessionType = type } label: {
                         HStack(spacing: 12) {
@@ -98,7 +115,9 @@ struct ManualSessionView: View {
             date: date,
             durationSeconds: Double(durationMinutes * 60),
             sessionType: sessionType,
-            source: .manual
+            source: .manual,
+            gymName: gymName.isEmpty ? nil : gymName,
+            outdoor: outdoor
         )
         context.insert(session)
         try? context.save()

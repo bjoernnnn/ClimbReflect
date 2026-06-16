@@ -18,12 +18,16 @@ final class ClimbSession {
     var activeEnergyKcal: Double?
 
     // Subjektive Reflexion
-    var reflectionCompleted: Bool
+    var reflectionCompleted: Bool = false
     var perceivedEffort: Int?         // RPE 1–10
-    var limiterRaw: [String]          // Limiter.rawValue
+    var limiterRaw: [String] = []     // Limiter.rawValue
     var learned: String?
     var hardestPart: String?
     var improveNext: String?
+
+    // Gym-/Set-Kontext (P3.13)
+    var gymName: String?               // z. B. "BoulderWelt München"
+    var outdoor: Bool = false
 
     // Technik-Fokus (P3.6)
     var techniqueFocusRaw: String?     // TechniqueFocus.rawValue
@@ -50,7 +54,9 @@ final class ClimbSession {
          hardestPart: String? = nil,
          improveNext: String? = nil,
          techniqueFocus: TechniqueFocus? = nil,
-         focusRating: Int? = nil) {
+         focusRating: Int? = nil,
+         gymName: String? = nil,
+         outdoor: Bool = false) {
         self.id = id
         self.workoutUUID = workoutUUID
         self.date = date
@@ -68,6 +74,8 @@ final class ClimbSession {
         self.improveNext = improveNext
         self.techniqueFocusRaw = techniqueFocus?.rawValue
         self.focusRating = focusRating
+        self.gymName = gymName
+        self.outdoor = outdoor
         self.createdAt = .now
         self.updatedAt = .now
     }

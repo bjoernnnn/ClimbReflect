@@ -20,6 +20,12 @@ final class Ascent {
     // Projekt-Zugehörigkeit (P3.5)
     var projectName: String?
 
+    // Gym-/Set-Kontext (P3.13)
+    var setName: String?               // z. B. "Gelb rechts", "Sektor B"
+
+    // Medien (P3.11) — externalStorage hält die SwiftData-Hauptdatei klein
+    @Attribute(.externalStorage) var photoData: Data?
+
     var session: ClimbSession?
     var createdAt: Date
 
