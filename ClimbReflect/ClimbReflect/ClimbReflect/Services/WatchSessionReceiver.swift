@@ -77,7 +77,9 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
 
     nonisolated func session(_ session: WCSession,
                              didReceiveUserInfo userInfo: [String: Any] = [:]) {
-        guard let data = userInfo[WatchSessionDTO.transferKey] as? Data else { return }
+        // Literal statt WatchSessionDTO.transferKey — nonisolated Kontext darf keine
+        // @MainActor-isolierten statischen Properties lesen (SWIFT_DEFAULT_ACTOR_ISOLATION).
+        guard let data = userInfo["watchSessionDTO"] as? Data else { return }
         Task { @MainActor [self] in
             guard let dto = try? JSONDecoder().decode(WatchSessionDTO.self, from: data)
             else { return }
