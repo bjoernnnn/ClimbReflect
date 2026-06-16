@@ -5,6 +5,7 @@ struct WatchLiveStatus: Codable {
     let sessionTypeRaw: String
     let attemptCount: Int
     let isPaused: Bool
+    let startedAt: Date
 
     static let key = "watchLiveStatus"
 

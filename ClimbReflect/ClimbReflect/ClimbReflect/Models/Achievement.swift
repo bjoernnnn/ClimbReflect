@@ -359,6 +359,7 @@ enum StatsEngine {
         let symbol: String
         let isUnlocked: Bool
         let color: Color
+        let explanation: String
     }
 
     static func climbAchievements(for sessions: [ClimbSession]) -> [ClimbAchievement] {
@@ -399,7 +400,8 @@ enum StatsEngine {
                 subtitle: maxGrade.map { "Gesendet: \($0.gradeRaw)" } ?? "Noch kein Top",
                 symbol: "trophy.fill",
                 isUnlocked: maxGrade != nil,
-                color: Theme.gold
+                color: Theme.gold,
+                explanation: "Du hast mindestens einen Boulder oder eine Route erfolgreich gesendet. Der aktuell beste Rotpunkt erscheint auf dem Dashboard."
             ),
             ClimbAchievement(
                 id: "triple_flash",
@@ -409,7 +411,8 @@ enum StatsEngine {
                     : "\(bestFlashSession?.1 ?? 0)/3 Flashes",
                 symbol: "bolt.circle.fill",
                 isUnlocked: (bestFlashSession?.1 ?? 0) >= 3,
-                color: Theme.accent
+                color: Theme.accent,
+                explanation: "Du hast in einer einzigen Session mindestens 3 Boulder oder Routen geflasht — also im ersten Versuch ohne Vorwissen gesendet. Ein Flash zeigt starke Lese- und Bewegungskompetenz."
             ),
             ClimbAchievement(
                 id: "project_done",
@@ -419,7 +422,8 @@ enum StatsEngine {
                     : "Projekt mit 5+ Versuchen senden",
                 symbol: "target",
                 isUnlocked: projectSent != nil,
-                color: Theme.accent
+                color: Theme.accent,
+                explanation: "Du hast ein Projekt mit mindestens 5 Versuchen schließlich gesendet. Hartnäckigkeit zahlt sich aus — dieser Erfolg würdigt Ausdauer über mehrere Sessions hinweg."
             ),
             ClimbAchievement(
                 id: "comeback",
@@ -427,7 +431,8 @@ enum StatsEngine {
                 subtitle: comeback ? "Nach Pause zurück!" : "Nach 14 Tagen Pause klettern",
                 symbol: "arrow.up.heart.fill",
                 isUnlocked: comeback,
-                color: Theme.danger
+                color: Theme.danger,
+                explanation: "Nach einer Pause von mindestens 14 Tagen bist du wieder an die Wand gegangen. Rückkehren nach einer Pause erfordert Überwindung — gut gemacht!"
             ),
             ClimbAchievement(
                 id: "flash_rate",
@@ -437,7 +442,8 @@ enum StatsEngine {
                     : "Erziele ≥30% Flash-Quote (mind. 5 Tops)",
                 symbol: "star.circle.fill",
                 isUnlocked: goodFlashRate,
-                color: Theme.gold
+                color: Theme.gold,
+                explanation: "Von mindestens 5 Tops hast du ≥30% im ersten Versuch (Flash) gesendet. Eine hohe Flash-Quote zeigt, dass du Routen gut lesen und direkt umsetzen kannst."
             ),
         ]
     }

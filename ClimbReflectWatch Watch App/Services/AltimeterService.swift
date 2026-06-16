@@ -2,7 +2,7 @@ import CoreMotion
 import Foundation
 
 // Kumuliert relative Höhenmeter via CMAltimeter (W1.2)
-// Netto-Aufstieg pro Versuch ist über start/stopCurrentAscent() messbar.
+// Pro Versuch: Netto-Aufstieg = Maximalhöhe − Basishöhe (robuster als Summe positiver Deltas).
 
 actor AltimeterService {
     private let altimeter = CMAltimeter()
@@ -10,18 +10,16 @@ actor AltimeterService {
 
     // Pro Versuch
     private var ascentBaseAltitude: Double? = nil
+    private var ascentMaxAltitude: Double = 0
     private var lastAltitude: Double = 0
-    private(set) var currentAscentGain: Double = 0
 
-    // W8.4: Barometer-Updates auf Queue mit niedrigerer Priorität → weniger CPU/Akku
     func start() {
         guard CMAltimeter.isRelativeAltitudeAvailable() else { return }
         let queue = OperationQueue()
-        queue.qualityOfService = .utility   // nicht Main-Thread, spart Energie
+        queue.qualityOfService = .utility
         altimeter.startRelativeAltitudeUpdates(to: queue) { [self] data, _ in
             guard let data else { return }
             let rel = data.relativeAltitude.doubleValue
-            // Actor-Methode von außen: Task mit explizitem self-Hop
             Task { [self] in self.handleAltitude(rel) }
         }
     }
@@ -32,22 +30,20 @@ actor AltimeterService {
 
     func startAscentTracking() {
         ascentBaseAltitude = lastAltitude
-        currentAscentGain = 0
+        ascentMaxAltitude = lastAltitude
     }
 
     func stopAscentTracking() -> Double {
-        let gain = max(0, currentAscentGain)
+        guard let base = ascentBaseAltitude else { return 0 }
+        let gain = max(0, ascentMaxAltitude - base)
         totalGain += gain
         ascentBaseAltitude = nil
         return gain
     }
 
     private func handleAltitude(_ rel: Double) {
-        let delta = rel - lastAltitude
-        if delta > 0 {
-            if ascentBaseAltitude != nil {
-                currentAscentGain += delta
-            }
+        if ascentBaseAltitude != nil {
+            if rel > ascentMaxAltitude { ascentMaxAltitude = rel }
         }
         lastAltitude = rel
     }

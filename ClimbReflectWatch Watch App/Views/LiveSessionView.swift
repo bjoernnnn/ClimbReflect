@@ -122,74 +122,70 @@ struct LiveSessionView: View {
         .navigationBarBackButtonHidden(true)
     }
 
-    // MARK: - Tab 1 (Klettern): Session-Info + Verlauf (Weather-App-Muster)
+    // MARK: - Tab 1 (Klettern): Session-Info + Verlauf (Wetter-App-Muster: verticalPage)
 
     private var sessionInfoPage: some View {
-        // GeometryReader außerhalb der ScrollView: einzige zuverlässige
-        // Methode auf watchOS, um die exakt verfügbare Höhe zu messen.
-        GeometryReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-
-                    // ── Seite 1: Stats ──
-                    VStack(spacing: 8) {
-                        Spacer(minLength: 0)
-
-                        Text(elapsedFormatted)
-                            .font(.system(.title, design: .monospaced, weight: .bold))
-                            .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
-
-                        if !isLuminanceReduced { vitalsRow }
-
-                        HStack(spacing: 8) {
-                            statBadge(value: "\(workoutManager.attempts.count)",
-                                      label: "Versuche", icon: "figure.climbing",
-                                      color: WatchTheme.textSecond)
-                            statBadge(value: "\(topCount)",
-                                      label: "Tops", icon: "checkmark.circle.fill",
-                                      color: WatchTheme.accent)
-                        }
-
-                        if workoutManager.pendingClassifications > 0 { pendingBanner }
-
-                        Spacer(minLength: 0)
-
-                        if !workoutManager.attempts.isEmpty { scrollHint }
-
-                        actionStateIndicator.padding(.bottom, 4)
-                    }
-                    // Exakte Höhe via GeometryReader → Spacer füllen korrekt
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .padding(.horizontal, 8)
-                    .overlay {
-                        if workoutManager.attemptState == .awaitingResult {
-                            quickResultOverlay
-                        }
-                    }
-
-                    // ── Seite 2: Verlauf ─ durch Scrollen erreichbar ──
-                    if !workoutManager.attempts.isEmpty {
-                        LazyVStack(spacing: 5) {
-                            ForEach(workoutManager.attempts.reversed()) { attempt in
-                                ascentRow(attempt)
-                                    .transition(.move(edge: .top).combined(with: .opacity))
-                            }
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.top, 12)
-                        .padding(.bottom, 20)
-                        .animation(.spring(duration: 0.3), value: workoutManager.attempts.count)
+        TabView {
+            // ── Seite 1: Stats ──
+            statsPage
+                .overlay {
+                    if workoutManager.attemptState == .awaitingResult {
+                        quickResultOverlay
                     }
                 }
-                .scrollTargetLayout()
+
+            // ── Seite 2: Verlauf (nur sichtbar wenn Begehungen vorhanden) ──
+            if !workoutManager.attempts.isEmpty {
+                historyPage
             }
-            .scrollTargetBehavior(.viewAligned)
         }
+        .tabViewStyle(.verticalPage)
         .background(WatchTheme.bg)
         .sheet(item: $selectedAttempt) { attempt in
             AscentDetailView(attempt: attempt) {
                 workoutManager.removeAttempt(id: attempt.id)
             }
+        }
+    }
+
+    private var statsPage: some View {
+        VStack(spacing: 8) {
+            Spacer(minLength: 0)
+
+            Text(elapsedFormatted)
+                .font(.system(.title3, design: .monospaced, weight: .bold))
+                .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
+
+            if !isLuminanceReduced { vitalsRow }
+
+            HStack(spacing: 8) {
+                statBadge(value: "\(workoutManager.attempts.count)",
+                          label: "Versuche", icon: "figure.climbing",
+                          color: WatchTheme.textSecond)
+                statBadge(value: "\(topCount)",
+                          label: "Tops", icon: "checkmark.circle.fill",
+                          color: WatchTheme.accent)
+            }
+
+            if workoutManager.pendingClassifications > 0 { pendingBanner }
+
+            Spacer(minLength: 0)
+
+            actionStateIndicator.padding(.bottom, 4)
+        }
+        .padding(.horizontal, 8)
+    }
+
+    private var historyPage: some View {
+        ScrollView {
+            LazyVStack(spacing: 5) {
+                ForEach(workoutManager.attempts.reversed()) { attempt in
+                    ascentRow(attempt)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 8)
+            .padding(.bottom, 20)
         }
     }
 
@@ -291,7 +287,7 @@ struct LiveSessionView: View {
                 Spacer(minLength: 0).frame(height: 8)
 
                 Text(elapsedFormatted)
-                    .font(.system(.title, design: .monospaced, weight: .bold))
+                    .font(.system(.title3, design: .monospaced, weight: .bold))
                     .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
 
                 if let target = workoutManager.trainingTarget {
@@ -450,8 +446,13 @@ struct LiveSessionView: View {
             vitalCell(value: heartStr, unit: "BPM",
                       icon: "heart.fill", color: WatchTheme.danger)
             vitalSep
-            vitalCell(value: "\(Int(workoutManager.activeEnergyKcal))", unit: "kcal",
-                      icon: "flame.fill", color: WatchTheme.gold)
+            if workoutManager.isTraining {
+                vitalCell(value: "\(Int(workoutManager.activeEnergyKcal))", unit: "kcal",
+                          icon: "flame.fill", color: WatchTheme.gold)
+            } else {
+                vitalCell(value: String(format: "%.0f", workoutManager.totalAltitudeGain), unit: "m",
+                          icon: "arrow.up.forward", color: WatchTheme.gold)
+            }
             vitalSep
             vitalCell(value: maxHRStr, unit: "Max",
                       icon: "arrow.up.heart.fill", color: WatchTheme.danger.opacity(0.7))

@@ -3,8 +3,14 @@ import SwiftUI
 struct GradePyramidView: View {
     let sessions: [ClimbSession]
 
-    @State private var selectedSystem: GradeSystem = .fontainebleau
+    @AppStorage("boulderScale") private var boulderScale: String = GradeSystem.fontainebleau.rawValue
+    @AppStorage("routeScale") private var routeScale: String = GradeSystem.french.rawValue
     @State private var period: ChartPeriod = .fourWeeks
+    @State private var showInfo = false
+
+    private var selectedSystem: GradeSystem {
+        GradeSystem(rawValue: boulderScale) ?? .fontainebleau
+    }
 
     private var entries: [StatsEngine.PyramidEntry] {
         StatsEngine.gradePyramid(period.filter(sessions), system: selectedSystem)
@@ -24,14 +30,19 @@ struct GradePyramidView: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
-                Picker("System", selection: $selectedSystem) {
-                    ForEach(GradeSystem.allCases) { s in
-                        Text(s.label).tag(s)
-                    }
+                Button {
+                    showInfo = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Theme.textTertiary)
                 }
-                .pickerStyle(.menu)
-                .tint(Theme.accent)
-                .font(.caption)
+                .buttonStyle(.plain)
+            }
+            .alert("Grad-Pyramide", isPresented: $showInfo) {
+                Button("OK") {}
+            } message: {
+                Text("Zeigt, wie viele Routen oder Boulder du je Grad gesendet hast (×N) und wie viele Versuche offen blieben (+N). Eine breite Basis bedeutet solides Volumen, eine schmale Spitze zeigt dein aktuelles Limit. Die Skala wird in den Einstellungen gewählt.")
             }
 
             ChartPeriodPicker(selection: $period)
@@ -46,7 +57,7 @@ struct GradePyramidView: View {
                 VStack(spacing: 6) {
                     ForEach(entries) { entry in
                         HStack(spacing: 8) {
-                            Text(entry.grade)
+                            Text(GradeConverter.display(grade: entry.grade, storedIn: entry.gradeSystem))
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(Theme.textPrimary)
                                 .frame(width: 36, alignment: .leading)

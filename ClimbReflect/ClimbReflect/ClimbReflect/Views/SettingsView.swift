@@ -16,6 +16,12 @@ struct SettingsView: View {
     @State private var showExportSheet = false
     @State private var notificationsEnabled = NotificationService.shared.isEnabled
 
+    @AppStorage("boulderScale") private var boulderScale: String = GradeSystem.fontainebleau.rawValue
+    @AppStorage("routeScale") private var routeScale: String = GradeSystem.french.rawValue
+
+    private var boulderGradeSystems: [GradeSystem] { [.fontainebleau, .vScale] }
+    private var routeGradeSystems: [GradeSystem] { [.french, .uiaa] }
+
     private var healthKitAvailable: Bool {
         #if canImport(HealthKit)
         return HKHealthStore.isHealthDataAvailable()
@@ -71,6 +77,31 @@ struct SettingsView: View {
                         }
                         .listRowBackground(Theme.surface)
                     }
+
+                    // MARK: Grad-Skala
+                    Section {
+                        Picker("Boulder", selection: $boulderScale) {
+                            ForEach(boulderGradeSystems) { s in
+                                Text(s.label).tag(s.rawValue)
+                            }
+                        }
+                        .foregroundStyle(Theme.textPrimary)
+                        .tint(Theme.accent)
+
+                        Picker("Route", selection: $routeScale) {
+                            ForEach(routeGradeSystems) { s in
+                                Text(s.label).tag(s.rawValue)
+                            }
+                        }
+                        .foregroundStyle(Theme.textPrimary)
+                        .tint(Theme.accent)
+                    } header: {
+                        Text("Grad-Skala").foregroundStyle(Theme.textTertiary)
+                    } footer: {
+                        Text("Legt fest, in welcher Skala Grad-Anzeigen erscheinen. Die Originaldaten bleiben unverändert gespeichert.")
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                    .listRowBackground(Theme.surface)
 
                     // MARK: Daten
                     Section {

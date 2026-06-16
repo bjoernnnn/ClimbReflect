@@ -52,14 +52,14 @@ struct RPETrendView: View {
                         yStart: .value("Basis", 0),
                         yEnd: .value("RPE", point.rpe)
                     )
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.linear)
                     .foregroundStyle(Theme.accent.opacity(0.12))
 
                     LineMark(
                         x: .value("Datum", point.date),
                         y: .value("RPE", point.rpe)
                     )
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.linear)
                     .foregroundStyle(Theme.accentGradient)
                     .lineStyle(StrokeStyle(lineWidth: 2))
 

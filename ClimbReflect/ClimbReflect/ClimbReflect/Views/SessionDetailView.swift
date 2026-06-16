@@ -22,23 +22,14 @@ struct SessionDetailView: View {
         ZStack {
             MountainBackground()
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: []) {
-                    // ── Seite 1: Übersicht ──
+                VStack(alignment: .leading, spacing: 16) {
                     overviewSection
-                        .containerRelativeFrame(.vertical, alignment: .top)
-
-                    // ── Seite 2: Begehungen + Reflexion ──
-                    VStack(alignment: .leading, spacing: 16) {
-                        ascentsSection
-                        reflectionCard
-                    }
-                    .padding(.top, 4)
-                    .padding(.bottom, 40)
+                    ascentsSection
+                    reflectionCard
                 }
-                .scrollTargetLayout()
                 .padding(.horizontal, 20)
+                .padding(.bottom, 40)
             }
-            .scrollTargetBehavior(.paging)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -103,20 +94,12 @@ struct SessionDetailView: View {
                           systemImage: "arrow.clockwise.circle")
                         .foregroundStyle(Theme.gold)
                     Spacer()
-                    Image(systemName: "chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textTertiary)
-                    Text("Begehungen")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textTertiary)
                 }
                 .font(.subheadline.weight(.semibold))
                 .card()
             }
-            Spacer(minLength: 0)
         }
         .padding(.top, 8)
-        .padding(.bottom, 8)
     }
 
     // MARK: - Begehungen-Sektion (zweiter Screen)
@@ -143,9 +126,15 @@ struct SessionDetailView: View {
                     .foregroundStyle(Theme.textSecondary)
                 HStack(spacing: 10) {
                     Label("\(session.durationMinutes) Min", systemImage: "clock")
-                    if session.source == .healthKit {
-                        Label("Redpoint", systemImage: "heart.text.square.fill")
+                    switch session.source {
+                    case .watch:
+                        Label("Apple Watch", systemImage: "applewatch")
                             .foregroundStyle(Theme.accent)
+                    case .healthKit:
+                        Label("Apple Health", systemImage: "heart.fill")
+                            .foregroundStyle(Theme.accent)
+                    case .manual:
+                        EmptyView()
                     }
                 }
                 .font(.caption)
@@ -156,11 +145,11 @@ struct SessionDetailView: View {
         .padding(.top, 8)
     }
 
-    // MARK: - Redpoint-Daten
+    // MARK: - Vitalwerte
 
     private var redpointCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Daten aus Redpoint", systemImage: "heart.text.square.fill")
+            Label("Vitalwerte", systemImage: "heart.fill")
                 .font(.headline)
                 .foregroundStyle(Theme.textPrimary)
 
@@ -320,26 +309,24 @@ struct SessionDetailView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.textSecondary)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(SessionType.allCases.filter { $0 != .unknown }) { type in
-                        let selected = session.sessionType == type
-                        Button {
-                            session.sessionTypeRaw = type.rawValue
-                            session.updatedAt = .now
-                        } label: {
-                            HStack(spacing: 5) {
-                                Image(systemName: type.symbol)
-                                Text(type.label)
-                            }
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(Capsule().fill(selected ? Theme.accent : Theme.bgElevated))
-                            .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], spacing: 8) {
+                ForEach(SessionType.allCases.filter { $0 != .unknown }) { type in
+                    let selected = session.sessionType == type
+                    Button {
+                        session.sessionTypeRaw = type.rawValue
+                        session.updatedAt = .now
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: type.symbol)
+                            Text(type.label)
                         }
-                        .buttonStyle(.plain)
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                        .background(Capsule().fill(selected ? Theme.accent : Theme.bgElevated))
+                        .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -471,28 +458,26 @@ struct SessionDetailView: View {
                 }
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(TechniqueFocus.allCases) { focus in
-                        let selected = session.techniqueFocus == focus
-                        Button {
-                            session.techniqueFocusRaw = focus.rawValue
-                            if session.focusRating == nil { session.focusRating = 3 }
-                            updateReflectionCompleted()
-                            session.updatedAt = .now
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: focus.symbol)
-                                Text(focus.label)
-                            }
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(Capsule().fill(selected ? Theme.accent2 : Theme.bgElevated))
-                            .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], spacing: 8) {
+                ForEach(TechniqueFocus.allCases) { focus in
+                    let selected = session.techniqueFocus == focus
+                    Button {
+                        session.techniqueFocusRaw = focus.rawValue
+                        if session.focusRating == nil { session.focusRating = 3 }
+                        updateReflectionCompleted()
+                        session.updatedAt = .now
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: focus.symbol)
+                            Text(focus.label)
                         }
-                        .buttonStyle(.plain)
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                        .background(Capsule().fill(selected ? Theme.accent2 : Theme.bgElevated))
+                        .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
                     }
+                    .buttonStyle(.plain)
                 }
             }
 

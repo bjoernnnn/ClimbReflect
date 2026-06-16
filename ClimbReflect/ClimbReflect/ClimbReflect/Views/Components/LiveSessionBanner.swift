@@ -34,18 +34,18 @@ struct LiveSessionBanner: View {
                 Text("\(sessionLabel) auf der Watch")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.textPrimary)
-                HStack(spacing: 6) {
+                // Sekündliche Anzeige lokal via TimelineView – kein Watch-Funk
+                if status.isPaused {
                     Text(status.elapsedFormatted)
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(status.isPaused ? Theme.gold : Theme.accent)
-                    if status.attemptCount > 0 {
-                        Text("·")
-                            .foregroundStyle(Theme.textTertiary)
-                        Text("\(status.attemptCount) Versuche")
-                            .foregroundStyle(Theme.textSecondary)
+                        .foregroundStyle(Theme.gold)
+                } else {
+                    TimelineView(.periodic(from: .now, by: 1)) { _ in
+                        Text(liveElapsedFormatted())
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(Theme.accent)
                     }
                 }
-                .font(.caption)
             }
 
             Spacer()
@@ -82,6 +82,14 @@ struct LiveSessionBanner: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(status.isPaused ? Theme.gold.opacity(0.25) : Theme.accent.opacity(0.25), lineWidth: 1)
         )
+    }
+
+    private func liveElapsedFormatted() -> String {
+        let s = Int(Date().timeIntervalSince(status.startedAt))
+        let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
+        return h > 0
+            ? String(format: "%d:%02d:%02d", h, m, sec)
+            : String(format: "%02d:%02d", m, sec)
     }
 
     private func sendCommand(_ command: String) {

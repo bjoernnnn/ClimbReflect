@@ -12,7 +12,7 @@ struct AscentRowView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(ascent.gradeRaw)
+                    Text(GradeConverter.display(grade: ascent.gradeRaw, storedIn: ascent.gradeSystem))
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(Theme.textPrimary)
                     Text(ascent.gradeSystem.label)

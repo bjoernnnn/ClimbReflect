@@ -15,6 +15,7 @@ struct SessionEndQuestionnaireView: View {
 
     @State private var step = 0
     @State private var rpe: Int = 6
+    @State private var rpeValue: Double = 6
     @State private var focus: WatchSessionFocus? = nil
     @State private var energy: WatchSessionEnergy? = nil
 
@@ -52,31 +53,31 @@ struct SessionEndQuestionnaireView: View {
                            title: "Anstrengung",
                            subtitle: "Wie hart war die Session?")
 
-            // Inline-Picker statt Wheel für kompakteres Layout
+            // Große Zahl – primäre Eingabe per Digital Crown
+            Text("\(Int(rpeValue))")
+                .font(.system(size: 44, weight: .bold, design: .rounded))
+                .foregroundStyle(rpeColor(Int(rpeValue)))
+                .focusable(true)
+                .digitalCrownRotation($rpeValue, from: 1, through: 10, by: 1,
+                                      sensitivity: .low, isContinuous: false,
+                                      isHapticFeedbackEnabled: true)
+                .onChange(of: rpeValue) { _, v in rpe = Int(v) }
+
+            // Visueller Indikator (zeigt aktuellen Wert, nicht primäre Eingabe)
             HStack(spacing: 0) {
                 ForEach(1...10, id: \.self) { val in
-                    Button { withAnimation { rpe = val } } label: {
-                        Text("\(val)")
-                            .font(.system(size: val == rpe ? 15 : 12,
-                                          weight: val == rpe ? .bold : .regular))
-                            .foregroundStyle(val == rpe ? WatchTheme.textPrimary : WatchTheme.textTert)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(val == rpe ? rpeColor(val) : Color.clear)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                    }
-                    .buttonStyle(.plain)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(val <= Int(rpeValue) ? rpeColor(val) : WatchTheme.surface)
+                        .frame(maxWidth: .infinity, minHeight: 6, maxHeight: 6)
                 }
             }
-            .background(WatchTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .animation(.easeInOut(duration: 0.1), value: Int(rpeValue))
 
             HStack {
                 Text("Locker").font(.system(size: 9)).foregroundStyle(WatchTheme.textTert)
                 Spacer()
                 Text("Maximal").font(.system(size: 9)).foregroundStyle(WatchTheme.textTert)
             }
-            .padding(.horizontal, 4)
 
             nextButton(label: "Weiter") { withAnimation { step = skipFocus ? 2 : 1 } }
         }

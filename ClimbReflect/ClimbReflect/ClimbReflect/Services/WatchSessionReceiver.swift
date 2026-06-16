@@ -94,6 +94,14 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
     private func insert(dto: WatchSessionDTO) {
         guard let ctx = modelContext else { return }
 
+        // B2: Wenn eine healthKit-Dublette mit gleicher workoutUUID existiert,
+        // diese löschen – die reichhaltigere Watch-Version (mit Begehungen) gewinnt.
+        if let wid = dto.workoutUUID,
+           let existing = try? ctx.fetch(FetchDescriptor<ClimbSession>())
+               .first(where: { $0.workoutUUID == wid && $0.source == .healthKit }) {
+            ctx.delete(existing)
+        }
+
         let sessionType = SessionType(rawValue: dto.sessionTypeRaw) ?? .boulder
         let climbSession = ClimbSession(
             workoutUUID: dto.workoutUUID,

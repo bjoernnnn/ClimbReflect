@@ -13,6 +13,10 @@ struct DashboardView: View {
     @State private var isImporting = false
     @State private var showAddSession = false
     @State private var showSettings = false
+    @State private var selectedAchievementID: String?
+    private var selectedAchievement: StatsEngine.ClimbAchievement? {
+        climbAchievements.first { $0.id == selectedAchievementID }
+    }
 
     private var healthKitAvailable: Bool {
         #if canImport(HealthKit)
@@ -123,6 +127,11 @@ struct DashboardView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: .constant(selectedAchievementID != nil), onDismiss: { selectedAchievementID = nil }) {
+                if let a = selectedAchievement {
+                    achievementDetail(a)
+                }
+            }
             .toolbarBackground(.hidden, for: .navigationBar)
             .alert("Apple Health / Redpoint",
                    isPresented: .constant(importMessage != nil),
@@ -137,14 +146,20 @@ struct DashboardView: View {
     // MARK: - Abschnitte
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(greeting)
-                .font(.subheadline)
-                .foregroundStyle(Theme.textSecondary)
-            Text("Bereit für den nächsten Zug?")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
-                .foregroundStyle(Theme.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
+        HStack(spacing: 10) {
+            if let icon = UIImage(named: "AppIcon") {
+                Image(uiImage: icon)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
+            } else {
+                Image(systemName: "figure.climbing")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+            }
+            Text("ClimbReflect")
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .foregroundStyle(Theme.accent)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 8)
@@ -195,29 +210,32 @@ struct DashboardView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 ForEach(climbAchievements) { a in
-                    VStack(spacing: 8) {
-                        ZStack {
-                            Circle()
-                                .fill(a.isUnlocked ? a.color.opacity(0.15) : Theme.bgElevated)
-                                .frame(width: 52, height: 52)
-                            Image(systemName: a.symbol)
-                                .font(.system(size: 22))
-                                .foregroundStyle(a.isUnlocked ? a.color : Theme.textTertiary)
+                    Button { selectedAchievementID = a.id } label: {
+                        VStack(spacing: 8) {
+                            ZStack {
+                                Circle()
+                                    .fill(a.isUnlocked ? a.color.opacity(0.15) : Theme.bgElevated)
+                                    .frame(width: 52, height: 52)
+                                Image(systemName: a.symbol)
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(a.isUnlocked ? a.color : Theme.textTertiary)
+                            }
+                            Text(a.title)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(a.isUnlocked ? Theme.textPrimary : Theme.textTertiary)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                                .frame(width: 72, height: 28, alignment: .top)
                         }
-                        Text(a.title)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(a.isUnlocked ? Theme.textPrimary : Theme.textTertiary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .frame(width: 72, height: 28, alignment: .top)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 8)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(a.isUnlocked ? a.color.opacity(0.3) : Color.clear, lineWidth: 1)
+                        )
                     }
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 8)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(a.isUnlocked ? a.color.opacity(0.3) : Color.clear, lineWidth: 1)
-                    )
+                    .buttonStyle(.plain)
                 }
 
                 NavigationLink(destination: BetaLibraryView()) {
@@ -254,7 +272,8 @@ struct DashboardView: View {
     }
 
     private func heroTrophyCard(grade: String, system: GradeSystem) -> some View {
-        HStack(spacing: 16) {
+        let displayGrade = GradeConverter.display(grade: grade, storedIn: system)
+        return HStack(spacing: 16) {
             ZStack {
                 Circle()
                     .fill(Theme.gold.opacity(0.15))
@@ -267,7 +286,7 @@ struct DashboardView: View {
                 Text("Bester Rotpunkt")
                     .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
-                Text(grade)
+                Text(displayGrade)
                     .font(.system(size: 36, weight: .black, design: .rounded))
                     .foregroundStyle(Theme.gold)
                 Text(system.label)
@@ -349,14 +368,48 @@ struct DashboardView: View {
         }
     }
 
-    private var greeting: String {
-        let hour = Calendar.current.component(.hour, from: .now)
-        switch hour {
-        case 5..<11:  return "Guten Morgen 👋"
-        case 11..<17: return "Hallo 👋"
-        case 17..<22: return "Guten Abend 👋"
-        default:      return "Spät unterwegs 🌙"
+    // MARK: - Achievement-Detail
+
+    private func achievementDetail(_ a: StatsEngine.ClimbAchievement) -> some View {
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .fill(a.isUnlocked ? a.color.opacity(0.15) : Theme.bgElevated)
+                    .frame(width: 80, height: 80)
+                Image(systemName: a.symbol)
+                    .font(.system(size: 36))
+                    .foregroundStyle(a.isUnlocked ? a.color : Theme.textTertiary)
+            }
+            .padding(.top, 28)
+
+            VStack(spacing: 8) {
+                Text(a.title)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(a.isUnlocked ? "Freigeschaltet ✓" : "Noch gesperrt")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(a.isUnlocked ? a.color : Theme.textTertiary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(a.isUnlocked ? a.color.opacity(0.12) : Theme.bgElevated))
+            }
+
+            Text(a.explanation)
+                .font(.subheadline)
+                .foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+
+            Text(a.subtitle)
+                .font(.caption)
+                .foregroundStyle(Theme.textTertiary)
+                .multilineTextAlignment(.center)
+
+            Spacer()
         }
+        .frame(maxWidth: .infinity)
+        .background(Theme.bg.ignoresSafeArea())
+        .preferredColorScheme(.dark)
     }
 
     // MARK: - Redpoint-Import (HealthKit)

@@ -30,6 +30,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var pendingClassifications: Int = 0
     @Published var attemptState: AttemptState = .idle  // D1
     @Published var trainingTarget: WatchTrainingTarget? = nil  // C5
+    @Published var totalAltitudeGain: Double = 0
 
     var isTraining: Bool { sessionType == .training }
 
@@ -285,7 +286,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             elapsedSeconds: elapsedSeconds,
             sessionTypeRaw: sessionType.rawValue,
             attemptCount: attempts.count,
-            isPaused: isPaused
+            isPaused: isPaused,
+            startedAt: workoutStartDate ?? Date()
         )
         guard let data = try? JSONEncoder().encode(status) else { return }
         try? WCSession.default.updateApplicationContext([WatchLiveStatus.key: data])
@@ -306,8 +308,9 @@ final class WorkoutManager: NSObject, ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.elapsedSeconds += 1
+                let alt = await self.altimeter.totalGain
+                self.totalAltitudeGain = alt
                 if self.sessionType.usesBarometer {
-                    let alt = await self.altimeter.totalGain
                     self.detector.updateAltitude(alt)
                 }
                 // E1: Live-Status alle 5 Sekunden senden
