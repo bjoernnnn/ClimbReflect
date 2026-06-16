@@ -2,13 +2,14 @@ import CoreMotion
 import Foundation
 
 // Kumuliert relative Höhenmeter via CMAltimeter (W1.2)
-// Pro Versuch: Netto-Aufstieg = Maximalhöhe − Basishöhe (robuster als Summe positiver Deltas).
+// totalGain: laufend (positive Deltas immer, unabhängig von Versuchs-Klammer)
+// stopAscentTracking: gibt Netto-Höhe pro Versuch zurück (max − base)
 
 actor AltimeterService {
     private let altimeter = CMAltimeter()
     private(set) var totalGain: Double = 0
 
-    // Pro Versuch
+    // Pro Versuch (Netto-Messung)
     private var ascentBaseAltitude: Double? = nil
     private var ascentMaxAltitude: Double = 0
     private var lastAltitude: Double = 0
@@ -33,17 +34,21 @@ actor AltimeterService {
         ascentMaxAltitude = lastAltitude
     }
 
+    /// Gibt Netto-Höhe des Versuchs zurück (max − base).
+    /// totalGain wird hier NICHT verändert (läuft bereits live via handleAltitude).
     func stopAscentTracking() -> Double {
         guard let base = ascentBaseAltitude else { return 0 }
         let gain = max(0, ascentMaxAltitude - base)
-        totalGain += gain
         ascentBaseAltitude = nil
         return gain
     }
 
     private func handleAltitude(_ rel: Double) {
-        if ascentBaseAltitude != nil {
-            if rel > ascentMaxAltitude { ascentMaxAltitude = rel }
+        let delta = rel - lastAltitude
+        // Immer addieren – unabhängig ob Versuch läuft oder nicht
+        if delta > 0 { totalGain += delta }
+        if ascentBaseAltitude != nil, rel > ascentMaxAltitude {
+            ascentMaxAltitude = rel
         }
         lastAltitude = rel
     }

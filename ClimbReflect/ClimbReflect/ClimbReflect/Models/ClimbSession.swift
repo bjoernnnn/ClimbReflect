@@ -29,9 +29,10 @@ final class ClimbSession {
     var gymName: String?               // z. B. "BoulderWelt München"
     var outdoor: Bool = false
 
-    // Technik-Fokus (P3.6)
-    var techniqueFocusRaw: String?     // TechniqueFocus.rawValue
-    var focusRating: Int?              // 1–5 Selbstbewertung
+    // Technik-Fokus (P3.6) – Mehrfachauswahl
+    var techniqueFocusRaw: String?         // legacy (single), nicht mehr beschrieben
+    var techniqueFocusesRaw: [String] = [] // aktuell: Array der TechniqueFocus.rawValues
+    var focusRating: Int?                  // 1–5 Selbstbewertung (reserviert)
 
     @Relationship(deleteRule: .cascade, inverse: \Ascent.session) var ascents: [Ascent] = []
 
@@ -53,7 +54,7 @@ final class ClimbSession {
          learned: String? = nil,
          hardestPart: String? = nil,
          improveNext: String? = nil,
-         techniqueFocus: TechniqueFocus? = nil,
+         techniqueFocuses: [TechniqueFocus] = [],
          focusRating: Int? = nil,
          gymName: String? = nil,
          outdoor: Bool = false) {
@@ -72,7 +73,7 @@ final class ClimbSession {
         self.learned = learned
         self.hardestPart = hardestPart
         self.improveNext = improveNext
-        self.techniqueFocusRaw = techniqueFocus?.rawValue
+        self.techniqueFocusesRaw = techniqueFocuses.map(\.rawValue)
         self.focusRating = focusRating
         self.gymName = gymName
         self.outdoor = outdoor
@@ -88,6 +89,12 @@ extension ClimbSession {
     var source: SessionSource { SessionSource(rawValue: sourceRaw) ?? .manual }
     var limiters: [Limiter] { limiterRaw.compactMap(Limiter.init(rawValue:)) }
     var durationMinutes: Int { Int(durationSeconds / 60) }
-    var techniqueFocus: TechniqueFocus? { techniqueFocusRaw.flatMap(TechniqueFocus.init(rawValue:)) }
+    var techniqueFocus: TechniqueFocus? { techniqueFocusRaw.flatMap(TechniqueFocus.init(rawValue:)) } // legacy
+    var techniqueFocuses: [TechniqueFocus] {
+        let fromNew = techniqueFocusesRaw.compactMap(TechniqueFocus.init(rawValue:))
+        if !fromNew.isEmpty { return fromNew }
+        // Migration: altes Single-Feld falls noch vorhanden
+        return techniqueFocus.map { [$0] } ?? []
+    }
     var isClimbing: Bool { sessionType != .training }
 }

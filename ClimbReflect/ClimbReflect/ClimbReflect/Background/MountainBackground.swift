@@ -1,114 +1,80 @@
 import SwiftUI
 
-// Kletterwand-Hintergrund: Subtile Griff-Silhouetten und Wandplatten-Linien
-// Ablösung der generischen Bergsilhouette (TODO: Hintergrund-Grafik)
-// Bewusst zurückhaltend (≤ 20 % Gesamtopazität) damit UI-Text stets lesbar bleibt.
+// MARK: - Berg-/Kletterwand-Hintergrund
+//
+// Eine diagonale Bergsilhouette (zwei Grate für Tiefe), die nach oben hin
+// ausfadet. Komplett in SwiftUI gezeichnet – kein Bild-Asset nötig, skaliert
+// auf jede Bildschirmgröße. Gesamtstärke bewusst bei ~26 % (Wunsch: 20–30 %).
 
-// MARK: - Wandplatten-Linien
+private struct RidgeShape: Shape {
+    /// Normalisierte Grat-Punkte (x, y jeweils 0…1; y von oben gemessen).
+    let points: [CGPoint]
 
-private struct WallPanelShape: Shape {
     func path(in rect: CGRect) -> Path {
         var p = Path()
-        // Vertikale Fugen (Boulderwand-Panels)
-        let cols = 5
-        for i in 1..<cols {
-            let x = rect.width * CGFloat(i) / CGFloat(cols)
-            p.move(to: CGPoint(x: x, y: 0))
-            p.addLine(to: CGPoint(x: x, y: rect.height))
+        guard let first = points.first else { return p }
+        p.move(to: CGPoint(x: first.x * rect.width, y: first.y * rect.height))
+        for pt in points.dropFirst() {
+            p.addLine(to: CGPoint(x: pt.x * rect.width, y: pt.y * rect.height))
         }
-        // Horizontale Fugen
-        let rows = 8
-        for j in 1..<rows {
-            let y = rect.height * CGFloat(j) / CGFloat(rows)
-            p.move(to: CGPoint(x: 0, y: y))
-            p.addLine(to: CGPoint(x: rect.width, y: y))
-        }
+        // Bis zum unteren Rand schließen → gefüllte Bergmasse
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        p.closeSubpath()
         return p
     }
 }
 
-// MARK: - Einzelner Griff (einfache Bohnen-Form)
-
-private struct HoldShape: Shape {
-    let cx: CGFloat   // normalisiert 0…1
-    let cy: CGFloat
-    let angle: Double
-
-    func path(in rect: CGRect) -> Path {
-        let x = cx * rect.width
-        let y = cy * rect.height
-        let w: CGFloat = 18
-        let h: CGFloat = 10
-        var p = Path()
-        p.addEllipse(in: CGRect(x: x - w / 2, y: y - h / 2, width: w, height: h))
-        return p.applying(.init(rotationAngle: angle).concatenating(.init(translationX: x * (1 - cos(angle)) + y * sin(angle), y: -x * sin(angle) + y * (1 - cos(angle)))))
-    }
-}
-
-// Einfacherer Ansatz: Hält-Ellipsen direkt platziert
-private struct HoldEllipse: View {
-    let x: CGFloat
-    let y: CGFloat
-    let rotation: Double
-
-    var body: some View {
-        Ellipse()
-            .frame(width: 18, height: 9)
-            .rotationEffect(.degrees(rotation))
-            .position(x: x, y: y)
-    }
-}
-
-// MARK: - Hintergrund
-
 struct MountainBackground: View {
-    // Griff-Positionen (normalisiert 0…1) und Rotation
-    private let holds: [(x: CGFloat, y: CGFloat, rot: Double)] = [
-        (0.10, 0.15, -20), (0.28, 0.08, 15),  (0.52, 0.12, -10), (0.75, 0.18, 25),
-        (0.90, 0.07, -30), (0.18, 0.32, 40),  (0.42, 0.28, -15), (0.65, 0.35, 20),
-        (0.83, 0.30, -25), (0.05, 0.50, 10),  (0.35, 0.47, -35), (0.58, 0.52, 30),
-        (0.78, 0.48, -12), (0.95, 0.44, 18),  (0.15, 0.68, -22), (0.40, 0.65, 14),
-        (0.62, 0.70, -18), (0.88, 0.63, 32),  (0.25, 0.82, -8),  (0.50, 0.78, 22),
-        (0.72, 0.85, -28), (0.92, 0.80, 10)
+    // Hinterer Grat (höher, dezenter) – steigt diagonal nach rechts oben an
+    private let backRidge: [CGPoint] = [
+        .init(x: 0.00, y: 0.72), .init(x: 0.12, y: 0.57), .init(x: 0.20, y: 0.63),
+        .init(x: 0.33, y: 0.41), .init(x: 0.45, y: 0.51), .init(x: 0.57, y: 0.31),
+        .init(x: 0.69, y: 0.41), .init(x: 0.81, y: 0.21), .init(x: 0.91, y: 0.29),
+        .init(x: 1.00, y: 0.13)
+    ]
+    // Vorderer Grat (tiefer, kräftiger)
+    private let frontRidge: [CGPoint] = [
+        .init(x: 0.00, y: 0.90), .init(x: 0.10, y: 0.80), .init(x: 0.23, y: 0.86),
+        .init(x: 0.35, y: 0.67), .init(x: 0.47, y: 0.76), .init(x: 0.59, y: 0.57),
+        .init(x: 0.71, y: 0.66), .init(x: 0.83, y: 0.47), .init(x: 0.93, y: 0.55),
+        .init(x: 1.00, y: 0.39)
     ]
 
     var body: some View {
         ZStack {
             Theme.bg.ignoresSafeArea()
 
+            // Bergmassiv
             GeometryReader { geo in
                 ZStack {
-                    // Subtile Wandfugen
-                    WallPanelShape()
-                        .stroke(Theme.accent.opacity(0.12), lineWidth: 0.5)
-
-                    // Griff-Silhouetten
-                    ForEach(holds.indices, id: \.self) { i in
-                        let h = holds[i]
-                        HoldEllipse(
-                            x: h.x * geo.size.width,
-                            y: h.y * geo.size.height,
-                            rotation: h.rot
+                    RidgeShape(points: backRidge)
+                        .fill(
+                            LinearGradient(colors: [Theme.accent2, Theme.accent],
+                                           startPoint: .topTrailing, endPoint: .bottomLeading)
                         )
-                        .foregroundStyle(Theme.accent.opacity(0.18))
-                    }
+                    RidgeShape(points: frontRidge)
+                        .fill(
+                            LinearGradient(colors: [Theme.accent, Theme.accent2],
+                                           startPoint: .topTrailing, endPoint: .bottomLeading)
+                        )
                 }
                 .frame(width: geo.size.width, height: geo.size.height)
             }
-            .opacity(0.20)
-            .mask(
+            .opacity(0.26)                              // Gesamtstärke 20–30 %
+            .mask(                                      // Fade nach oben hin
                 LinearGradient(
                     stops: [
-                        .init(color: .clear,              location: 0.00),
-                        .init(color: .black.opacity(0.4), location: 0.25),
-                        .init(color: .black,              location: 1.00)
+                        .init(color: .clear,                 location: 0.00),
+                        .init(color: .black.opacity(0.45),   location: 0.32),
+                        .init(color: .black,                 location: 1.00)
                     ],
                     startPoint: .top, endPoint: .bottom)
             )
             .ignoresSafeArea()
 
-            // Dunkle Vignette unten
-            LinearGradient(colors: [.clear, Theme.bg.opacity(0.70)],
+            // Dunkle Vignette unten – hält Text gut lesbar
+            LinearGradient(colors: [.clear, Theme.bg.opacity(0.65)],
                            startPoint: .center, endPoint: .bottom)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
@@ -118,5 +84,4 @@ struct MountainBackground: View {
 
 #Preview {
     MountainBackground()
-        .preferredColorScheme(.dark)
 }

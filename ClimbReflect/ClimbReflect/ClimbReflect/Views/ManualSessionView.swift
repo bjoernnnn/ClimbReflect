@@ -45,6 +45,32 @@ struct ManualSessionView: View {
 
     private var form: some View {
         Form {
+            // Art der Session zuerst – wichtigste Entscheidung
+            Section {
+                ForEach(SessionType.allCases.filter { $0 != .unknown }) { type in
+                    Button { sessionType = type } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: type.symbol)
+                                .foregroundStyle(Theme.accent)
+                                .frame(width: 22)
+                            Text(type.label)
+                                .foregroundStyle(Theme.textPrimary)
+                            Spacer()
+                            if sessionType == type {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Theme.accent)
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            } header: {
+                Text("Art der Session").foregroundStyle(Theme.textTertiary)
+            }
+            .listRowBackground(Theme.surface)
+
             Section {
                 DatePicker("Datum & Uhrzeit", selection: $date, in: ...Date.now)
                     .datePickerStyle(.compact)
@@ -80,30 +106,6 @@ struct ManualSessionView: View {
                 }
             } header: {
                 Text("Wo?").foregroundStyle(Theme.textTertiary)
-            }
-            .listRowBackground(Theme.surface)
-
-            Section {
-                ForEach(SessionType.allCases.filter { $0 != .unknown }) { type in
-                    Button { sessionType = type } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: type.symbol)
-                                .foregroundStyle(Theme.accent)
-                                .frame(width: 22)
-                            Text(type.label)
-                                .foregroundStyle(Theme.textPrimary)
-                            Spacer()
-                            if sessionType == type {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(Theme.accent)
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            } header: {
-                Text("Art der Session").foregroundStyle(Theme.textTertiary)
             }
             .listRowBackground(Theme.surface)
         }

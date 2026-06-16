@@ -25,19 +25,15 @@ struct RPETrendView: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
-                if let avg = averageRPE {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(String(format: "%.1f", avg))
-                            .font(.title3.weight(.bold))
+                VStack(alignment: .trailing, spacing: 4) {
+                    ChartPeriodPicker(selection: $period)
+                    if let avg = averageRPE {
+                        Text(String(format: "Ø %.1f", avg))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(rpeColor(Int(avg.rounded())))
-                        Text("Ø RPE")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.textSecondary)
                     }
                 }
             }
-
-            ChartPeriodPicker(selection: $period)
 
             if points.isEmpty {
                 Text("Trage in deinen Sessions einen RPE-Wert ein, um deinen Verlauf zu sehen.")

@@ -430,6 +430,7 @@ struct SessionDetailView: View {
         session.reflectionCompleted =
             session.perceivedEffort != nil ||
             !session.limiterRaw.isEmpty ||
+            !session.techniqueFocusesRaw.isEmpty ||
             session.learned != nil ||
             session.hardestPart != nil ||
             session.improveNext != nil
@@ -447,10 +448,10 @@ struct SessionDetailView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.textSecondary)
                 Spacer()
-                if session.techniqueFocus != nil {
+                if !session.techniqueFocuses.isEmpty {
                     Button("Löschen") {
-                        session.techniqueFocusRaw = nil
-                        session.focusRating = nil
+                        session.techniqueFocusesRaw = []
+                        updateReflectionCompleted()
                         session.updatedAt = .now
                     }
                     .font(.caption)
@@ -460,10 +461,15 @@ struct SessionDetailView: View {
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], spacing: 8) {
                 ForEach(TechniqueFocus.allCases) { focus in
-                    let selected = session.techniqueFocus == focus
+                    let selected = session.techniqueFocuses.contains(focus)
                     Button {
-                        session.techniqueFocusRaw = focus.rawValue
-                        if session.focusRating == nil { session.focusRating = 3 }
+                        var current = session.techniqueFocuses
+                        if let idx = current.firstIndex(of: focus) {
+                            current.remove(at: idx)
+                        } else {
+                            current.append(focus)
+                        }
+                        session.techniqueFocusesRaw = current.map(\.rawValue)
                         updateReflectionCompleted()
                         session.updatedAt = .now
                     } label: {
@@ -479,43 +485,6 @@ struct SessionDetailView: View {
                     }
                     .buttonStyle(.plain)
                 }
-            }
-
-            if session.techniqueFocus != nil {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Wie hat's geklappt?")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textSecondary)
-                        Spacer()
-                        let rating = session.focusRating ?? 0
-                        Text(String(repeating: "★", count: rating) + String(repeating: "☆", count: 5 - rating))
-                            .foregroundStyle(Theme.gold)
-                            .font(.subheadline)
-                    }
-                    HStack(spacing: 6) {
-                        ForEach(1...5, id: \.self) { value in
-                            let selected = session.focusRating == value
-                            Button {
-                                session.focusRating = value
-                                session.updatedAt = .now
-                            } label: {
-                                Text("\(value)")
-                                    .font(.caption.weight(.bold))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(selected ? Theme.gold : Theme.bgElevated)
-                                    )
-                                    .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-                .animation(.easeInOut(duration: 0.2), value: session.techniqueFocus != nil)
             }
         }
     }

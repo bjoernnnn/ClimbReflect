@@ -20,7 +20,7 @@ struct GradePyramidView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Grad-Pyramide")
                         .font(.headline)
@@ -30,22 +30,23 @@ struct GradePyramidView: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
-                Button {
-                    showInfo = true
-                } label: {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Theme.textTertiary)
+                VStack(alignment: .trailing, spacing: 6) {
+                    ChartPeriodPicker(selection: $period)
+                    Button {
+                        showInfo = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             .alert("Grad-Pyramide", isPresented: $showInfo) {
                 Button("OK") {}
             } message: {
                 Text("Zeigt, wie viele Routen oder Boulder du je Grad gesendet hast (×N) und wie viele Versuche offen blieben (+N). Eine breite Basis bedeutet solides Volumen, eine schmale Spitze zeigt dein aktuelles Limit. Die Skala wird in den Einstellungen gewählt.")
             }
-
-            ChartPeriodPicker(selection: $period)
 
             if entries.isEmpty {
                 Text("Erfasse Begehungen in deinen Sessions, um die Pyramide zu sehen.")

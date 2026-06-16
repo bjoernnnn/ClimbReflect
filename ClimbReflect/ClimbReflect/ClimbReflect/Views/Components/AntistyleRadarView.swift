@@ -15,15 +15,18 @@ struct AntistyleRadarView: View {
     var body: some View {
         if rates.isEmpty { EmptyView() } else {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Antistyle-Analyse")
-                    .font(.headline)
-                    .foregroundStyle(Theme.textPrimary)
-
-                Text("Send-Rate nach Stil · Schwächen zuerst")
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
-
-                ChartPeriodPicker(selection: $period)
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Antistyle-Analyse")
+                            .font(.headline)
+                            .foregroundStyle(Theme.textPrimary)
+                        Text("Send-Rate nach Stil · Schwächen zuerst")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    Spacer()
+                    ChartPeriodPicker(selection: $period)
+                }
 
                 Chart(rates) { entry in
                     BarMark(

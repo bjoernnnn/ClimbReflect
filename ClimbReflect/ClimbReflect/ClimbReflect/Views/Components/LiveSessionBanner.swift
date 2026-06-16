@@ -55,25 +55,23 @@ struct LiveSessionBanner: View {
                     sendCommand(status.isPaused ? "resume" : "pause")
                 } label: {
                     Image(systemName: status.isPaused ? "play.fill" : "pause.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(reachable ? Theme.textPrimary : Theme.textTertiary)
-                        .frame(width: 32, height: 32)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                        .frame(width: 44, height: 44)
                         .background(Circle().fill(Theme.bgElevated))
                 }
                 .buttonStyle(.plain)
-                .disabled(!reachable)
 
                 Button {
                     sendCommand("end")
                 } label: {
                     Image(systemName: "stop.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(reachable ? Theme.danger : Theme.textTertiary)
-                        .frame(width: 32, height: 32)
-                        .background(Circle().fill(reachable ? Theme.danger.opacity(0.12) : Theme.bgElevated))
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Theme.danger)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(Theme.danger.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
-                .disabled(!reachable)
             }
         }
         .padding(14)
@@ -93,7 +91,12 @@ struct LiveSessionBanner: View {
     }
 
     private func sendCommand(_ command: String) {
-        guard reachable else { return }
-        WCSession.default.sendMessage(["watchCommand": command], replyHandler: nil)
+        let payload: [String: Any] = ["watchCommand": command]
+        if reachable {
+            WCSession.default.sendMessage(payload, replyHandler: nil)
+        } else {
+            // Fallback: transferUserInfo wird zugestellt sobald Watch erreichbar ist
+            WCSession.default.transferUserInfo(payload)
+        }
     }
 }

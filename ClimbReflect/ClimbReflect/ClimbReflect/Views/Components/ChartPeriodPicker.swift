@@ -22,16 +22,29 @@ enum ChartPeriod: String, CaseIterable, Identifiable {
     }
 }
 
+/// Kompakte Pill-Segment-Auswahl – sitzt oben rechts im Karten-Header.
 struct ChartPeriodPicker: View {
     @Binding var selection: ChartPeriod
 
     var body: some View {
-        Picker("Zeitraum", selection: $selection) {
-            ForEach(ChartPeriod.allCases) { p in
-                Text(p.rawValue).tag(p)
+        HStack(spacing: 2) {
+            ForEach(ChartPeriod.allCases) { period in
+                let active = selection == period
+                Button { selection = period } label: {
+                    Text(period.rawValue)
+                        .font(.caption2.weight(active ? .bold : .regular))
+                        .foregroundStyle(active ? Theme.bg : Theme.textTertiary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule().fill(active ? Theme.accent : Color.clear)
+                        )
+                }
+                .buttonStyle(.plain)
+                .animation(.easeInOut(duration: 0.15), value: selection)
             }
         }
-        .pickerStyle(.segmented)
-        .frame(maxWidth: 160)
+        .padding(2)
+        .background(Capsule().fill(Theme.bgElevated))
     }
 }

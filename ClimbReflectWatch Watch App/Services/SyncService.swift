@@ -89,6 +89,14 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
         replyHandler([:])
     }
 
+    // F3: Fallback für transferUserInfo-Befehle (Watch-App im Hintergrund)
+    func session(_ session: WCSession,
+                 didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        if let command = userInfo["watchCommand"] as? String {
+            DispatchQueue.main.async { self.onCommand?(command) }
+        }
+    }
+
     // MARK: - WCSessionDelegate
 
     func session(_ session: WCSession,

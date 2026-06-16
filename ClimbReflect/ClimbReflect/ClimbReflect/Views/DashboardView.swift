@@ -283,7 +283,7 @@ struct DashboardView: View {
                     .foregroundStyle(Theme.gold)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Bester Rotpunkt")
+                Text("Bester Ascent")
                     .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
                 Text(displayGrade)

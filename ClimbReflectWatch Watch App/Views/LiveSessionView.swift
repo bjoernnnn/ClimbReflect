@@ -153,10 +153,11 @@ struct LiveSessionView: View {
             Spacer(minLength: 0)
 
             Text(elapsedFormatted)
-                .font(.system(.title3, design: .monospaced, weight: .bold))
+                .font(.system(.title, design: .monospaced, weight: .bold))
                 .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
 
-            if !isLuminanceReduced { vitalsRow }
+            vitalsRow
+                .opacity(isLuminanceReduced ? 0.6 : 1.0)
 
             HStack(spacing: 8) {
                 statBadge(value: "\(workoutManager.attempts.count)",
@@ -287,7 +288,7 @@ struct LiveSessionView: View {
                 Spacer(minLength: 0).frame(height: 8)
 
                 Text(elapsedFormatted)
-                    .font(.system(.title3, design: .monospaced, weight: .bold))
+                    .font(.system(.title, design: .monospaced, weight: .bold))
                     .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
 
                 if let target = workoutManager.trainingTarget {
@@ -305,9 +306,8 @@ struct LiveSessionView: View {
                     .clipShape(Capsule())
                 }
 
-                if !isLuminanceReduced {
-                    vitalsRow
-                }
+                vitalsRow
+                    .opacity(isLuminanceReduced ? 0.6 : 1.0)
 
                 statBadge(value: "\(Int(workoutManager.activeEnergyKcal))",
                           label: "kcal", icon: "flame.fill", color: WatchTheme.gold)

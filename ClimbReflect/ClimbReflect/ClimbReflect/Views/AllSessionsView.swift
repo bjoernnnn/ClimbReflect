@@ -16,8 +16,12 @@ struct AllSessionsView: View {
             } else {
                 List {
                     ForEach(sessions) { session in
-                        NavigationLink(destination: SessionDetailView(session: session)) {
+                        ZStack {
                             SessionRow(session: session)
+                            NavigationLink(destination: SessionDetailView(session: session)) {
+                                EmptyView()
+                            }
+                            .opacity(0)
                         }
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
