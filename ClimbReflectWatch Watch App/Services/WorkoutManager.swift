@@ -255,10 +255,15 @@ final class WorkoutManager: NSObject, ObservableObject {
             energyRaw: nil
         )
 
-        // Live-Status löschen
         clearLiveStatus()
+        WKInterfaceDevice.current().play(.stop)
 
-        // Reset
+        return dto
+    }
+
+    /// Reset erst NACH Fragebogen + Zusammenfassung aufrufen,
+    /// damit LiveSessionView nicht vorzeitig abgebaut wird.
+    func finishSession() {
         isRunning = false
         isPaused = false
         session = nil
@@ -270,10 +275,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         activeEnergyKcal = 0
         attemptState = .idle
         trainingTarget = nil
-
-        WKInterfaceDevice.current().play(.stop)
-
-        return dto
     }
 
     // MARK: - E1: Live-Status an iPhone senden

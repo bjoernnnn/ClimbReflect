@@ -36,8 +36,8 @@ struct LiveSessionView: View {
                 case "end":
                     Task {
                         let dto = await workoutManager.endWorkout()
-                        // Keine Fragebogen für Fernsteuerung – direkt senden
                         if let d = dto { SyncService.shared.send(dto: d) }
+                        workoutManager.finishSession()
                     }
                 default: break
                 }
@@ -75,7 +75,10 @@ struct LiveSessionView: View {
                     }
                 }
             case .summary:
-                SessionSummaryView(dto: sessionDTO, onDone: { navPath = [] })
+                SessionSummaryView(dto: sessionDTO, onDone: {
+                    navPath = []
+                    workoutManager.finishSession()
+                })
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -110,7 +113,10 @@ struct LiveSessionView: View {
                     }
                 }
             case .summary:
-                SessionSummaryView(dto: sessionDTO, onDone: { navPath = [] })
+                SessionSummaryView(dto: sessionDTO, onDone: {
+                    navPath = []
+                    workoutManager.finishSession()
+                })
             }
         }
         .navigationBarBackButtonHidden(true)

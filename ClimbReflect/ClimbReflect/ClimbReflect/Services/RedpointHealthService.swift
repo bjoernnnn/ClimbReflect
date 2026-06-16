@@ -91,7 +91,12 @@ final class RedpointHealthService {
             sortDescriptors: [SortDescriptor(\.startDate, order: .reverse)],
             limit: 200
         )
-        return try await descriptor.result(for: store)
+        let workouts = try await descriptor.result(for: store)
+        // Eigene iOS-/Watch-Workouts NICHT als "Redpoint" re-importieren –
+        // nur echte Fremd-Workouts (Redpoint etc.) übernehmen.
+        return workouts.filter {
+            !$0.sourceRevision.source.bundleIdentifier.hasPrefix("de.dreselbjoern.ClimbReflect")
+        }
     }
 
     private func heartRate(for workout: HKWorkout) async throws -> (avg: Double?, max: Double?) {
