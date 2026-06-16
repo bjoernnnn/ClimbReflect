@@ -4,9 +4,10 @@ struct GradePyramidView: View {
     let sessions: [ClimbSession]
 
     @State private var selectedSystem: GradeSystem = .fontainebleau
+    @State private var period: ChartPeriod = .fourWeeks
 
     private var entries: [StatsEngine.PyramidEntry] {
-        StatsEngine.gradePyramid(sessions, system: selectedSystem)
+        StatsEngine.gradePyramid(period.filter(sessions), system: selectedSystem)
     }
 
     private var maxTops: Int { entries.map(\.tops).max() ?? 1 }
@@ -18,7 +19,7 @@ struct GradePyramidView: View {
                     Text("Grad-Pyramide")
                         .font(.headline)
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Tops nach Schwierigkeit")
+                    Text("Tops nach Zeitraum und Schwierigkeit")
                         .font(.caption)
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -32,6 +33,8 @@ struct GradePyramidView: View {
                 .tint(Theme.accent)
                 .font(.caption)
             }
+
+            ChartPeriodPicker(selection: $period)
 
             if entries.isEmpty {
                 Text("Erfasse Begehungen in deinen Sessions, um die Pyramide zu sehen.")

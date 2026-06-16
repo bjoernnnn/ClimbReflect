@@ -65,7 +65,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         attemptState = .idle
 
         let config = HKWorkoutConfiguration()
-        config.activityType = .climbing
+        config.activityType = type == .training ? .functionalStrengthTraining : .climbing
         config.locationType = .indoor
 
         do {

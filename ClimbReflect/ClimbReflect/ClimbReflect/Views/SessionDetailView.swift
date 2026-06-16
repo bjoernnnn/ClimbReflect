@@ -23,23 +23,22 @@ struct SessionDetailView: View {
             MountainBackground()
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0, pinnedViews: []) {
-                    // ── Übersicht (füllt Viewport exakt – wirkt wie eigener Screen) ──
+                    // ── Seite 1: Übersicht ──
                     overviewSection
                         .containerRelativeFrame(.vertical, alignment: .top)
 
-                    // ── Begehungen (weich einrastend beim Scrollen) ──
-                    ascentsSection
-                        .padding(.top, 4)
-
-                    // ── Reflexion ──
-                    reflectionCard
-                        .padding(.top, 16)
-                        .padding(.bottom, 40)
+                    // ── Seite 2: Begehungen + Reflexion ──
+                    VStack(alignment: .leading, spacing: 16) {
+                        ascentsSection
+                        reflectionCard
+                    }
+                    .padding(.top, 4)
+                    .padding(.bottom, 40)
                 }
                 .scrollTargetLayout()
                 .padding(.horizontal, 20)
             }
-            .scrollTargetBehavior(.viewAligned)
+            .scrollTargetBehavior(.paging)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

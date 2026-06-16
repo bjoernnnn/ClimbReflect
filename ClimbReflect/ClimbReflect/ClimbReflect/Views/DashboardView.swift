@@ -26,7 +26,14 @@ struct DashboardView: View {
     private var climbAchievements: [StatsEngine.ClimbAchievement] { StatsEngine.climbAchievements(for: sessions) }
     private var weekly: [WeeklyPoint] { StatsEngine.weeklyMinutes(sessions) }
     private var unlockedCount: Int { achievements.filter(\.isUnlocked).count }
+    private var inProgressAchievements: [Achievement] { achievements.filter { !$0.isUnlocked } }
     private var formSignal: StatsEngine.FormSignal { StatsEngine.formSignal(sessions) }
+
+    private var heroGrade: (grade: String, system: GradeSystem)? {
+        let tops = sessions.filter(\.isClimbing).flatMap(\.ascents).filter { $0.result == .top }
+        guard let best = tops.max(by: { $0.sortOrder < $1.sortOrder }) else { return nil }
+        return (best.gradeRaw, best.gradeSystem)
+    }
 
     var body: some View {
         NavigationStack {
@@ -41,6 +48,10 @@ struct DashboardView: View {
                             LiveSessionBanner(status: status)
                         }
 
+                        if let hero = heroGrade {
+                            heroTrophyCard(grade: hero.grade, system: hero.system)
+                        }
+
                         statRow
 
                         trainingWeaknessCard
@@ -50,8 +61,10 @@ struct DashboardView: View {
                         sectionHeader("Kletter-Erfolge", trailing: nil)
                         climbAchievementsRow
 
-                        sectionHeader("App-Erfolge", trailing: "\(unlockedCount)/\(achievements.count)")
-                        achievementsRow
+                        if !inProgressAchievements.isEmpty {
+                            sectionHeader("App-Erfolge", trailing: "\(unlockedCount)/\(achievements.count) freigeschaltet")
+                            achievementsRow
+                        }
 
                         ProgressChartView(points: weekly)
 
@@ -233,11 +246,45 @@ struct DashboardView: View {
     private var achievementsRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(achievements) { AchievementCard(achievement: $0) }
+                ForEach(inProgressAchievements) { AchievementCard(achievement: $0) }
             }
             .padding(.horizontal, 2)
         }
         .scrollClipDisabled()
+    }
+
+    private func heroTrophyCard(grade: String, system: GradeSystem) -> some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Theme.gold.opacity(0.15))
+                    .frame(width: 64, height: 64)
+                Image(systemName: "trophy.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(Theme.gold)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Bester Rotpunkt")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textSecondary)
+                Text(grade)
+                    .font(.system(size: 36, weight: .black, design: .rounded))
+                    .foregroundStyle(Theme.gold)
+                Text(system.label)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            Spacer()
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Theme.surface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Theme.gold.opacity(0.25), lineWidth: 1)
+                )
+        )
     }
 
     private var recentSessions: some View {

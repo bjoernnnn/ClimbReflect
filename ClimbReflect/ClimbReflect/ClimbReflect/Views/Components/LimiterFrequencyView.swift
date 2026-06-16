@@ -4,6 +4,8 @@ import Charts
 struct LimiterFrequencyView: View {
     let sessions: [ClimbSession]
 
+    @State private var period: ChartPeriod = .fourWeeks
+
     private struct LimiterStat: Identifiable {
         let id: String
         let label: String
@@ -11,10 +13,11 @@ struct LimiterFrequencyView: View {
     }
 
     private var data: [LimiterStat] {
-        Limiter.allCases
+        let filtered = period.filter(sessions)
+        return Limiter.allCases
             .map { l in
                 LimiterStat(id: l.rawValue, label: l.label,
-                            count: sessions.filter { $0.limiters.contains(l) }.count)
+                            count: filtered.filter { $0.limiters.contains(l) }.count)
             }
             .filter { $0.count > 0 }
             .sorted { $0.count > $1.count }
@@ -27,11 +30,12 @@ struct LimiterFrequencyView: View {
                     Text("Häufigste Schwächen")
                         .font(.headline)
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Limitierende Faktoren über alle Sessions")
+                    Text("Limitierende Faktoren nach Zeitraum")
                         .font(.caption)
                         .foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
+                ChartPeriodPicker(selection: $period)
             }
 
             if data.isEmpty {

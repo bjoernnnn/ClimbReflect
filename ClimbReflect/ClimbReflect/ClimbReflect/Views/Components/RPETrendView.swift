@@ -4,7 +4,9 @@ import Charts
 struct RPETrendView: View {
     let sessions: [ClimbSession]
 
-    private var points: [RPEPoint] { StatsEngine.rpeHistory(sessions) }
+    @State private var period: ChartPeriod = .fourWeeks
+
+    private var points: [RPEPoint] { StatsEngine.rpeHistory(period.filter(sessions)) }
 
     private var averageRPE: Double? {
         guard !points.isEmpty else { return nil }
@@ -18,7 +20,7 @@ struct RPETrendView: View {
                     Text("RPE-Verlauf")
                         .font(.headline)
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Anstrengung der letzten Sessions")
+                    Text("Anstrengung nach Zeitraum")
                         .font(.caption)
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -34,6 +36,8 @@ struct RPETrendView: View {
                     }
                 }
             }
+
+            ChartPeriodPicker(selection: $period)
 
             if points.isEmpty {
                 Text("Trage in deinen Sessions einen RPE-Wert ein, um deinen Verlauf zu sehen.")

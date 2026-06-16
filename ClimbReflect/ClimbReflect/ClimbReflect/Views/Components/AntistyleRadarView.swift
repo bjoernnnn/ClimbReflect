@@ -6,8 +6,10 @@ import Charts
 struct AntistyleRadarView: View {
     let sessions: [ClimbSession]
 
+    @State private var period: ChartPeriod = .fourWeeks
+
     private var rates: [StatsEngine.StyleSendRate] {
-        StatsEngine.antistyleRates(sessions)
+        StatsEngine.antistyleRates(period.filter(sessions))
     }
 
     var body: some View {
@@ -21,19 +23,22 @@ struct AntistyleRadarView: View {
                     .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
 
+                ChartPeriodPicker(selection: $period)
+
                 Chart(rates) { entry in
                     BarMark(
                         x: .value("Rate", entry.sendRate),
                         y: .value("Stil", entry.label)
                     )
                     .foregroundStyle(barColor(entry.sendRate))
-                    .annotation(position: .trailing) {
+                    .annotation(position: .overlay, alignment: .trailing) {
                         Text("\(Int(entry.sendRate * 100))%")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.textSecondary)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.trailing, 4)
                     }
                 }
-                .chartXScale(domain: 0...1)
+                .chartXScale(domain: 0...1.15)
                 .chartXAxis {
                     AxisMarks(values: [0, 0.25, 0.5, 0.75, 1.0]) { val in
                         AxisGridLine().foregroundStyle(Theme.bgElevated)
