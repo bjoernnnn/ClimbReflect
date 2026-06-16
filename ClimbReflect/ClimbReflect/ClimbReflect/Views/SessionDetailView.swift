@@ -503,7 +503,6 @@ struct SessionDetailView: View {
                             .font(.caption)
                             .foregroundStyle(Theme.textSecondary)
                         Spacer()
-                        let stars = "★★★★★"
                         let rating = session.focusRating ?? 0
                         Text(String(repeating: "★", count: rating) + String(repeating: "☆", count: 5 - rating))
                             .foregroundStyle(Theme.gold)

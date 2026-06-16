@@ -33,5 +33,5 @@ struct WatchSessionDTO: Codable, Sendable {
     let focusRaw: String?
     let energyRaw: String?
 
-    static let transferKey = "watchSessionDTO"
+    nonisolated static let transferKey = "watchSessionDTO"
 }
