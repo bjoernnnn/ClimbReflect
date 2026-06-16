@@ -167,13 +167,14 @@ struct LiveSessionView: View {
                     scrollHint
                 }
 
-                // D1: Action-Button-Indikator
                 actionStateIndicator
                     .padding(.bottom, 4)
             }
+            // frame(maxHeight:) is essential: ohne es wissen die Spacer
+            // nicht wie hoch der ZStack ist und füllen ihn nicht aus.
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 8)
 
-            // D1: Ergebnis-Overlay nach Versuch
             if workoutManager.attemptState == .awaitingResult {
                 quickResultOverlay
             }
@@ -314,16 +315,15 @@ struct LiveSessionView: View {
     // MARK: - Verlauf-Sektion
 
     private var historySection: some View {
-        VStack(spacing: 0) {
-            LazyVStack(spacing: 5) {
-                ForEach(workoutManager.attempts.reversed()) { attempt in
-                    ascentRow(attempt)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
+        LazyVStack(spacing: 5) {
+            ForEach(workoutManager.attempts.reversed()) { attempt in
+                ascentRow(attempt)
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
-            .padding(.horizontal, 8)
-            .animation(.spring(duration: 0.3), value: workoutManager.attempts.count)
         }
+        .padding(.horizontal, 8)
+        .padding(.top, 16)
+        .animation(.spring(duration: 0.3), value: workoutManager.attempts.count)
     }
 
     private func ascentRow(_ attempt: WatchAttempt) -> some View {
@@ -346,13 +346,14 @@ struct LiveSessionView: View {
                 }
 
                 if let style = attempt.style {
-                    Text(style.label)
+                    Text(style.shortLabel)
                         .font(.system(size: 9, weight: .semibold))
                         .foregroundStyle(WatchTheme.gold)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
                         .background(WatchTheme.gold.opacity(0.15))
                         .clipShape(Capsule())
+                        .fixedSize()
                 }
 
                 Spacer()

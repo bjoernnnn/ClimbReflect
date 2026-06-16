@@ -60,16 +60,17 @@ struct AttemptLogView: View {
                             onBank()
                         }
                     } label: {
-                        HStack(spacing: 5) {
+                        HStack(spacing: 4) {
                             Image(systemName: outcome.symbol)
-                                .font(.system(size: 13))
+                                .font(.system(size: 12))
                                 .foregroundStyle(outcome.color)
-                                .frame(width: 16)
+                                .frame(width: 14)
                             Text(outcome.label)
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(WatchTheme.textPrimary)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.75)
+                                .minimumScaleFactor(0.7)
+                                .truncationMode(.tail)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 9)

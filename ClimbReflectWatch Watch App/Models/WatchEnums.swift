@@ -206,4 +206,13 @@ enum WatchAscentStyle: String, CaseIterable, Identifiable {
         case .project:  "Projekt"
         }
     }
+
+    var shortLabel: String {
+        switch self {
+        case .flash:    "Flash"
+        case .onsight:  "OS"
+        case .redpoint: "RP"
+        case .project:  "Proj"
+        }
+    }
 }
