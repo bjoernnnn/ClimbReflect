@@ -47,6 +47,10 @@ final class WorkoutManager: NSObject, ObservableObject {
     let altimeter = AltimeterService()
     private let detector = AttemptDetector()
 
+    // P0-1: Manueller HR-Mittelwert-Akkumulator (Fallback wenn HK-Builder fehlt)
+    private var hrSum: Double = 0
+    private var hrCount: Int = 0
+
     // MARK: - HealthKit Auth (W1.3)
 
     func requestAuthorization() async {
@@ -233,12 +237,22 @@ final class WorkoutManager: NSObject, ObservableObject {
 
         // HK-Session beenden (best-effort – kann nil sein wenn HK-Setup fehlschlug)
         var resolvedUUID: UUID? = nil
+        var avgHR: Double? = nil
+        var maxHRfromHK: Double? = nil
         if let ws = session, let wb = builder {
             ws.end()
             try? await wb.endCollection(at: endDate)
+            // P0-1: Ø-HF aus HK-Stats lesen (discreteAverage), nicht Momentanwert
+            let bpmUnit = HKUnit.count().unitDivided(by: .minute())
+            let hrStats = wb.statistics(for: HKQuantityType(.heartRate))
+            avgHR = hrStats?.averageQuantity()?.doubleValue(for: bpmUnit)
+            maxHRfromHK = hrStats?.maximumQuantity()?.doubleValue(for: bpmUnit)
             let finishedWorkout = try? await wb.finishWorkout()
             resolvedUUID = finishedWorkout?.uuid
         }
+        // Fallback: manueller Akkumulator (wenn HK-Builder nie gestartet)
+        let finalAvgHR = avgHR ?? (hrCount > 0 ? hrSum / Double(hrCount) : nil)
+        let finalMaxHR = maxHRfromHK ?? (maxHeartRate > 0 ? maxHeartRate : nil)
 
         let duration = workoutStartDate.map { endDate.timeIntervalSince($0) } ?? 0
         let altTotal = await altimeter.totalGain
@@ -249,8 +263,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             date: workoutStartDate ?? endDate,
             durationSeconds: duration,
             sessionTypeRaw: sessionType.rawValue,
-            avgHeartRate: heartRate > 0 ? heartRate : nil,
-            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
+            avgHeartRate: finalAvgHR,
+            maxHeartRate: finalMaxHR,
             activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil,
             altitudeTotalGain: altTotal,
             ascents: attempts.map { $0.toDTO() },
@@ -292,6 +306,8 @@ final class WorkoutManager: NSObject, ObservableObject {
         attemptState = .idle
         trainingTarget = nil
         selectedProject = nil
+        hrSum = 0
+        hrCount = 0
     }
 
     // MARK: - E1: Live-Status an iPhone senden
@@ -374,6 +390,7 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
                     let bpm = stats?.mostRecentQuantity()?.doubleValue(for: .count().unitDivided(by: .minute())) ?? 0
                     self.heartRate = bpm
                     if bpm > self.maxHeartRate { self.maxHeartRate = bpm }
+                    if bpm > 0 { self.hrSum += bpm; self.hrCount += 1 }
                 case HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!:
                     self.activeEnergyKcal = stats?.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
                 default: break

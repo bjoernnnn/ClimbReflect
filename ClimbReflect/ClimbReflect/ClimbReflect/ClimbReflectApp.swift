@@ -7,14 +7,17 @@ struct ClimbReflectApp: App {
     let container: ModelContainer
 
     init() {
-        let schema = Schema([ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let config = ModelConfiguration(isStoredInMemoryOnly: false)
 
         do {
-            container = try ModelContainer(for: schema, configurations: config)
+            container = try ModelContainer(
+                for: SchemaV2.self,
+                migrationPlan: AppMigrationPlan.self,
+                configurations: config
+            )
         } catch {
-            // Schema-Migration fehlgeschlagen → Store löschen und neu erstellen
-            // (tritt nur nach Breaking-Schema-Änderungen auf, Daten gehen verloren)
+            #if DEBUG
+            // Im Debug-Build: Store löschen und neu anlegen (schnelle Iteration)
             let storeURL = config.url
             try? FileManager.default.removeItem(at: storeURL)
             let walURL = storeURL.deletingPathExtension().appendingPathExtension("sqlite-wal")
@@ -22,10 +25,22 @@ struct ClimbReflectApp: App {
             try? FileManager.default.removeItem(at: walURL)
             try? FileManager.default.removeItem(at: shmURL)
             do {
-                container = try ModelContainer(for: schema, configurations: config)
+                container = try ModelContainer(
+                    for: SchemaV2.self,
+                    migrationPlan: AppMigrationPlan.self,
+                    configurations: config
+                )
             } catch {
                 fatalError("SwiftData-Container konnte auch nach Reset nicht erstellt werden: \(error)")
             }
+            #else
+            // Im Release-Build: Daten NIEMALS ohne Sicherung löschen
+            let ts = Int(Date().timeIntervalSince1970)
+            let backup = config.url.deletingPathExtension()
+                .appendingPathExtension("backup-\(ts).sqlite")
+            try? FileManager.default.copyItem(at: config.url, to: backup)
+            fatalError("SwiftData-Migration fehlgeschlagen – Store gesichert als \(backup.lastPathComponent). Bitte App neu installieren oder Support kontaktieren.")
+            #endif
         }
 
         WatchSessionReceiver.shared.configure(modelContext: container.mainContext)

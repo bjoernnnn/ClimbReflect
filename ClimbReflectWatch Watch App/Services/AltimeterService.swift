@@ -43,10 +43,12 @@ actor AltimeterService {
         return gain
     }
 
+    // Signifikantes Höhendelta; darunter = Sensorrauschen / Druckdrift
+    private let noiseFloor = 0.3
+
     private func handleAltitude(_ rel: Double) {
         let delta = rel - lastAltitude
-        // Immer addieren – unabhängig ob Versuch läuft oder nicht
-        if delta > 0 { totalGain += delta }
+        if delta > noiseFloor { totalGain += delta }
         if ascentBaseAltitude != nil, rel > ascentMaxAltitude {
             ascentMaxAltitude = rel
         }
