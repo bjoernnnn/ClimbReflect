@@ -30,7 +30,6 @@ struct ClimbReflectApp: App {
 
         WatchSessionReceiver.shared.configure(modelContext: container.mainContext)
         ProjectMigration.runIfNeeded(context: container.mainContext)
-        WatchSessionReceiver.shared.pushProjectsToWatch(modelContext: container.mainContext)
         endOrphanedLiveActivities()
         #if DEBUG
         MockData.seedIfNeeded(container.mainContext)

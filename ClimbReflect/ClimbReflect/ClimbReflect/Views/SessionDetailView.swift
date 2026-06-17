@@ -6,11 +6,8 @@ struct SessionDetailView: View {
     var onFertig: (() -> Void)? = nil
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \Project.name) private var allProjects: [Project]
     @State private var showDeleteConfirm = false
     @State private var showAddAscent = false
-    @State private var activeProject: Project? = nil
-    @State private var showProjectPicker = false
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -66,10 +63,7 @@ struct SessionDetailView: View {
             }
         }
         .sheet(isPresented: $showAddAscent) {
-            AddAscentView(session: session, preselectedProject: activeProject)
-        }
-        .sheet(isPresented: $showProjectPicker) {
-            projectPickerSheet
+            AddAscentView(session: session)
         }
         .confirmationDialog("Session löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Löschen", role: .destructive) {
@@ -88,7 +82,6 @@ struct SessionDetailView: View {
     private var overviewSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             sessionHeader
-            activeProjectBanner
             let showAlt = ropeTypes.contains(session.sessionType) && session.altitudeTotalGain > 0
             if session.avgHeartRate != nil || session.activeEnergyKcal != nil || showAlt {
                 redpointCard
@@ -110,113 +103,6 @@ struct SessionDetailView: View {
             }
         }
         .padding(.top, 8)
-    }
-
-    private var activeProjectBanner: some View {
-        Button { showProjectPicker = true } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "target")
-                    .font(.system(size: 15))
-                    .foregroundStyle(activeProject != nil ? Theme.accent : Theme.textTertiary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Aktives Projekt")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.textTertiary)
-                    Text(activeProject?.name ?? "Kein Projekt")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(activeProject != nil ? Theme.textPrimary : Theme.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(Theme.textTertiary)
-            }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bgElevated))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var projectPickerSheet: some View {
-        NavigationStack {
-            ZStack {
-                Theme.bg.ignoresSafeArea()
-                let active = allProjects.filter(\.isActive)
-                if active.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "target")
-                            .font(.system(size: 40))
-                            .foregroundStyle(Theme.textTertiary)
-                        Text("Keine aktiven Projekte")
-                            .font(.headline)
-                            .foregroundStyle(Theme.textSecondary)
-                        Text("Lege in der Projekteliste ein neues Projekt an.")
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.textTertiary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding()
-                } else {
-                    List {
-                        Section {
-                            Button {
-                                activeProject = nil
-                                showProjectPicker = false
-                            } label: {
-                                HStack {
-                                    Label("Kein Projekt", systemImage: "xmark.circle")
-                                        .foregroundStyle(Theme.textSecondary)
-                                    Spacer()
-                                    if activeProject == nil {
-                                        Image(systemName: "checkmark")
-                                            .foregroundStyle(Theme.accent)
-                                    }
-                                }
-                            }
-                            .listRowBackground(Theme.surface)
-                        }
-                        Section("Aktive Projekte") {
-                            ForEach(active) { project in
-                                Button {
-                                    activeProject = project
-                                    showProjectPicker = false
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            Text(project.name)
-                                                .font(.subheadline.weight(.semibold))
-                                                .foregroundStyle(Theme.textPrimary)
-                                            if let grade = project.targetGradeRaw {
-                                                Text(grade)
-                                                    .font(.caption)
-                                                    .foregroundStyle(Theme.textTertiary)
-                                            }
-                                        }
-                                        Spacer()
-                                        if activeProject?.id == project.id {
-                                            Image(systemName: "checkmark")
-                                                .foregroundStyle(Theme.accent)
-                                        }
-                                    }
-                                }
-                                .listRowBackground(Theme.surface)
-                            }
-                        }
-                    }
-                    .scrollContentBackground(.hidden)
-                }
-            }
-            .navigationTitle("Projekt wählen")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Fertig") { showProjectPicker = false }
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Theme.accent)
-                }
-            }
-        }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - Begehungen-Sektion (zweiter Screen)

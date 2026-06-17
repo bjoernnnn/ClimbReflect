@@ -14,6 +14,7 @@ struct WatchAttempt: Identifiable {
     var note: String?
     var date: Date
     var sessionType: WatchSessionType
+    var projectInfo: ProjectInfo?     // Snapshot des aktiven Projekts zum Zeitpunkt des Bankens
 
     init(gradeSystem: WatchGradeSystem,
          grade: String? = nil,
@@ -23,7 +24,8 @@ struct WatchAttempt: Identifiable {
          altitudeGain: Double = 0,
          heartRateAtBanking: Double? = nil,
          note: String? = nil,
-         sessionType: WatchSessionType = .boulder) {
+         sessionType: WatchSessionType = .boulder,
+         projectInfo: ProjectInfo? = nil) {
         self.id = UUID()
         self.gradeSystem = gradeSystem
         self.grade = grade
@@ -35,11 +37,12 @@ struct WatchAttempt: Identifiable {
         self.note = note
         self.date = .now
         self.sessionType = sessionType
+        self.projectInfo = projectInfo
     }
 
     var isComplete: Bool { grade != nil && result != nil }
 
-    func toDTO(projectName: String? = nil, projectID: UUID? = nil) -> WatchSessionDTO.AscentDTO {
+    func toDTO() -> WatchSessionDTO.AscentDTO {
         WatchSessionDTO.AscentDTO(
             id: id,
             gradeSystemRaw: gradeSystem.rawValue,
@@ -50,8 +53,8 @@ struct WatchAttempt: Identifiable {
             altitudeGain: altitudeGain,
             date: date,
             sessionTypeRaw: sessionType.rawValue,
-            projectName: projectName,
-            projectID: projectID
+            projectName: projectInfo?.name,
+            projectID: projectInfo.flatMap { UUID(uuidString: $0.id) }
         )
     }
 }

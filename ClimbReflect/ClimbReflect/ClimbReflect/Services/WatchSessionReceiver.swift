@@ -37,14 +37,21 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         try? WCSession.default.updateApplicationContext(context)
     }
 
+    func pushProjectsToWatch() {
+        guard let ctx = modelContext else { return }
+        pushProjectsToWatch(modelContext: ctx)
+    }
+
     // MARK: - WCSessionDelegate
 
     nonisolated func session(_ session: WCSession,
                              activationDidCompleteWith activationState: WCSessionActivationState,
                              error: Error?) {
-        // Beim Aktivieren ggf. vorhandenen Live-Status aus applicationContext lesen
         Task { @MainActor [self] in
             self.readLiveStatusFromContext(session.receivedApplicationContext)
+            if activationState == .activated {
+                self.pushProjectsToWatch()
+            }
         }
     }
 

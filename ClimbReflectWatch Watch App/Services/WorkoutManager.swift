@@ -148,7 +148,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             style: result == .top ? nil : nil,
             altitudeGain: gain,
             heartRateAtBanking: heartRate > 0 ? heartRate : nil,
-            sessionType: sessionType
+            sessionType: sessionType,
+            projectInfo: selectedProject
         )
         attempts.append(attempt)
         attemptState = .idle
@@ -203,7 +204,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             style: style,
             altitudeGain: gain,
             heartRateAtBanking: heartRate > 0 ? heartRate : nil,
-            sessionType: sessionType
+            sessionType: sessionType,
+            projectInfo: selectedProject
         )
         attempts.append(attempt)
         await altimeter.startAscentTracking()
@@ -251,10 +253,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
             activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil,
             altitudeTotalGain: altTotal,
-            ascents: attempts.map { $0.toDTO(
-                projectName: selectedProject?.name,
-                projectID: selectedProject.flatMap { UUID(uuidString: $0.id) }
-            ) },
+            ascents: attempts.map { $0.toDTO() },
             rpe: nil,
             focusRaw: trainingTarget?.rawValue,
             energyRaw: nil

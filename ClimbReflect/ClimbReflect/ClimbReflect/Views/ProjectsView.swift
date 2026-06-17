@@ -63,24 +63,44 @@ struct ProjectsView: View {
                     sectionHeader("Angepinnt", count: pinnedProjects.count)
                     ForEach(pinnedProjects) { project in
                         projectRow(project, showSentDate: false)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) { deleteProject(project) } label: {
+                                    Label("Löschen", systemImage: "trash")
+                                }
+                            }
                     }
                 }
                 if !activeProjects.isEmpty {
                     sectionHeader("In Arbeit", count: activeProjects.count)
                     ForEach(activeProjects) { project in
                         projectRow(project, showSentDate: false)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) { deleteProject(project) } label: {
+                                    Label("Löschen", systemImage: "trash")
+                                }
+                            }
                     }
                 }
                 if !sentProjects.isEmpty {
                     sectionHeader("Gesendet ✓", count: sentProjects.count)
                     ForEach(sentProjects) { project in
                         projectRow(project, showSentDate: true)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) { deleteProject(project) } label: {
+                                    Label("Löschen", systemImage: "trash")
+                                }
+                            }
                     }
                 }
                 if !abandonedProjects.isEmpty {
                     sectionHeader("Aufgegeben", count: abandonedProjects.count)
                     ForEach(abandonedProjects) { project in
                         projectRow(project, showSentDate: false)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) { deleteProject(project) } label: {
+                                    Label("Löschen", systemImage: "trash")
+                                }
+                            }
                     }
                 }
             }
@@ -126,6 +146,12 @@ struct ProjectsView: View {
                 .padding(.vertical, 2)
                 .background(Capsule().fill(Theme.bgElevated))
         }
+    }
+
+    private func deleteProject(_ project: Project) {
+        context.delete(project)
+        try? context.save()
+        WatchSessionReceiver.shared.pushProjectsToWatch()
     }
 
     private func projectRow(_ project: Project, showSentDate: Bool) -> some View {
@@ -201,6 +227,7 @@ struct ProjectsView: View {
         }
         context.insert(Project(name: trimmed))
         try? context.save()
+        WatchSessionReceiver.shared.pushProjectsToWatch()
         newProjectName = ""
     }
 }

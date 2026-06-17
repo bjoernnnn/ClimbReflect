@@ -12,12 +12,14 @@ private struct AttemptPoint: Identifiable {
 struct ProjectDetailView: View {
     @Bindable var project: Project
     @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
 
     @State private var editingBetaNotes = false
     @State private var betaNotesDraft = ""
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var editingCaption: ProjectMedia? = nil
     @State private var captionDraft = ""
+    @State private var showDeleteConfirm = false
 
     private var sortedAscents: [Ascent] {
         project.ascents.sorted { $0.date > $1.date }
@@ -69,14 +71,36 @@ struct ProjectDetailView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    project.isPinned.toggle()
-                    try? context.save()
+                Menu {
+                    Button {
+                        project.isPinned.toggle()
+                        try? context.save()
+                    } label: {
+                        Label(project.isPinned ? "Anpinnen aufheben" : "Anpinnen",
+                              systemImage: project.isPinned ? "pin.slash" : "pin")
+                    }
+                    Divider()
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        Label("Projekt löschen", systemImage: "trash")
+                    }
                 } label: {
-                    Image(systemName: project.isPinned ? "pin.fill" : "pin")
-                        .foregroundStyle(project.isPinned ? Theme.gold : Theme.textSecondary)
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
+        }
+        .confirmationDialog("Projekt löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Löschen", role: .destructive) {
+                context.delete(project)
+                try? context.save()
+                WatchSessionReceiver.shared.pushProjectsToWatch()
+                dismiss()
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Das Projekt wird gelöscht. Bestehende Begehungen bleiben erhalten.")
         }
         .sheet(item: $editingCaption) { media in
             captionSheet(for: media)

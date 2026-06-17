@@ -79,17 +79,17 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
 
     func session(_ session: WCSession,
                  didReceiveApplicationContext applicationContext: [String: Any]) {
-        if let list = applicationContext[SyncService.projectListKey] as? [[String: String]] {
-            let parsed = list.compactMap { dict -> ProjectInfo? in
+        DispatchQueue.main.async { self.applyProjectContext(applicationContext) }
+    }
+
+    private func applyProjectContext(_ context: [String: Any]) {
+        if let list = context[SyncService.projectListKey] as? [[String: String]] {
+            knownProjects = list.compactMap { dict -> ProjectInfo? in
                 guard let id = dict["id"], let name = dict["name"] else { return nil }
                 return ProjectInfo(id: id, name: name)
             }
-            DispatchQueue.main.async { self.knownProjects = parsed }
-        } else if let names = applicationContext[SyncService.projectsKey] as? [String] {
-            // Fallback: ältere iPhone-App sendet nur Namen ohne IDs
-            DispatchQueue.main.async {
-                self.knownProjects = names.map { ProjectInfo(id: $0, name: $0) }
-            }
+        } else if let names = context[SyncService.projectsKey] as? [String] {
+            knownProjects = names.map { ProjectInfo(id: $0, name: $0) }
         }
     }
 
@@ -116,7 +116,11 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
                  activationDidCompleteWith activationState: WCSessionActivationState,
                  error: Error?) {
         if activationState == .activated {
-            DispatchQueue.main.async { self.flushPending() }
+            DispatchQueue.main.async {
+                self.flushPending()
+                // Projekte aus dem zuletzt empfangenen applicationContext laden
+                self.applyProjectContext(session.receivedApplicationContext)
+            }
         }
     }
 }
