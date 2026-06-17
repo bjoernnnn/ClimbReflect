@@ -59,6 +59,44 @@ final class WorkoutManager: NSObject, ObservableObject {
     private static let selectedProjectIDKey  = "selectedProjectID"
     private static let selectedProjectNameKey = "selectedProjectName"
 
+    // MARK: - P0-2: Crash-sichere Persistierung
+
+    private func savePendingSnapshot() {
+        guard let startDate = workoutStartDate else { return }
+        let snapshot = PendingSession(
+            id: UUID(),
+            startDate: startDate,
+            sessionTypeRaw: sessionType.rawValue,
+            projectInfo: selectedProject,
+            ascents: attempts.map { $0.toDTO() },
+            accumulatedPaused: accumulatedPaused
+        )
+        PendingSessionStore.save(snapshot)
+    }
+
+    /// Beim App-Start aufrufen: rettete Begehungen aus einem Absturz-Snapshot.
+    func recoverPendingSessionIfNeeded() {
+        guard let pending = PendingSessionStore.load() else { return }
+        PendingSessionStore.clear()
+        guard !pending.ascents.isEmpty else { return }
+        let dto = WatchSessionDTO(
+            id: pending.id,
+            workoutUUID: nil,
+            date: pending.startDate,
+            durationSeconds: -pending.accumulatedPaused + Date().timeIntervalSince(pending.startDate),
+            sessionTypeRaw: pending.sessionTypeRaw,
+            avgHeartRate: nil,
+            maxHeartRate: nil,
+            activeEnergyKcal: nil,
+            altitudeTotalGain: 0,
+            ascents: pending.ascents,
+            rpe: nil,
+            focusRaw: nil,
+            energyRaw: nil
+        )
+        SyncService.shared.send(dto: dto)
+    }
+
     func currentElapsed() -> TimeInterval {
         guard let start = workoutStartDate else { return 0 }
         if let p = pauseStartedAt {
@@ -135,6 +173,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             print("[WorkoutManager] HealthKit-Setup fehlgeschlagen: \(error)")
         }
 
+        savePendingSnapshot()
         await altimeter.start()
 
         // C5: Im Trainingsmodus kein Auto-Detektor
@@ -193,6 +232,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             projectInfo: selectedProject
         )
         attempts.append(attempt)
+        savePendingSnapshot()
         attemptState = .idle
         await altimeter.startAscentTracking()
         switch result {
@@ -227,6 +267,7 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     func removeAttempt(id: UUID) {
         attempts.removeAll { $0.id == id }
+        savePendingSnapshot()
     }
 
     // MARK: - Fehlhafte Erkennung verwerfen
@@ -254,6 +295,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             projectInfo: selectedProject
         )
         attempts.append(attempt)
+        savePendingSnapshot()
         await altimeter.startAscentTracking()
         if pendingClassifications > 0 { pendingClassifications -= 1 }
         suggestAttempt = pendingClassifications > 0
@@ -353,6 +395,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         accumulatedPaused = 0
         pauseStartedAt = nil
         workoutStartDate = nil
+        PendingSessionStore.clear()
     }
 
     // MARK: - E1: Live-Status an iPhone senden

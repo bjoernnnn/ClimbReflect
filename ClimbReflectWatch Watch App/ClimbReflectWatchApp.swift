@@ -15,7 +15,10 @@ struct ClimbReflectWatchApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(workoutManager)
-                .task { await workoutManager.requestAuthorization() }
+                .task {
+                    await workoutManager.requestAuthorization()
+                    workoutManager.recoverPendingSessionIfNeeded()
+                }
         }
     }
 }

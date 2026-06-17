@@ -4,7 +4,7 @@ import WatchConnectivity
 
 // W5.1/5.2/5.3: WatchConnectivity bidirektional — Session-Transfer Watch→iPhone, Projekte iPhone→Watch
 
-struct ProjectInfo: Identifiable, Hashable {
+struct ProjectInfo: Identifiable, Hashable, Codable {
     let id: String   // UUID-String
     let name: String
 }
