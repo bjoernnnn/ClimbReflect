@@ -29,6 +29,13 @@ Pfade: **iOS** `ClimbReflect/ClimbReflect/ClimbReflect/`, **Watch** `ClimbReflec
 
 ## Abgeschlossen (zuletzt)
 
+- ✅ P0-1 – Verstrichene Zeit monoton aus Startdatum; TimelineView für Always-On (TODO8)
+- ✅ P0-2 – Session crash-sicher auf Disk; Recovery beim App-Start (TODO8)
+- ✅ P1-3 – Accelerometer-Updates auf dedizierter Hintergrund-Queue (TODO8)
+- ✅ P1-4 – Session-Statuswechsel + Fehler behandeln; LiveSessionView reagiert (TODO8)
+- ✅ P2-5 – Einzelne Info.plist-Quelle für Watch-Target; explizite plist entfernt (TODO8)
+- ✅ P2-6 – In-App-Diagnoseprotokoll (Ring-Puffer 200 Einträge, DiagnosticView) (TODO8)
+- ✅ P2-7 – Auth-Check vor Start, idempotente Sensoren, Resync beim Aufwachen (TODO8)
 - ✅ P5.1 – Echte Project ↔ Ascent-Relation; ProjectMedia-Modell; isPinned, targetGradeRaw
 - ✅ P5.2 – Einmalige Migration projectName → Project-Entität
 - ✅ P5.3 – Session-Projektmodus iOS: aktives Projekt-Banner + Picker in SessionDetailView; AddAscentView mit Chip-Picker
