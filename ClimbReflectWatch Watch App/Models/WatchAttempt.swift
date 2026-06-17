@@ -40,6 +40,26 @@ struct WatchAttempt: Identifiable {
         self.projectInfo = projectInfo
     }
 
+    init(fromDTO dto: WatchSessionDTO.AscentDTO, sessionType: WatchSessionType) {
+        self.id          = dto.id
+        self.gradeSystem = WatchGradeSystem(rawValue: dto.gradeSystemRaw) ?? sessionType.defaultGradeSystem
+        self.grade       = dto.gradeRaw
+        self.result      = dto.resultRaw.flatMap(WatchAscentResult.init)
+        self.style       = dto.styleRaw.flatMap(WatchAscentStyle.init)
+        self.attempts    = dto.attempts
+        self.altitudeGain = dto.altitudeGain
+        self.heartRateAtBanking = nil
+        self.note        = nil
+        self.date        = dto.date
+        self.sessionType = sessionType
+        if let name = dto.projectName {
+            let id = dto.projectID?.uuidString ?? name
+            self.projectInfo = ProjectInfo(id: id, name: name)
+        } else {
+            self.projectInfo = nil
+        }
+    }
+
     var isComplete: Bool { grade != nil && result != nil }
 
     func toDTO() -> WatchSessionDTO.AscentDTO {
