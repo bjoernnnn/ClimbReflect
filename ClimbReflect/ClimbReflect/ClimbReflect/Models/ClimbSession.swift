@@ -7,6 +7,7 @@ import SwiftData
 final class ClimbSession {
     @Attribute(.unique) var id: UUID
     var workoutUUID: UUID?            // HKWorkout.uuid → Dedupe gegen Doppel-Import aus Redpoint
+    var watchSessionID: UUID?         // WatchSessionDTO.id → Dedupe gegen Doppel-Zustellung
     var date: Date
     var durationSeconds: Double
     var sessionTypeRaw: String

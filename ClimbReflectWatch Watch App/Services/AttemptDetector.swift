@@ -35,7 +35,11 @@ final class AttemptDetector {
 
     // MARK: - Boulder (W4.2) — Bewegungsburst
 
-    func startMotionDetection(currentHR: Double) {
+    // P1-4: currentHR als Property statt eingefangener Parameter → wird vom Timer-Tick
+    // laufend aktualisiert und spiegelt immer die echte aktuelle HF wider.
+    var currentHR: Double = 0
+
+    func startMotionDetection() {
         guard motion.isAccelerometerAvailable else { return }
         // W8.4: 0.2 s statt 0.1 s → 50% weniger Samples, ausreichend für Burst-Erkennung
         motion.accelerometerUpdateInterval = 0.2
@@ -48,8 +52,8 @@ final class AttemptDetector {
             if self.burstWindow.count > 30 { self.burstWindow.removeFirst() }
 
             let avg = self.burstWindow.reduce(0, +) / Double(self.burstWindow.count)
-            // Burst: hohe Bewegung + erhöhte HF
-            if avg > 2.5 && currentHR > 100 && self.burstWindow.count >= 20 {
+            // Burst: hohe Bewegung + erhöhte HF (laufend aktualisiert via currentHR)
+            if avg > 2.5 && self.currentHR > 100 && self.burstWindow.count >= 20 {
                 self.burstWindow.removeAll()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                     self.onSuggestion?()

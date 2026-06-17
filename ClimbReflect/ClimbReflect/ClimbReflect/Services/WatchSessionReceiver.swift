@@ -106,11 +106,23 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
     private func insert(dto: WatchSessionDTO) {
         guard let ctx = modelContext else { return }
 
+        let allSessions = (try? ctx.fetch(FetchDescriptor<ClimbSession>())) ?? []
+
+        // P1-5: Upsert via watchSessionID – verhindert Duplikate bei Doppel-Zustellung
+        if let existing = allSessions.first(where: { $0.watchSessionID == dto.id }) {
+            // Nur Anreicherungsfelder aktualisieren (RPE, Focus) – Ascents bleiben
+            if let rpe = dto.rpe { existing.perceivedEffort = rpe }
+            if let f = dto.focusRaw, let limiter = Limiter(rawValue: f) {
+                existing.limiterRaw = [limiter.rawValue]
+            }
+            try? ctx.save()
+            return
+        }
+
         // B2: Wenn eine healthKit-Dublette mit gleicher workoutUUID existiert,
         // diese löschen – die reichhaltigere Watch-Version (mit Begehungen) gewinnt.
         if let wid = dto.workoutUUID,
-           let existing = try? ctx.fetch(FetchDescriptor<ClimbSession>())
-               .first(where: { $0.workoutUUID == wid && $0.source == .healthKit }) {
+           let existing = allSessions.first(where: { $0.workoutUUID == wid && $0.source == .healthKit }) {
             ctx.delete(existing)
         }
 
@@ -126,6 +138,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             activeEnergyKcal: dto.activeEnergyKcal
         )
 
+        climbSession.watchSessionID = dto.id
         climbSession.altitudeTotalGain = dto.altitudeTotalGain
 
         // RPE aus dem Fragebogen
@@ -153,17 +166,19 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             )
             ascent.altitudeGain = ascentDTO.altitudeGain
 
-            // Projekt-Relation aufbauen (ID bevorzugt, dann Name als Fallback)
-            if let pid = ascentDTO.projectID,
-               let project = allProjects.first(where: { $0.id == pid }) {
-                ascent.project = project
+            // P2-7: Projekt-Relation aufbauen
+            // ID vorhanden → nur per ID matchen, nie neu anlegen (iPhone ist Source of Truth)
+            // Nur Name → case-insensitive + trimmed matchen; neu anlegen nur ohne ID
+            if let pid = ascentDTO.projectID {
+                ascent.project = allProjects.first(where: { $0.id == pid })
             } else if let name = ascentDTO.projectName {
+                let trimmed = name.trimmingCharacters(in: .whitespaces).lowercased()
                 if let project = allProjects.first(where: {
-                    $0.name.lowercased() == name.lowercased()
+                    $0.name.trimmingCharacters(in: .whitespaces).lowercased() == trimmed
                 }) {
                     ascent.project = project
                 } else {
-                    let project = Project(name: name)
+                    let project = Project(name: name.trimmingCharacters(in: .whitespaces))
                     ctx.insert(project)
                     ascent.project = project
                 }

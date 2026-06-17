@@ -37,10 +37,11 @@ struct LiveSessionView: View {
                 case "pause":   workoutManager.pauseWorkout()
                 case "resume":  workoutManager.resumeWorkout()
                 case "end":
-                    Task {
-                        let dto = await workoutManager.endWorkout()
-                        if let d = dto { SyncService.shared.send(dto: d) }
-                        workoutManager.finishSession()
+                    // P1-6: Fragebogen durchlaufen wie beim lokalen Beenden
+                    // (Voraussetzung P1-5: Upsert verhindert Doppel-Session)
+                    Task { @MainActor in
+                        sessionDTO = await workoutManager.endWorkout()
+                        navPath = [.questionnaire]
                     }
                 default: break
                 }

@@ -31,7 +31,9 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var attemptState: AttemptState = .idle  // D1
     @Published var trainingTarget: WatchTrainingTarget? = nil  // C5
     @Published var totalAltitudeGain: Double = 0
-    @Published var selectedProject: ProjectInfo? = nil   // P5.7
+    @Published var selectedProject: ProjectInfo? = nil {  // P5.7 / P2-8
+        didSet { persistSelectedProject() }
+    }
 
     var isTraining: Bool { sessionType == .training }
 
@@ -50,6 +52,30 @@ final class WorkoutManager: NSObject, ObservableObject {
     // P0-1: Manueller HR-Mittelwert-Akkumulator (Fallback wenn HK-Builder fehlt)
     private var hrSum: Double = 0
     private var hrCount: Int = 0
+
+    // P2-8: selectedProject über App-Neustart erhalten
+    private static let selectedProjectIDKey  = "selectedProjectID"
+    private static let selectedProjectNameKey = "selectedProjectName"
+
+    override init() {
+        super.init()
+        let ud = UserDefaults.standard
+        if let id   = ud.string(forKey: Self.selectedProjectIDKey),
+           let name = ud.string(forKey: Self.selectedProjectNameKey) {
+            _selectedProject = Published(wrappedValue: ProjectInfo(id: id, name: name))
+        }
+    }
+
+    private func persistSelectedProject() {
+        let ud = UserDefaults.standard
+        if let p = selectedProject {
+            ud.set(p.id,   forKey: Self.selectedProjectIDKey)
+            ud.set(p.name, forKey: Self.selectedProjectNameKey)
+        } else {
+            ud.removeObject(forKey: Self.selectedProjectIDKey)
+            ud.removeObject(forKey: Self.selectedProjectNameKey)
+        }
+    }
 
     // MARK: - HealthKit Auth (W1.3)
 
@@ -112,7 +138,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             if type.usesBarometer {
                 // Seil: AltimeterService-Feedback an AttemptDetector via Barometer-Poll
             } else {
-                detector.startMotionDetection(currentHR: heartRate)
+                // P1-4: ohne HR-Parameter – detector.currentHR wird im Timer-Tick gesetzt
+                detector.startMotionDetection()
             }
         }
     }
@@ -345,6 +372,8 @@ final class WorkoutManager: NSObject, ObservableObject {
                 if self.sessionType.usesBarometer {
                     self.detector.updateAltitude(alt)
                 }
+                // P1-4: aktuelle HF an Detector weitergeben (war vorher eingefrorener Wert)
+                self.detector.currentHR = self.heartRate
                 // E1: Live-Status alle 5 Sekunden senden
                 self.liveStatusTickCount += 1
                 if self.liveStatusTickCount >= 5 {
