@@ -18,7 +18,7 @@ final class LiveActivityController {
                 sessionTypeRaw: status.sessionTypeRaw
             )
             if let activity = currentActivity {
-                Task { await activity.update(using: state) }
+                Task { await activity.update(ActivityContent(state: state, staleDate: nil)) }
             } else {
                 startActivity(state: state, sessionTypeRaw: status.sessionTypeRaw)
             }
@@ -47,7 +47,7 @@ final class LiveActivityController {
     private func endActivity() {
         guard let activity = currentActivity else { return }
         Task {
-            await activity.end(dismissalPolicy: .immediate)
+            await activity.end(nil as ActivityContent<ClimbActivityAttributes.ContentState>?, dismissalPolicy: .immediate)
         }
         currentActivity = nil
     }

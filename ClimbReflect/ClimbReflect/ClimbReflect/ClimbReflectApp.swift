@@ -11,8 +11,7 @@ struct ClimbReflectApp: App {
 
         do {
             container = try ModelContainer(
-                for: SchemaV2.self,
-                migrationPlan: AppMigrationPlan.self,
+                for: ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self,
                 configurations: config
             )
         } catch {
@@ -26,8 +25,7 @@ struct ClimbReflectApp: App {
             try? FileManager.default.removeItem(at: shmURL)
             do {
                 container = try ModelContainer(
-                    for: SchemaV2.self,
-                    migrationPlan: AppMigrationPlan.self,
+                    for: ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self,
                     configurations: config
                 )
             } catch {
@@ -53,7 +51,7 @@ struct ClimbReflectApp: App {
 
     private func endOrphanedLiveActivities() {
         for activity in Activity<ClimbActivityAttributes>.activities {
-            Task { await activity.end(dismissalPolicy: .immediate) }
+            Task { await activity.end(nil as ActivityContent<ClimbActivityAttributes.ContentState>?, dismissalPolicy: .immediate) }
         }
     }
 
