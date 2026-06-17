@@ -31,6 +31,8 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var attemptState: AttemptState = .idle  // D1
     @Published var trainingTarget: WatchTrainingTarget? = nil  // C5
     @Published var totalAltitudeGain: Double = 0
+    @Published var sessionEndedUnexpectedly = false
+    @Published var lastError: String?
     @Published var selectedProject: ProjectInfo? = nil {  // P5.7 / P2-8
         didSet { persistSelectedProject() }
     }
@@ -454,11 +456,41 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession,
                                     didChangeTo toState: HKWorkoutSessionState,
                                     from fromState: HKWorkoutSessionState,
-                                    date: Date) {}
+                                    date: Date) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            switch toState {
+            case .paused:
+                if !self.isPaused {
+                    self.isPaused = true
+                    self.pauseStartedAt = Date()
+                    self.timer?.invalidate()
+                }
+            case .running:
+                if self.isPaused {
+                    if let p = self.pauseStartedAt {
+                        self.accumulatedPaused += Date().timeIntervalSince(p)
+                        self.pauseStartedAt = nil
+                    }
+                    self.isPaused = false
+                    self.startTimer()
+                }
+            case .ended, .stopped:
+                if self.isRunning {
+                    self.sessionEndedUnexpectedly = true
+                }
+            default:
+                break
+            }
+        }
+    }
 
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession,
                                     didFailWithError error: Error) {
-        print("[WorkoutManager] session error: \(error)")
+        Task { @MainActor [weak self] in
+            self?.lastError = error.localizedDescription
+            self?.sessionEndedUnexpectedly = true
+        }
     }
 }
 

@@ -30,6 +30,14 @@ struct LiveSessionView: View {
                 climbingTabView
             }
         }
+        .onChange(of: workoutManager.sessionEndedUnexpectedly) { _, ended in
+            guard ended, navPath.isEmpty else { return }
+            Task { @MainActor in
+                sessionDTO = await workoutManager.endWorkout()
+                navPath = [.questionnaire]
+                workoutManager.sessionEndedUnexpectedly = false
+            }
+        }
         .onAppear {
             // E2: iPhone-Befehle verarbeiten
             SyncService.shared.onCommand = { [workoutManager] cmd in
