@@ -175,8 +175,7 @@ struct LiveSessionView: View {
         VStack(spacing: 8) {
             Spacer(minLength: 0)
 
-            Text(elapsedFormatted)
-                .font(.system(.title, design: .monospaced, weight: .bold))
+            elapsedView
                 .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
 
             vitalsRow
@@ -331,8 +330,7 @@ struct LiveSessionView: View {
             VStack(spacing: 8) {
                 Spacer(minLength: 0).frame(height: 8)
 
-                Text(elapsedFormatted)
-                    .font(.system(.title, design: .monospaced, weight: .bold))
+                elapsedView
                     .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
 
                 if let target = workoutManager.trainingTarget {
@@ -530,8 +528,23 @@ struct LiveSessionView: View {
     private var maxHRStr: String {
         workoutManager.maxHeartRate > 0 ? "\(Int(workoutManager.maxHeartRate))" : "--"
     }
-    private var elapsedFormatted: String {
-        let s = workoutManager.elapsedSeconds
+
+    // TimelineView aktualisiert sich auch im Always-On-Modus selbstständig.
+    @ViewBuilder
+    private var elapsedView: some View {
+        if let start = workoutManager.workoutStartDate {
+            TimelineView(.periodic(from: start, by: 1)) { _ in
+                Text(formatElapsed(workoutManager.currentElapsed()))
+                    .font(.system(.title, design: .monospaced, weight: .bold))
+            }
+        } else {
+            Text("00:00")
+                .font(.system(.title, design: .monospaced, weight: .bold))
+        }
+    }
+
+    private func formatElapsed(_ t: TimeInterval) -> String {
+        let s = Int(t)
         let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%02d:%02d", m, sec)
     }

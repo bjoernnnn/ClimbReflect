@@ -43,7 +43,9 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
     private var timer: Timer?
-    private var workoutStartDate: Date?
+    private(set) var workoutStartDate: Date?
+    private var accumulatedPaused: TimeInterval = 0
+    private var pauseStartedAt: Date?
     private var liveStatusTickCount = 0
 
     let altimeter = AltimeterService()
@@ -56,6 +58,14 @@ final class WorkoutManager: NSObject, ObservableObject {
     // P2-8: selectedProject über App-Neustart erhalten
     private static let selectedProjectIDKey  = "selectedProjectID"
     private static let selectedProjectNameKey = "selectedProjectName"
+
+    func currentElapsed() -> TimeInterval {
+        guard let start = workoutStartDate else { return 0 }
+        if let p = pauseStartedAt {
+            return max(0, p.timeIntervalSince(start) - accumulatedPaused)
+        }
+        return max(0, Date().timeIntervalSince(start) - accumulatedPaused)
+    }
 
     override init() {
         super.init()
@@ -197,11 +207,16 @@ final class WorkoutManager: NSObject, ObservableObject {
     func pauseWorkout() {
         session?.pause()
         isPaused = true
+        pauseStartedAt = Date()
         timer?.invalidate()
         broadcastLiveStatus()
     }
 
     func resumeWorkout() {
+        if let p = pauseStartedAt {
+            accumulatedPaused += Date().timeIntervalSince(p)
+            pauseStartedAt = nil
+        }
         session?.resume()
         isPaused = false
         startTimer()
@@ -335,6 +350,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         selectedProject = nil
         hrSum = 0
         hrCount = 0
+        accumulatedPaused = 0
+        pauseStartedAt = nil
+        workoutStartDate = nil
     }
 
     // MARK: - E1: Live-Status an iPhone senden
@@ -366,7 +384,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                self.elapsedSeconds += 1
+                self.elapsedSeconds = Int(self.currentElapsed())
                 let alt = await self.altimeter.totalGain
                 self.totalAltitudeGain = alt
                 if self.sessionType.usesBarometer {
