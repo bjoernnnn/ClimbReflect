@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 // Ring-Puffer für persistente Diagnose-Events (letzte 200 Einträge).
 // Zugriff ausschließlich von MainActor.

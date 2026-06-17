@@ -2,14 +2,22 @@ import Foundation
 
 // Persistiert die laufende Session nach jeder Mutation auf Disk.
 // Bei App-Neustart nach Absturz werden die Begehungen über SyncService gerettet.
+// ProjectInfo wird als flache Strings gespeichert (vermeidet Codable-Konformanz
+// auf einem @MainActor-Struct unter SWIFT_DEFAULT_ACTOR_ISOLATION=MainActor).
 
 struct PendingSession: Codable {
     let id: UUID
     let startDate: Date
     let sessionTypeRaw: String
-    let projectInfo: ProjectInfo?
+    let projectID: String?
+    let projectName: String?
     let ascents: [WatchSessionDTO.AscentDTO]
     let accumulatedPaused: TimeInterval
+
+    var projectInfo: ProjectInfo? {
+        guard let id = projectID, let name = projectName else { return nil }
+        return ProjectInfo(id: id, name: name)
+    }
 }
 
 enum PendingSessionStore {

@@ -69,7 +69,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             id: UUID(),
             startDate: startDate,
             sessionTypeRaw: sessionType.rawValue,
-            projectInfo: selectedProject,
+            projectID: selectedProject?.id,
+            projectName: selectedProject?.name,
             ascents: attempts.map { $0.toDTO() },
             accumulatedPaused: accumulatedPaused
         )
