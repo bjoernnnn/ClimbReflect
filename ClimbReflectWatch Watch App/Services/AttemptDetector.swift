@@ -44,9 +44,11 @@ final class AttemptDetector {
     // currentHR: vom WorkoutManager-Timer-Tick (Main-Actor) geschrieben,
     // von motionQueue gelesen → unkritische Heuristik, kein Lock nötig.
     var currentHR: Double = 0
+    private var detecting = false
 
     func startMotionDetection() {
-        guard motion.isAccelerometerAvailable else { return }
+        guard motion.isAccelerometerAvailable, !detecting else { return }
+        detecting = true
         // W8.4: 0.2 s statt 0.1 s → 50% weniger Samples, ausreichend für Burst-Erkennung
         motion.accelerometerUpdateInterval = 0.2
         motion.startAccelerometerUpdates(to: motionQueue) { [weak self] data, _ in
@@ -72,5 +74,6 @@ final class AttemptDetector {
     func stopMotionDetection() {
         motion.stopAccelerometerUpdates()
         burstWindow.removeAll()
+        detecting = false
     }
 }

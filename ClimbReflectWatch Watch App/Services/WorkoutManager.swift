@@ -143,9 +143,23 @@ final class WorkoutManager: NSObject, ObservableObject {
         try? await store.requestAuthorization(toShare: share, read: read)
     }
 
+    // MARK: - P2-7.3: Resync beim Aufwachen (isLuminanceReduced → false)
+
+    func resyncSensors() {
+        elapsedSeconds = Int(currentElapsed())
+        Task { [weak self] in
+            guard let self else { return }
+            let alt = await self.altimeter.totalGain
+            await MainActor.run { self.totalAltitudeGain = alt }
+        }
+    }
+
     // MARK: - Session Start (W1.2)
 
     func startWorkout(type: WatchSessionType, target: WatchTrainingTarget? = nil) async {
+        // P2-7.1: Sicherstellen, dass Authorization abgeschlossen ist.
+        await requestAuthorization()
+
         sessionType = type
         trainingTarget = target
         attemptState = .idle

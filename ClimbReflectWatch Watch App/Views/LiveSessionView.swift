@@ -38,6 +38,10 @@ struct LiveSessionView: View {
                 workoutManager.sessionEndedUnexpectedly = false
             }
         }
+        .onChange(of: isLuminanceReduced) { _, reduced in
+            // P2-7.3: Sensoren nach Aufwachen sofort synchronisieren
+            if !reduced { workoutManager.resyncSensors() }
+        }
         .onAppear {
             // E2: iPhone-Befehle verarbeiten
             SyncService.shared.onCommand = { [workoutManager] cmd in

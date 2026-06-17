@@ -8,6 +8,7 @@ import Foundation
 actor AltimeterService {
     private let altimeter = CMAltimeter()
     private(set) var totalGain: Double = 0
+    private var running = false
 
     // Pro Versuch (Netto-Messung)
     private var ascentBaseAltitude: Double? = nil
@@ -15,7 +16,8 @@ actor AltimeterService {
     private var lastAltitude: Double = 0
 
     func start() {
-        guard CMAltimeter.isRelativeAltitudeAvailable() else { return }
+        guard CMAltimeter.isRelativeAltitudeAvailable(), !running else { return }
+        running = true
         let queue = OperationQueue()
         queue.qualityOfService = .utility
         altimeter.startRelativeAltitudeUpdates(to: queue) { [self] data, _ in
@@ -27,6 +29,7 @@ actor AltimeterService {
 
     func stop() {
         altimeter.stopRelativeAltitudeUpdates()
+        running = false
     }
 
     func startAscentTracking() {
