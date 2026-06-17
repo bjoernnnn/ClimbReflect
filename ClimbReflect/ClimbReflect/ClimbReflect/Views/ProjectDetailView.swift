@@ -71,6 +71,7 @@ struct ProjectDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     project.isPinned.toggle()
+                    try? context.save()
                 } label: {
                     Image(systemName: project.isPinned ? "pin.fill" : "pin")
                         .foregroundStyle(project.isPinned ? Theme.gold : Theme.textSecondary)
@@ -132,20 +133,20 @@ struct ProjectDetailView: View {
                 statPill(value: "\(days)", label: "Tage")
             }
 
-            if !project.isActive {
-                let toggleLabel = project.isAbandoned ? "Wieder aktivieren" : "Aufgeben"
-                let toggleSymbol = project.isAbandoned ? "arrow.uturn.backward.circle" : "xmark.circle"
+            if project.isAbandoned {
                 Button {
-                    project.statusRaw = project.isAbandoned ? nil : Project.Status.abandoned.rawValue
+                    project.statusRaw = nil
+                    try? context.save()
                 } label: {
-                    Label(toggleLabel, systemImage: toggleSymbol)
+                    Label("Wieder aktivieren", systemImage: "arrow.uturn.backward.circle")
                         .font(.subheadline)
-                        .foregroundStyle(project.isAbandoned ? Theme.accent : Theme.danger)
+                        .foregroundStyle(Theme.accent)
                 }
                 .buttonStyle(.plain)
-            } else {
+            } else if !project.isSent {
                 Button {
                     project.statusRaw = Project.Status.abandoned.rawValue
+                    try? context.save()
                 } label: {
                     Label("Aufgeben", systemImage: "xmark.circle")
                         .font(.subheadline)
@@ -256,6 +257,7 @@ struct ProjectDetailView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Speichern") {
                         project.betaNotes = betaNotesDraft
+                        try? context.save()
                         editingBetaNotes = false
                     }
                     .fontWeight(.semibold)
@@ -392,16 +394,29 @@ struct ProjectDetailView: View {
                     VStack(spacing: 0) {
                         ForEach(group.ascents) { ascent in
                             AscentRowView(ascent: ascent)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        deleteAscent(ascent)
+                                    } label: {
+                                        Label("Löschen", systemImage: "trash")
+                                    }
+                                }
                             if ascent.id != group.ascents.last?.id {
                                 Divider().background(Theme.surfaceStroke)
                             }
                         }
                     }
                     .background(RoundedRectangle(cornerRadius: 10).fill(Theme.surface))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
             }
         }
         .card()
+    }
+
+    private func deleteAscent(_ ascent: Ascent) {
+        context.delete(ascent)
+        try? context.save()
     }
 
     // MARK: - Helpers
