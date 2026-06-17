@@ -80,7 +80,11 @@ final class WorkoutManager: NSObject, ObservableObject {
     func recoverPendingSessionIfNeeded() {
         guard let pending = PendingSessionStore.load() else { return }
         PendingSessionStore.clear()
-        guard !pending.ascents.isEmpty else { return }
+        guard !pending.ascents.isEmpty else {
+            DiagnosticLog.shared.log("pendingSession found but empty – discarded")
+            return
+        }
+        DiagnosticLog.shared.log("recoveredPendingSession ascents=\(pending.ascents.count)")
         let dto = WatchSessionDTO(
             id: pending.id,
             workoutUUID: nil,
@@ -153,6 +157,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         workoutStartDate = startDate
         isRunning = true
         isPaused = false
+        DiagnosticLog.shared.log("start sessionType=\(type.rawValue)")
         startTimer()
 
         // HealthKit-Session aufsetzen (best-effort)
@@ -251,6 +256,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         isPaused = true
         pauseStartedAt = Date()
         timer?.invalidate()
+        DiagnosticLog.shared.log("pause elapsed=\(elapsedSeconds)s")
         broadcastLiveStatus()
     }
 
@@ -262,6 +268,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         session?.resume()
         isPaused = false
         startTimer()
+        DiagnosticLog.shared.log("resume elapsed=\(elapsedSeconds)s")
         broadcastLiveStatus()
     }
 
@@ -359,6 +366,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             energyRaw: nil
         )
 
+        DiagnosticLog.shared.log("end ascents=\(attempts.count) duration=\(Int(duration))s")
         clearLiveStatus()
         WKInterfaceDevice.current().play(.stop)
 
@@ -459,6 +467,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                                     date: Date) {
         Task { @MainActor [weak self] in
             guard let self else { return }
+            DiagnosticLog.shared.log("didChangeTo \(toState.rawValue)")
             switch toState {
             case .paused:
                 if !self.isPaused {
@@ -488,6 +497,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession,
                                     didFailWithError error: Error) {
         Task { @MainActor [weak self] in
+            DiagnosticLog.shared.log("didFailWithError \(error.localizedDescription)")
             self?.lastError = error.localizedDescription
             self?.sessionEndedUnexpectedly = true
         }
