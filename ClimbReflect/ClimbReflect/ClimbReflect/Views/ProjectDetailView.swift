@@ -3,6 +3,12 @@ import SwiftData
 import Charts
 import PhotosUI
 
+private struct AttemptPoint: Identifiable {
+    let date: Date
+    let count: Int
+    var id: Date { date }
+}
+
 struct ProjectDetailView: View {
     @Bindable var project: Project
     @Environment(\.modelContext) private var context
@@ -26,9 +32,10 @@ struct ProjectDetailView: View {
         }
     }
 
-    private var attemptHistory: [(date: Date, count: Int)] {
+    private var attemptHistory: [AttemptPoint] {
         ascentsGroupedBySession.map { group in
-            (date: group.date, count: group.ascents.reduce(0) { $0 + $1.attempts })
+            AttemptPoint(date: group.date,
+                         count: group.ascents.reduce(0) { $0 + $1.attempts })
         }
         .sorted { $0.date < $1.date }
     }
@@ -158,7 +165,7 @@ struct ProjectDetailView: View {
                 .font(.headline)
                 .foregroundStyle(Theme.textPrimary)
 
-            Chart(attemptHistory, id: \.date) { point in
+            Chart(attemptHistory) { point in
                 BarMark(
                     x: .value("Datum", point.date, unit: .day),
                     y: .value("Versuche", point.count)

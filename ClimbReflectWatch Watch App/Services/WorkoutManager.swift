@@ -253,7 +253,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             altitudeTotalGain: altTotal,
             ascents: attempts.map { $0.toDTO(
                 projectName: selectedProject?.name,
-                projectID: selectedProject.flatMap { UUID($0.id) }
+                projectID: selectedProject.flatMap { UUID(uuidString: $0.id) }
             ) },
             rpe: nil,
             focusRaw: trainingTarget?.rawValue,
