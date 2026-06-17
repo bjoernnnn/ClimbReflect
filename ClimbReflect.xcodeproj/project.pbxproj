@@ -47,20 +47,11 @@
 			);
 			target = 1151C11D2FE094D600D73FFD /* ClimbReflect */;
 		};
-		11632D8B2FE192B2000AE643 /* Exceptions for "ClimbReflectWatch Watch App" folder in "ClimbReflectWatch Watch App" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-			);
-			target = 113652292FE132CA007A638C /* ClimbReflectWatch Watch App */;
-		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1136522B2FE132CA007A638C /* ClimbReflectWatch Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				11632D8B2FE192B2000AE643 /* Exceptions for "ClimbReflectWatch Watch App" folder in "ClimbReflectWatch Watch App" target */,
-			);
 			path = "ClimbReflectWatch Watch App";
 			sourceTree = "<group>";
 		};
