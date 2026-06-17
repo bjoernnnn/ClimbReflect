@@ -66,6 +66,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         } else {
             liveStatus = nil  // empty Data → session ended
         }
+        LiveActivityController.shared.update(with: liveStatus)
     }
 
     // E2: Befehle von iPhone an Watch weiterleiten (Pause/Resume/End)
@@ -86,6 +87,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             self.insert(dto: dto)
             // Session beendet → Live-Status löschen
             self.liveStatus = nil
+            LiveActivityController.shared.update(with: nil)
         }
     }
 

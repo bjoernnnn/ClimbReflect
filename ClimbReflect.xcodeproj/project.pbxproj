@@ -130,8 +130,6 @@
 				1136522B2FE132CA007A638C /* ClimbReflectWatch Watch App */,
 			);
 			name = "ClimbReflectWatch Watch App";
-			packageProductDependencies = (
-			);
 			productName = "ClimbReflectWatch Watch App";
 			productReference = 1136522A2FE132CA007A638C /* ClimbReflectWatch Watch App.app */;
 			productType = "com.apple.product-type.application";
@@ -154,8 +152,6 @@
 				1151C1202FE094D600D73FFD /* ClimbReflect */,
 			);
 			name = ClimbReflect;
-			packageProductDependencies = (
-			);
 			productName = ClimbReflect;
 			productReference = 1151C11E2FE094D600D73FFD /* ClimbReflect.app */;
 			productType = "com.apple.product-type.application";

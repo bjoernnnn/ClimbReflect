@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import ActivityKit
 
 @main
 struct ClimbReflectApp: App {
@@ -28,9 +29,16 @@ struct ClimbReflectApp: App {
         }
 
         WatchSessionReceiver.shared.configure(modelContext: container.mainContext)
+        endOrphanedLiveActivities()
         #if DEBUG
         MockData.seedIfNeeded(container.mainContext)
         #endif
+    }
+
+    private func endOrphanedLiveActivities() {
+        for activity in Activity<ClimbActivityAttributes>.activities {
+            Task { await activity.end(dismissalPolicy: .immediate) }
+        }
     }
 
     var body: some Scene {

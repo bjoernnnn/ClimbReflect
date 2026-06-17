@@ -448,52 +448,22 @@ enum StatsEngine {
         ]
     }
 
-    // MARK: Erfolge
+    // MARK: Erfolge (nur 2 App-Erfolge behalten; Rest in climbAchievements)
 
     static func achievements(for sessions: [ClimbSession]) -> [Achievement] {
         let total = sessions.count
         let streak = weekStreak(sessions)
-        let distinctTypes = Set(sessions.map(\.sessionTypeRaw)
-            .filter { $0 != SessionType.unknown.rawValue }).count
-        let longest = sessions.map(\.durationMinutes).max() ?? 0
-        let earlyBird = sessions.contains {
-            Calendar.current.component(.hour, from: $0.date) < 9
-        }
-
-        func milestone(_ id: String, _ title: String, _ symbol: String,
-                       have: Int, need: Int) -> Achievement {
-            Achievement(id: id, title: title,
-                        subtitle: have >= need ? "Geschafft" : "\(have)/\(need) Sessions",
-                        symbol: symbol,
-                        isUnlocked: have >= need,
-                        progress: min(1, Double(have) / Double(need)))
-        }
-
         return [
-            milestone("first",   "Erster Zug",   "flag.fill",            have: total, need: 1),
-            milestone("five",    "Warmgeklettert","figure.climbing",     have: total, need: 5),
-            milestone("ten",     "Stammgast",    "medal.fill",           have: total, need: 10),
-            milestone("twenty",  "Eisern",       "trophy.fill",          have: total, need: 20),
+            Achievement(id: "first", title: "Erste Session",
+                        subtitle: total >= 1 ? "Erster Zug gemacht!" : "Erste Session starten",
+                        symbol: "flag.fill",
+                        isUnlocked: total >= 1,
+                        progress: min(1, Double(total))),
             Achievement(id: "streak", title: "Wochenstreak",
-                        subtitle: streak >= 4 ? "Geschafft" : "\(streak)/4 Wochen",
+                        subtitle: streak >= 4 ? "4+ Wochen am Ball!" : "\(streak)/4 Wochen",
                         symbol: "flame.fill",
                         isUnlocked: streak >= 4,
                         progress: min(1, Double(streak) / 4)),
-            Achievement(id: "versatile", title: "Vielseitig",
-                        subtitle: distinctTypes >= 3 ? "Geschafft" : "\(distinctTypes)/3 Arten",
-                        symbol: "square.grid.2x2.fill",
-                        isUnlocked: distinctTypes >= 3,
-                        progress: min(1, Double(distinctTypes) / 3)),
-            Achievement(id: "marathon", title: "Ausdauerheld",
-                        subtitle: longest >= 120 ? "Geschafft" : "\(longest)/120 Min",
-                        symbol: "hourglass",
-                        isUnlocked: longest >= 120,
-                        progress: min(1, Double(longest) / 120)),
-            Achievement(id: "earlybird", title: "Frühaufsteher",
-                        subtitle: earlyBird ? "Geschafft" : "Vor 9 Uhr klettern",
-                        symbol: "sunrise.fill",
-                        isUnlocked: earlyBird,
-                        progress: earlyBird ? 1 : 0)
         ]
     }
 }

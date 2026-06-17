@@ -15,7 +15,7 @@ struct DashboardView: View {
     @State private var showSettings = false
     @State private var selectedAchievementID: String?
     private var selectedAchievement: StatsEngine.ClimbAchievement? {
-        climbAchievements.first { $0.id == selectedAchievementID }
+        allAchievements.first { $0.id == selectedAchievementID }
     }
 
     private var healthKitAvailable: Bool {
@@ -26,12 +26,31 @@ struct DashboardView: View {
         #endif
     }
 
-    private var achievements: [Achievement] { StatsEngine.achievements(for: sessions) }
+    private var appAchievements: [Achievement] { StatsEngine.achievements(for: sessions) }
     private var climbAchievements: [StatsEngine.ClimbAchievement] { StatsEngine.climbAchievements(for: sessions) }
     private var weekly: [WeeklyPoint] { StatsEngine.weeklyMinutes(sessions) }
-    private var unlockedCount: Int { achievements.filter(\.isUnlocked).count }
-    private var inProgressAchievements: [Achievement] { achievements.filter { !$0.isUnlocked } }
     private var formSignal: StatsEngine.FormSignal { StatsEngine.formSignal(sessions) }
+
+    // App-Erfolge als ClimbAchievement verpackt (für einheitliche Darstellung)
+    private var appAchievementsAsClimb: [StatsEngine.ClimbAchievement] {
+        appAchievements.map { a in
+            StatsEngine.ClimbAchievement(
+                id: a.id,
+                title: a.title,
+                subtitle: a.subtitle,
+                symbol: a.symbol,
+                isUnlocked: a.isUnlocked,
+                color: Theme.accent,
+                explanation: a.id == "first"
+                    ? "Du hast deine erste Session erfasst. Der erste Schritt auf dem Weg zur Verbesserung!"
+                    : "Du warst mindestens 4 Wochen in Folge aktiv. Konsistenz ist der Schlüssel zum Fortschritt."
+            )
+        }
+    }
+
+    private var allAchievements: [StatsEngine.ClimbAchievement] {
+        climbAchievements + appAchievementsAsClimb
+    }
 
     @AppStorage("boulderScale") private var boulderScale: String = GradeSystem.fontainebleau.rawValue
     @AppStorage("routeScale") private var routeScale: String = GradeSystem.french.rawValue
@@ -73,13 +92,8 @@ struct DashboardView: View {
 
                         FormSignalView(signal: formSignal)
 
-                        sectionHeader("Kletter-Erfolge", trailing: nil)
-                        climbAchievementsRow
-
-                        if !inProgressAchievements.isEmpty {
-                            sectionHeader("App-Erfolge", trailing: "\(unlockedCount)/\(achievements.count) freigeschaltet")
-                            achievementsRow
-                        }
+                        sectionHeader("Erfolge", trailing: nil)
+                        allAchievementsRow
 
                         ProgressChartView(points: weekly)
 
@@ -213,10 +227,10 @@ struct DashboardView: View {
         }
     }
 
-    private var climbAchievementsRow: some View {
+    private var allAchievementsRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ForEach(climbAchievements) { a in
+                ForEach(allAchievements) { a in
                     Button { selectedAchievementID = a.id } label: {
                         VStack(spacing: 8) {
                             ZStack {
@@ -262,16 +276,6 @@ struct DashboardView: View {
                     .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
                 }
                 .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 2)
-        }
-        .scrollClipDisabled()
-    }
-
-    private var achievementsRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(inProgressAchievements) { AchievementCard(achievement: $0) }
             }
             .padding(.horizontal, 2)
         }
