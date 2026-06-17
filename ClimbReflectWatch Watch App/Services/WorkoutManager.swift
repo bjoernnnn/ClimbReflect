@@ -401,12 +401,13 @@ final class WorkoutManager: NSObject, ObservableObject {
 
         let endDate = Date()
 
-        // HK-Session beenden (best-effort – kann nil sein wenn HK-Setup fehlschlug)
+        // HK-Session beenden (best-effort – kann nil sein wenn HK-Setup fehlschlug oder
+        // Session bereits extern beendet wurde, z. B. via didChangeTo(.ended)).
         var resolvedUUID: UUID? = nil
         var avgHR: Double? = nil
         var maxHRfromHK: Double? = nil
         if let ws = session, let wb = builder {
-            ws.end()
+            if ws.state != .ended && ws.state != .stopped { ws.end() }
             try? await wb.endCollection(at: endDate)
             // P0-1: Ø-HF aus HK-Stats lesen (discreteAverage), nicht Momentanwert
             let bpmUnit = HKUnit.count().unitDivided(by: .minute())
