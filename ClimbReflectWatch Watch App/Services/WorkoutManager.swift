@@ -77,8 +77,59 @@ final class WorkoutManager: NSObject, ObservableObject {
         PendingSessionStore.save(snapshot)
     }
 
-    /// Beim App-Start aufrufen: rettete Begehungen aus einem Absturz-Snapshot.
-    func recoverPendingSessionIfNeeded() {
+    /// Einheitlicher Einstieg beim App-Start (nach requestAuthorization).
+    /// Versucht zuerst eine noch aktive HK-Session wiederherzustellen;
+    /// fällt andernfalls auf den Snapshot-Rettungs-Pfad zurück.
+    func recoverIfNeeded() async {
+        if HKHealthStore.isHealthDataAvailable(),
+           let recovered = try? await store.recoverActiveWorkoutSession() {
+            await reattach(to: recovered)
+            return
+        }
+        recoverPendingSessionIfNeeded()
+    }
+
+    private func reattach(to ws: HKWorkoutSession) async {
+        let wb = ws.associatedWorkoutBuilder()
+        wb.dataSource = HKLiveWorkoutDataSource(healthStore: store,
+                                                workoutConfiguration: ws.workoutConfiguration)
+        ws.delegate = self
+        wb.delegate = self
+        self.session = ws
+        self.builder = wb
+
+        // Live-State aus Snapshot wiederherstellen
+        if let p = PendingSessionStore.load() {
+            self.sessionType       = WatchSessionType(rawValue: p.sessionTypeRaw) ?? .boulder
+            self.workoutStartDate  = p.startDate
+            self.accumulatedPaused = p.accumulatedPaused
+            if let id = p.projectID, let name = p.projectName {
+                self.selectedProject = ProjectInfo(id: id, name: name)
+            }
+            self.attempts = p.ascents.map { WatchAttempt(fromDTO: $0, sessionType: self.sessionType) }
+        } else {
+            self.workoutStartDate = wb.startDate
+        }
+
+        self.isPaused  = (ws.state == .paused)
+        self.isRunning = true
+        self.elapsedSeconds = Int(currentElapsed())
+
+        await altimeter.start()
+        if !isTraining {
+            detector.onSuggestion = { [weak self] in
+                Task { @MainActor in
+                    self?.suggestAttempt = true
+                    self?.pendingClassifications += 1
+                }
+            }
+            if !sessionType.usesBarometer { detector.startMotionDetection() }
+        }
+        if !isPaused { startTimer() }
+        DiagnosticLog.shared.log("recoveredActiveSession state=\(ws.state.rawValue) ascents=\(attempts.count)")
+    }
+
+    private func recoverPendingSessionIfNeeded() {
         guard let pending = PendingSessionStore.load() else { return }
         PendingSessionStore.clear()
         guard !pending.ascents.isEmpty else {
