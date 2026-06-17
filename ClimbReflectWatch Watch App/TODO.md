@@ -29,6 +29,11 @@ Pfade: **iOS** `ClimbReflect/ClimbReflect/ClimbReflect/`, **Watch** `ClimbReflec
 
 ## Abgeschlossen (zuletzt)
 
+- ✅ P0-1 – WatchAttempt(fromDTO:) Initializer für Session-Recovery (TODO9)
+- ✅ P0-2 – recoverIfNeeded(): HK-Session wiederaufnehmen oder Snapshot senden (TODO9)
+- ✅ P1-3 – healthKitActive-Flag + Warnbanner in LiveSessionView (TODO9)
+- ✅ P1-4 – endWorkout() robust gegen bereits beendete HK-Session (TODO9)
+- ✅ P2-5 – WKBackgroundModes als Array via explizite Info.plist (TODO9)
 - ✅ P0-1 – Verstrichene Zeit monoton aus Startdatum; TimelineView für Always-On (TODO8)
 - ✅ P0-2 – Session crash-sicher auf Disk; Recovery beim App-Start (TODO8)
 - ✅ P1-3 – Accelerometer-Updates auf dedizierter Hintergrund-Queue (TODO8)
