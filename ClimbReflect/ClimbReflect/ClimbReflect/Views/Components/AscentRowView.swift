@@ -45,6 +45,16 @@ struct AscentRowView: View {
                               systemImage: "arrow.up.right")
                             .foregroundStyle(Theme.textTertiary)
                     }
+                    if let project = ascent.project {
+                        HStack(spacing: 3) {
+                            Image(systemName: "target")
+                            Text(project.name)
+                        }
+                        .foregroundStyle(Theme.accent)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Theme.accent.opacity(0.12)))
+                    }
                 }
                 .font(.caption)
             }

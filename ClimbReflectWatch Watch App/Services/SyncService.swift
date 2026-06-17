@@ -4,11 +4,16 @@ import WatchConnectivity
 
 // W5.1/5.2/5.3: WatchConnectivity bidirektional — Session-Transfer Watch→iPhone, Projekte iPhone→Watch
 
+struct ProjectInfo: Identifiable, Hashable {
+    let id: String   // UUID-String
+    let name: String
+}
+
 final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     static let shared = SyncService()
 
     @Published var lastTransferStatus: String = ""
-    @Published var knownProjects: [String] = []   // W5.2: vom iPhone empfangen
+    @Published var knownProjects: [ProjectInfo] = []   // W5.2: vom iPhone empfangen
 
     // W5.3: Lokale Queue für Transfers die offline gehen
     private var pendingDTOs: [WatchSessionDTO] = []
@@ -70,13 +75,21 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     // MARK: - W5.2: Projekte-Update vom iPhone empfangen
 
     static let projectsKey = "knownProjects"
+    static let projectListKey = "projectList"
 
     func session(_ session: WCSession,
                  didReceiveApplicationContext applicationContext: [String: Any]) {
-        if let projects = applicationContext[SyncService.projectsKey] as? [String] {
-            DispatchQueue.main.async {
-                self.knownProjects = projects
+        DispatchQueue.main.async { self.applyProjectContext(applicationContext) }
+    }
+
+    private func applyProjectContext(_ context: [String: Any]) {
+        if let list = context[SyncService.projectListKey] as? [[String: String]] {
+            knownProjects = list.compactMap { dict -> ProjectInfo? in
+                guard let id = dict["id"], let name = dict["name"] else { return nil }
+                return ProjectInfo(id: id, name: name)
             }
+        } else if let names = context[SyncService.projectsKey] as? [String] {
+            knownProjects = names.map { ProjectInfo(id: $0, name: $0) }
         }
     }
 
@@ -103,7 +116,11 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
                  activationDidCompleteWith activationState: WCSessionActivationState,
                  error: Error?) {
         if activationState == .activated {
-            DispatchQueue.main.async { self.flushPending() }
+            DispatchQueue.main.async {
+                self.flushPending()
+                // Projekte aus dem zuletzt empfangenen applicationContext laden
+                self.applyProjectContext(session.receivedApplicationContext)
+            }
         }
     }
 }

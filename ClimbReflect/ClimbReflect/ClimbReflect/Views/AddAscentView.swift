@@ -5,8 +5,10 @@ import PhotosUI
 struct AddAscentView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \Project.name) private var allProjects: [Project]
 
     let session: ClimbSession
+    var preselectedProject: Project? = nil
 
     @State private var gradeSystem: GradeSystem = .fontainebleau
     @State private var selectedGrade: String = "6A"
@@ -17,11 +19,15 @@ struct AddAscentView: View {
     @State private var wallAngle: WallAngle? = nil
     @State private var holdType: HoldType? = nil
     @State private var climbStyle: ClimbStyle? = nil
-    @State private var projectName: String = ""
+    @State private var selectedProject: Project? = nil
+    @State private var newProjectName: String = ""
+    @State private var showNewProject: Bool = false
     @State private var setName: String = ""
     @State private var selectedPhoto: PhotosPickerItem? = nil
     @State private var photoData: Data? = nil
     @State private var showCelebration = false
+
+    private var activeProjects: [Project] { allProjects.filter(\.isActive) }
 
     private var grades: [String] { gradeSystem.grades }
 
@@ -98,14 +104,40 @@ struct AddAscentView: View {
                     }
                     .listRowBackground(Theme.surface)
 
-                    // MARK: Projekt + Set (P3.5 + P3.13)
+                    // MARK: Projekt + Set (P5.3)
                     Section {
-                        HStack {
-                            Image(systemName: "target")
-                                .foregroundStyle(Theme.accent)
-                                .frame(width: 20)
-                            TextField("Projektname (optional)", text: $projectName)
-                                .foregroundStyle(Theme.textPrimary)
+                        // Bestehende Projekte als Chips
+                        if !activeProjects.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    projectChip(nil, label: "Keins")
+                                    ForEach(activeProjects) { p in
+                                        projectChip(p, label: p.name)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                        // Neues Projekt anlegen
+                        if showNewProject {
+                            HStack {
+                                Image(systemName: "target").foregroundStyle(Theme.accent).frame(width: 20)
+                                TextField("Neuer Projektname", text: $newProjectName)
+                                    .foregroundStyle(Theme.textPrimary)
+                                    .onSubmit { createAndSelectProject() }
+                                Button("OK") { createAndSelectProject() }
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Theme.accent)
+                            }
+                        } else {
+                            Button {
+                                showNewProject = true
+                            } label: {
+                                Label("Neues Projekt anlegen", systemImage: "plus.circle")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.accent)
+                            }
+                            .buttonStyle(.plain)
                         }
                         HStack {
                             Image(systemName: "tag")
@@ -117,7 +149,7 @@ struct AddAscentView: View {
                     } header: {
                         Text("Projekt & Set").foregroundStyle(Theme.textTertiary)
                     } footer: {
-                        Text("Gleicher Projektname verbindet Versuche über Sessions. Set z. B. \"Gelb rechts\" oder \"Sektor B\".")
+                        Text("Projekt einmal wählen – alle Versuche dieser Session übernehmen es automatisch.")
                             .foregroundStyle(Theme.textTertiary)
                     }
                     .listRowBackground(Theme.surface)
@@ -219,7 +251,42 @@ struct AddAscentView: View {
             if !gradeSystem.grades.contains(selectedGrade) {
                 selectedGrade = gradeSystem.grades[min(8, gradeSystem.grades.count - 1)]
             }
+            selectedProject = preselectedProject
         }
+    }
+
+    @ViewBuilder
+    private func projectChip(_ project: Project?, label: String) -> some View {
+        let selected = selectedProject?.id == project?.id && (project != nil || selectedProject == nil)
+        Button {
+            selectedProject = project
+            showNewProject = false
+            newProjectName = ""
+        } label: {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(selected ? Theme.accent : Theme.bgElevated))
+                .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func createAndSelectProject() {
+        let trimmed = newProjectName.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let existing = allProjects.first { $0.name.lowercased() == trimmed.lowercased() }
+        if let existing {
+            selectedProject = existing
+        } else {
+            let p = Project(name: trimmed)
+            context.insert(p)
+            try? context.save()
+            selectedProject = p
+        }
+        showNewProject = false
+        newProjectName = ""
     }
 
     @ViewBuilder
@@ -266,12 +333,20 @@ struct AddAscentView: View {
             wallAngle: wallAngle,
             holdType: holdType,
             climbStyle: climbStyle,
-            projectName: projectName.isEmpty ? nil : projectName,
+            projectName: selectedProject?.name,
             session: session
         )
+        ascent.project = selectedProject
         ascent.setName = setName.isEmpty ? nil : setName
         ascent.photoData = photoData
         context.insert(ascent)
+
+        // Send → Projekt automatisch auf "gesendet" (auto aus isSent)
+        if result == .top, let project = selectedProject {
+            // statusRaw bleibt nil → isSent wird auto aus Ascents abgeleitet
+            _ = project
+        }
+
         try? context.save()
 
         if result == .top {

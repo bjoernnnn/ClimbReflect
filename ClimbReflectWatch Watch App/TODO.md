@@ -6,17 +6,13 @@ Pfade: **iOS** `ClimbReflect/ClimbReflect/ClimbReflect/`, **Watch** `ClimbReflec
 
 ## Offen – nächste Runden
 
-### N1 · Begehung einem Projekt zuordnen (iOS + Watch)
-- iOS `AddAscentView`: Dropdown/Chips mit aktiven Projekten.
-- Watch `AttemptLogView`: optionaler Projekt-Picker nach Ergebnis.
-- Send auf Projekt → automatisch auf „gesendet" setzen.
-
-### N2 · Sync-DTO entdoppeln
-- `WatchSessionDTO` liegt in iOS + Watch doppelt vor → geteiltes Target-Membership.
-
 ### N5.6 · Live-Activity-Steuerung (optional)
 - Pause/Beenden direkt aus der Live Activity via App Intents (iOS 17+).
 - Leitet Befehle an Watch weiter (`WCSession transferUserInfo`).
+
+### N2 · Sync-DTO echte Entdoppelung
+- `WatchSessionDTO` liegt in iOS + Watch doppelt vor. Strukturell jetzt identisch (Sendable, nonisolated).
+- Echte Zusammenführung (geteilte Target-Membership) via Xcode GUI: Datei aus Shared-Ordner in beide Targets aufnehmen.
 
 ---
 
@@ -33,6 +29,15 @@ Pfade: **iOS** `ClimbReflect/ClimbReflect/ClimbReflect/`, **Watch** `ClimbReflec
 
 ## Abgeschlossen (zuletzt)
 
+- ✅ P5.1 – Echte Project ↔ Ascent-Relation; ProjectMedia-Modell; isPinned, targetGradeRaw
+- ✅ P5.2 – Einmalige Migration projectName → Project-Entität
+- ✅ P5.3 – Session-Projektmodus iOS: aktives Projekt-Banner + Picker in SessionDetailView; AddAscentView mit Chip-Picker
+- ✅ P5.4 – Anpinnen: eigene Sektion in ProjectsView; Pin-Toggle in DetailSheet; Karte im Dashboard
+- ✅ P5.5 – ProjectDetailView: Header, Verlaufs-Chart, Beta-Notizen, Versuchs-Timeline
+- ✅ P5.6 – Medienbereich: PhotosPicker + ProjectMedia-Galerie in ProjectDetailView
+- ✅ P5.7 – Watch Projekt-Wahl: AscentDTO bekommt projectName/projectID; ProjectInfo über WC; Watch-Selektor in LiveSessionView; WatchSessionReceiver mappt auf Project-Entität
+- ✅ P5.8 – DTO-Strukturen angeglichen (beide Sendable, nonisolated, gleiche Felder)
+- ✅ N1 – Begehung einem Projekt zuordnen (iOS + Watch, als Teil von P5.3/P5.7)
 - ✅ N4 – Erfolge zusammenführen (eine Sektion, adaptive + App-Erfolge)
 - ✅ N5.1 – Widget Extension Target „ClimbReflectActivity" per xcodeproj-Gem angelegt
 - ✅ N5.2 – `NSSupportsLiveActivities = YES` in iOS Info.plist

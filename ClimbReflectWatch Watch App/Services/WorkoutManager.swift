@@ -31,6 +31,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var attemptState: AttemptState = .idle  // D1
     @Published var trainingTarget: WatchTrainingTarget? = nil  // C5
     @Published var totalAltitudeGain: Double = 0
+    @Published var selectedProject: ProjectInfo? = nil   // P5.7
 
     var isTraining: Bool { sessionType == .training }
 
@@ -147,7 +148,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             style: result == .top ? nil : nil,
             altitudeGain: gain,
             heartRateAtBanking: heartRate > 0 ? heartRate : nil,
-            sessionType: sessionType
+            sessionType: sessionType,
+            projectInfo: selectedProject
         )
         attempts.append(attempt)
         attemptState = .idle
@@ -202,7 +204,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             style: style,
             altitudeGain: gain,
             heartRateAtBanking: heartRate > 0 ? heartRate : nil,
-            sessionType: sessionType
+            sessionType: sessionType,
+            projectInfo: selectedProject
         )
         attempts.append(attempt)
         await altimeter.startAscentTracking()
@@ -288,6 +291,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         activeEnergyKcal = 0
         attemptState = .idle
         trainingTarget = nil
+        selectedProject = nil
     }
 
     // MARK: - E1: Live-Status an iPhone senden

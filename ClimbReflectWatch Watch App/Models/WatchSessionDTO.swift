@@ -2,7 +2,7 @@ import Foundation
 
 // Codable-DTO für WatchConnectivity-Transfer Watch → iPhone
 
-struct WatchSessionDTO: Codable {
+struct WatchSessionDTO: Codable, Sendable {
     struct AscentDTO: Codable {
         let id: UUID
         let gradeSystemRaw: String
@@ -13,6 +13,8 @@ struct WatchSessionDTO: Codable {
         let altitudeGain: Double
         let date: Date
         let sessionTypeRaw: String
+        let projectName: String?
+        let projectID: UUID?
     }
 
     let id: UUID
@@ -31,7 +33,7 @@ struct WatchSessionDTO: Codable {
     let focusRaw: String?
     let energyRaw: String?
 
-    static let transferKey = "watchSessionDTO"
+    nonisolated static let transferKey = "watchSessionDTO"
 
     // Kopie mit Fragebogen-Antworten
     func withQuestionnaire(rpe: Int?, focus: WatchSessionFocus?, energy: WatchSessionEnergy?) -> WatchSessionDTO {

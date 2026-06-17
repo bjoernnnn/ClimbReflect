@@ -17,8 +17,9 @@ final class Ascent {
     var holdTypeRaw: String?
     var climbStyleRaw: String?
 
-    // Projekt-Zugehörigkeit (P3.5)
+    // Projekt-Zugehörigkeit: projectName als Migration-Cache, project als echte Relation
     var projectName: String?
+    var project: Project?
 
     // Kletterhöhe (B1 – Watch-Barometer, optional manuell)
     var altitudeGain: Double = 0
