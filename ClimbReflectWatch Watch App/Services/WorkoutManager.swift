@@ -33,6 +33,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var totalAltitudeGain: Double = 0
     @Published var sessionEndedUnexpectedly = false
     @Published var lastError: String?
+    @Published var healthKitActive = false
     @Published var selectedProject: ProjectInfo? = nil {  // P5.7 / P2-8
         didSet { persistSelectedProject() }
     }
@@ -231,6 +232,10 @@ final class WorkoutManager: NSObject, ObservableObject {
         config.activityType = type == .training ? .functionalStrengthTraining : .climbing
         config.locationType = .indoor
 
+        if store.authorizationStatus(for: HKObjectType.workoutType()) == .sharingDenied {
+            DiagnosticLog.shared.log("HK sharingDenied – Timer-only session, no background")
+        }
+
         do {
             let ws = try HKWorkoutSession(healthStore: store, configuration: config)
             let wb = ws.associatedWorkoutBuilder()
@@ -241,9 +246,11 @@ final class WorkoutManager: NSObject, ObservableObject {
             self.builder = wb
             ws.startActivity(with: startDate)
             try await wb.beginCollection(at: startDate)
+            healthKitActive = true
+            DiagnosticLog.shared.log("beginCollection ok")
         } catch {
-            // HK-Fehler: Timer läuft weiter, DTO wird aus lokalen Daten erstellt
-            print("[WorkoutManager] HealthKit-Setup fehlgeschlagen: \(error)")
+            healthKitActive = false
+            DiagnosticLog.shared.log("HK setup failed: \(error.localizedDescription)")
         }
 
         savePendingSnapshot()
@@ -471,6 +478,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         accumulatedPaused = 0
         pauseStartedAt = nil
         workoutStartDate = nil
+        healthKitActive = false
+        sessionEndedUnexpectedly = false
+        lastError = nil
         PendingSessionStore.clear()
     }
 
@@ -542,6 +552,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                     self.timer?.invalidate()
                 }
             case .running:
+                self.healthKitActive = true
                 if self.isPaused {
                     if let p = self.pauseStartedAt {
                         self.accumulatedPaused += Date().timeIntervalSince(p)

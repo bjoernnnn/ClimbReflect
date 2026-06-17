@@ -190,6 +190,10 @@ struct LiveSessionView: View {
             elapsedView
                 .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
 
+            if !workoutManager.healthKitActive {
+                hkWarningBanner
+            }
+
             vitalsRow
                 .opacity(isLuminanceReduced ? 0.6 : 1.0)
 
@@ -498,6 +502,21 @@ struct LiveSessionView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
+    }
+
+    private var hkWarningBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(WatchTheme.danger)
+                .font(.system(size: 11))
+            Text("Kein HealthKit – kein Hintergrund")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(WatchTheme.danger)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 5)
+        .background(WatchTheme.danger.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Shared UI
