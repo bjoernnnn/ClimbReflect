@@ -9,6 +9,12 @@ final class AttemptDetector {
     var onSuggestion: (() -> Void)?
 
     private let motion = CMMotionManager()
+    private let motionQueue: OperationQueue = {
+        let q = OperationQueue()
+        q.maxConcurrentOperationCount = 1
+        q.qualityOfService = .utility
+        return q
+    }()
     private var ropeThreshold: Double = 1.5  // Meter Netto-Aufstieg
     private var lastRelativeAltitude: Double = 0
     private var ascentStartAlt: Double? = nil
@@ -35,15 +41,15 @@ final class AttemptDetector {
 
     // MARK: - Boulder (W4.2) — Bewegungsburst
 
-    // P1-4: currentHR als Property statt eingefangener Parameter → wird vom Timer-Tick
-    // laufend aktualisiert und spiegelt immer die echte aktuelle HF wider.
+    // currentHR: vom WorkoutManager-Timer-Tick (Main-Actor) geschrieben,
+    // von motionQueue gelesen → unkritische Heuristik, kein Lock nötig.
     var currentHR: Double = 0
 
     func startMotionDetection() {
         guard motion.isAccelerometerAvailable else { return }
         // W8.4: 0.2 s statt 0.1 s → 50% weniger Samples, ausreichend für Burst-Erkennung
         motion.accelerometerUpdateInterval = 0.2
-        motion.startAccelerometerUpdates(to: .main) { [weak self] data, _ in
+        motion.startAccelerometerUpdates(to: motionQueue) { [weak self] data, _ in
             guard let self, let data else { return }
             let mag = sqrt(pow(data.acceleration.x, 2) +
                            pow(data.acceleration.y, 2) +
@@ -55,8 +61,9 @@ final class AttemptDetector {
             // Burst: hohe Bewegung + erhöhte HF (laufend aktualisiert via currentHR)
             if avg > 2.5 && self.currentHR > 100 && self.burstWindow.count >= 20 {
                 self.burstWindow.removeAll()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    self.onSuggestion?()
+                // Vorschlag auf Main-Thread melden
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                    self?.onSuggestion?()
                 }
             }
         }
