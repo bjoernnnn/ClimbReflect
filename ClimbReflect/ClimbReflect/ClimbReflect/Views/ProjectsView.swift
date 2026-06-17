@@ -18,7 +18,6 @@ struct ProjectsView: View {
         let entity: Project?
 
         var totalAttempts: Int { ascents.reduce(0) { $0 + $1.attempts } }
-        var sessionsWithAscents: [ClimbSession] { [] }
         var distinctDays: Int {
             let dates = Set(ascents.compactMap { Calendar.current.startOfDay(for: $0.date) })
             return dates.count
@@ -29,15 +28,14 @@ struct ProjectsView: View {
         }
         var isAbandoned: Bool { entity?.statusRaw == Project.Status.abandoned.rawValue }
         var isActive: Bool { !isSent && !isAbandoned }
+        var isPinned: Bool { entity?.isPinned ?? false }
         var sentOn: Date? { ascents.filter { $0.result == .top }.map(\.date).min() }
         var lastAttempt: Date { ascents.map(\.date).max() ?? .distantPast }
         var bestTopGrade: String? {
             ascents.filter { $0.result == .top }
                 .max { $0.sortOrder < $1.sortOrder }?.gradeRaw
         }
-        var betaNotes: String {
-            get { entity?.betaNotes ?? "" }
-        }
+        var betaNotes: String { entity?.betaNotes ?? "" }
     }
 
     private var derivedProjects: [DerivedProject] {
@@ -53,8 +51,12 @@ struct ProjectsView: View {
         }
     }
 
+    private var pinnedProjects: [DerivedProject] {
+        derivedProjects.filter { $0.isActive && $0.isPinned }
+            .sorted { $0.lastAttempt > $1.lastAttempt }
+    }
     private var activeProjects: [DerivedProject] {
-        derivedProjects.filter(\.isActive)
+        derivedProjects.filter { $0.isActive && !$0.isPinned }
             .sorted { $0.lastAttempt > $1.lastAttempt }
     }
     private var sentProjects: [DerivedProject] {
@@ -87,8 +89,8 @@ struct ProjectsView: View {
             }
         }
         .sheet(item: $selectedProject) { project in
-            ProjectDetailSheet(project: project) { notes, abandoned in
-                saveProjectEntity(name: project.name, betaNotes: notes, abandoned: abandoned)
+            ProjectDetailSheet(project: project) { notes, abandoned, pinned in
+                saveProjectEntity(name: project.name, betaNotes: notes, abandoned: abandoned, pinned: pinned)
             }
         }
         .alert("Projekt hinzufügen", isPresented: $showAddProject) {
@@ -104,6 +106,12 @@ struct ProjectsView: View {
     private var projectList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                if !pinnedProjects.isEmpty {
+                    sectionHeader("Angepinnt", count: pinnedProjects.count)
+                    ForEach(pinnedProjects) { project in
+                        projectRow(project, showSentDate: false)
+                    }
+                }
                 if !activeProjects.isEmpty {
                     sectionHeader("In Arbeit", count: activeProjects.count)
                     ForEach(activeProjects) { project in
@@ -160,57 +168,71 @@ struct ProjectsView: View {
     }
 
     private func projectRow(_ project: DerivedProject, showSentDate: Bool) -> some View {
-        Button { selectedProject = project } label: {
-            HStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(project.isSent ? Theme.accent.opacity(0.15)
-                              : project.isAbandoned ? Theme.bgElevated
-                              : Theme.bgElevated)
-                        .frame(width: 44, height: 44)
-                    Image(systemName: project.isSent ? "checkmark.circle.fill"
-                          : project.isAbandoned ? "xmark.circle" : "target")
-                        .font(.system(size: 20))
-                        .foregroundStyle(project.isSent ? Theme.accent
-                                         : project.isAbandoned ? Theme.textTertiary
-                                         : Theme.textSecondary)
+        let rowContent = projectRowContent(project, showSentDate: showSentDate)
+        return Group {
+            if let entity = project.entity {
+                NavigationLink(destination: ProjectDetailView(project: entity)) {
+                    rowContent
                 }
+                .buttonStyle(.plain)
+            } else {
+                Button { selectedProject = project } label: {
+                    rowContent
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(project.name)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.textPrimary)
-                    HStack(spacing: 8) {
-                        if let grade = project.bestTopGrade {
-                            Text(grade)
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(Theme.accent)
-                        }
-                        Text("\(project.totalAttempts) Versuch\(project.totalAttempts == 1 ? "" : "e") · \(project.distinctDays) Tag\(project.distinctDays == 1 ? "" : "e")")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                    if showSentDate, let date = project.sentOn {
-                        Text("Gesendet \(date.formatted(.dateTime.day().month().year()))")
-                            .font(.caption2)
+    private func projectRowContent(_ project: DerivedProject, showSentDate: Bool) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(project.isSent ? Theme.accent.opacity(0.15) : Theme.bgElevated)
+                    .frame(width: 44, height: 44)
+                Image(systemName: project.isSent ? "checkmark.circle.fill"
+                      : project.isAbandoned ? "xmark.circle"
+                      : project.isPinned ? "pin.fill" : "target")
+                    .font(.system(size: 20))
+                    .foregroundStyle(project.isSent ? Theme.accent
+                                     : project.isAbandoned ? Theme.textTertiary
+                                     : project.isPinned ? Theme.gold
+                                     : Theme.textSecondary)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(project.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                HStack(spacing: 8) {
+                    if let grade = project.bestTopGrade {
+                        Text(grade)
+                            .font(.caption.weight(.bold))
                             .foregroundStyle(Theme.accent)
                     }
-                    if !project.betaNotes.isEmpty {
-                        Label("Beta vorhanden", systemImage: "note.text")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.gold)
-                    }
+                    Text("\(project.totalAttempts) Versuch\(project.totalAttempts == 1 ? "" : "e") · \(project.distinctDays) Tag\(project.distinctDays == 1 ? "" : "e")")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textSecondary)
                 }
-
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.textTertiary)
+                if showSentDate, let date = project.sentOn {
+                    Text("Gesendet \(date.formatted(.dateTime.day().month().year()))")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.accent)
+                }
+                if !project.betaNotes.isEmpty {
+                    Label("Beta vorhanden", systemImage: "note.text")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.gold)
+                }
             }
-            .padding(14)
-            .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
+
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.textTertiary)
         }
-        .buttonStyle(.plain)
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
     }
 
     private func createProjectEntity(name: String) {
@@ -223,13 +245,15 @@ struct ProjectsView: View {
         newProjectName = ""
     }
 
-    private func saveProjectEntity(name: String, betaNotes: String, abandoned: Bool) {
+    private func saveProjectEntity(name: String, betaNotes: String, abandoned: Bool, pinned: Bool) {
         if let existing = projectEntities.first(where: { $0.name == name }) {
             existing.betaNotes = betaNotes
             existing.statusRaw = abandoned ? Project.Status.abandoned.rawValue : nil
+            existing.isPinned = pinned
         } else {
             let p = Project(name: name, betaNotes: betaNotes,
-                            statusRaw: abandoned ? Project.Status.abandoned.rawValue : nil)
+                            statusRaw: abandoned ? Project.Status.abandoned.rawValue : nil,
+                            isPinned: pinned)
             context.insert(p)
         }
         try? context.save()
@@ -240,17 +264,19 @@ struct ProjectsView: View {
 
 private struct ProjectDetailSheet: View {
     let project: ProjectsView.DerivedProject
-    let onSave: (String, Bool) -> Void
+    let onSave: (String, Bool, Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var betaNotes: String
     @State private var isAbandoned: Bool
+    @State private var isPinned: Bool
 
-    init(project: ProjectsView.DerivedProject, onSave: @escaping (String, Bool) -> Void) {
+    init(project: ProjectsView.DerivedProject, onSave: @escaping (String, Bool, Bool) -> Void) {
         self.project = project
         self.onSave = onSave
         _betaNotes = State(initialValue: project.betaNotes)
         _isAbandoned = State(initialValue: project.isAbandoned)
+        _isPinned = State(initialValue: project.isPinned)
     }
 
     var body: some View {
@@ -292,14 +318,26 @@ private struct ProjectDetailSheet: View {
                             .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
                         }
 
-                        // Status
-                        Toggle(isOn: $isAbandoned) {
-                            Label("Projekt aufgegeben", systemImage: "xmark.circle")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Theme.textSecondary)
+                        // Anpinnen + Status
+                        VStack(spacing: 0) {
+                            Toggle(isOn: $isPinned) {
+                                Label("Angepinnt", systemImage: "pin.fill")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                            .tint(Theme.gold)
+                            .padding(14)
+
+                            Divider().background(Theme.surfaceStroke).padding(.horizontal, 14)
+
+                            Toggle(isOn: $isAbandoned) {
+                                Label("Projekt aufgegeben", systemImage: "xmark.circle")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                            .tint(Theme.danger)
+                            .padding(14)
                         }
-                        .tint(Theme.danger)
-                        .padding(14)
                         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.surface))
                     }
                     .padding(.horizontal, 20)
@@ -317,7 +355,7 @@ private struct ProjectDetailSheet: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Speichern") {
-                        onSave(betaNotes, isAbandoned)
+                        onSave(betaNotes, isAbandoned, isPinned)
                         dismiss()
                     }
                     .fontWeight(.semibold)

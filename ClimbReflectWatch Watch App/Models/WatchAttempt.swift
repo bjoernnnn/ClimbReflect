@@ -39,7 +39,7 @@ struct WatchAttempt: Identifiable {
 
     var isComplete: Bool { grade != nil && result != nil }
 
-    func toDTO() -> WatchSessionDTO.AscentDTO {
+    func toDTO(projectName: String? = nil, projectID: UUID? = nil) -> WatchSessionDTO.AscentDTO {
         WatchSessionDTO.AscentDTO(
             id: id,
             gradeSystemRaw: gradeSystem.rawValue,
@@ -49,7 +49,9 @@ struct WatchAttempt: Identifiable {
             attempts: attempts,
             altitudeGain: altitudeGain,
             date: date,
-            sessionTypeRaw: sessionType.rawValue
+            sessionTypeRaw: sessionType.rawValue,
+            projectName: projectName,
+            projectID: projectID
         )
     }
 }

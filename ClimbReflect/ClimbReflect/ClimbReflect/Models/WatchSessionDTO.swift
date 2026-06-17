@@ -15,6 +15,8 @@ struct WatchSessionDTO: Codable, Sendable {
         let altitudeGain: Double
         let date: Date
         let sessionTypeRaw: String
+        let projectName: String?
+        let projectID: UUID?
     }
 
     let id: UUID

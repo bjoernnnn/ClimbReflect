@@ -11,12 +11,14 @@ enum WatchNavStep: Hashable {
 
 struct LiveSessionView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
+    @ObservedObject private var syncService = SyncService.shared
     @State private var currentTab = 1
     @State private var showEndConfirm = false
     @State private var navPath = [WatchNavStep]()
     @State private var sessionDTO: WatchSessionDTO? = nil
     @State private var selectedAttempt: WatchAttempt? = nil
     @State private var showDiscardConfirm = false
+    @State private var showProjectPicker = false
 
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
@@ -56,6 +58,9 @@ struct LiveSessionView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
         .background(WatchTheme.bg)
+        .sheet(isPresented: $showProjectPicker) {
+            projectPickerSheet
+        }
         .confirmationDialog("Session beenden?", isPresented: $showEndConfirm) {
             Button("Beenden", role: .destructive) {
                 Task {
@@ -186,6 +191,27 @@ struct LiveSessionView: View {
             }
 
             if workoutManager.pendingClassifications > 0 { pendingBanner }
+
+            if !syncService.knownProjects.isEmpty {
+                Button { showProjectPicker = true } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "target")
+                            .font(.system(size: 10))
+                            .foregroundStyle(workoutManager.selectedProject != nil
+                                             ? WatchTheme.gold : WatchTheme.textTert)
+                        Text(workoutManager.selectedProject?.name ?? "Projekt wählen")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(workoutManager.selectedProject != nil
+                                             ? WatchTheme.textPrimary : WatchTheme.textTert)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 5)
+                    .background(WatchTheme.elevated)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
 
             Spacer(minLength: 0)
 
@@ -528,6 +554,49 @@ struct LiveSessionView: View {
 
     private var vitalSep: some View {
         Divider().frame(height: 28).background(WatchTheme.elevated)
+    }
+
+    // MARK: - Projekt-Picker Sheet (P5.7)
+
+    private var projectPickerSheet: some View {
+        List {
+            Button {
+                workoutManager.selectedProject = nil
+                showProjectPicker = false
+            } label: {
+                HStack {
+                    Text("Kein Projekt")
+                        .font(.system(size: 13))
+                        .foregroundStyle(WatchTheme.textSecond)
+                    Spacer()
+                    if workoutManager.selectedProject == nil {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11))
+                            .foregroundStyle(WatchTheme.accent)
+                    }
+                }
+            }
+            ForEach(syncService.knownProjects) { project in
+                Button {
+                    workoutManager.selectedProject = project
+                    showProjectPicker = false
+                } label: {
+                    HStack {
+                        Text(project.name)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(WatchTheme.textPrimary)
+                            .lineLimit(2)
+                        Spacer()
+                        if workoutManager.selectedProject?.id == project.id {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 11))
+                                .foregroundStyle(WatchTheme.accent)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Projekt")
     }
 
     private func statBadge(value: String, label: String, icon: String, color: Color) -> some View {

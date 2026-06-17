@@ -4,11 +4,16 @@ import WatchConnectivity
 
 // W5.1/5.2/5.3: WatchConnectivity bidirektional — Session-Transfer Watch→iPhone, Projekte iPhone→Watch
 
+struct ProjectInfo: Identifiable, Hashable {
+    let id: String   // UUID-String
+    let name: String
+}
+
 final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     static let shared = SyncService()
 
     @Published var lastTransferStatus: String = ""
-    @Published var knownProjects: [String] = []   // W5.2: vom iPhone empfangen
+    @Published var knownProjects: [ProjectInfo] = []   // W5.2: vom iPhone empfangen
 
     // W5.3: Lokale Queue für Transfers die offline gehen
     private var pendingDTOs: [WatchSessionDTO] = []
@@ -70,12 +75,20 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     // MARK: - W5.2: Projekte-Update vom iPhone empfangen
 
     static let projectsKey = "knownProjects"
+    static let projectListKey = "projectList"
 
     func session(_ session: WCSession,
                  didReceiveApplicationContext applicationContext: [String: Any]) {
-        if let projects = applicationContext[SyncService.projectsKey] as? [String] {
+        if let list = applicationContext[SyncService.projectListKey] as? [[String: String]] {
+            let parsed = list.compactMap { dict -> ProjectInfo? in
+                guard let id = dict["id"], let name = dict["name"] else { return nil }
+                return ProjectInfo(id: id, name: name)
+            }
+            DispatchQueue.main.async { self.knownProjects = parsed }
+        } else if let names = applicationContext[SyncService.projectsKey] as? [String] {
+            // Fallback: ältere iPhone-App sendet nur Namen ohne IDs
             DispatchQueue.main.async {
-                self.knownProjects = projects
+                self.knownProjects = names.map { ProjectInfo(id: $0, name: $0) }
             }
         }
     }

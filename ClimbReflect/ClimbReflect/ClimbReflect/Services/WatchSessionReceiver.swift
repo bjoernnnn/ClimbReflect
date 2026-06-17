@@ -22,15 +22,18 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         }
     }
 
-    // W5.2: Aktuelle Projekte an Watch pushen (aufrufen wenn Projekte sich ändern)
-    func pushProjectsToWatch(_ sessions: [ClimbSession]) {
+    // W5.2: Aktive+angepinnte Projekte an Watch pushen
+    func pushProjectsToWatch(modelContext: ModelContext) {
         guard WCSession.default.activationState == .activated,
               WCSession.default.isWatchAppInstalled else { return }
-        let projectNames = Array(Set(sessions
-            .flatMap(\.ascents)
-            .compactMap(\.projectName)))
-            .sorted()
-        let context: [String: Any] = [Self.projectsKey: projectNames]
+        let projects = (try? modelContext.fetch(FetchDescriptor<Project>())) ?? []
+        let active = projects.filter { $0.isActive }
+        let list: [[String: String]] = active.map { ["id": $0.id.uuidString, "name": $0.name] }
+        let names: [String] = active.map(\.name)
+        let context: [String: Any] = [
+            "projectList": list,
+            Self.projectsKey: names
+        ]
         try? WCSession.default.updateApplicationContext(context)
     }
 
@@ -128,6 +131,8 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
 
         ctx.insert(climbSession)
 
+        let allProjects = (try? ctx.fetch(FetchDescriptor<Project>())) ?? []
+
         for ascentDTO in dto.ascents {
             let ascent = Ascent(
                 gradeSystem: GradeSystem(rawValue: ascentDTO.gradeSystemRaw) ?? .fontainebleau,
@@ -136,9 +141,27 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
                 style: ascentDTO.styleRaw.flatMap(AscentStyle.init(rawValue:)),
                 attempts: ascentDTO.attempts,
                 date: ascentDTO.date,
+                projectName: ascentDTO.projectName,
                 session: climbSession
             )
             ascent.altitudeGain = ascentDTO.altitudeGain
+
+            // Projekt-Relation aufbauen (ID bevorzugt, dann Name als Fallback)
+            if let pid = ascentDTO.projectID,
+               let project = allProjects.first(where: { $0.id == pid }) {
+                ascent.project = project
+            } else if let name = ascentDTO.projectName {
+                if let project = allProjects.first(where: {
+                    $0.name.lowercased() == name.lowercased()
+                }) {
+                    ascent.project = project
+                } else {
+                    let project = Project(name: name)
+                    ctx.insert(project)
+                    ascent.project = project
+                }
+            }
+
             ctx.insert(ascent)
         }
 

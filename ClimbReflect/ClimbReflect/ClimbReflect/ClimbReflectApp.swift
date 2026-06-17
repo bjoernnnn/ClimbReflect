@@ -7,7 +7,7 @@ struct ClimbReflectApp: App {
     let container: ModelContainer
 
     init() {
-        let schema = Schema([ClimbSession.self, Ascent.self, Project.self])
+        let schema = Schema([ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
@@ -29,6 +29,8 @@ struct ClimbReflectApp: App {
         }
 
         WatchSessionReceiver.shared.configure(modelContext: container.mainContext)
+        ProjectMigration.runIfNeeded(context: container.mainContext)
+        WatchSessionReceiver.shared.pushProjectsToWatch(modelContext: container.mainContext)
         endOrphanedLiveActivities()
         #if DEBUG
         MockData.seedIfNeeded(container.mainContext)

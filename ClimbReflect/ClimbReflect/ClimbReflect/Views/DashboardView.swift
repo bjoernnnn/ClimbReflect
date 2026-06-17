@@ -7,6 +7,7 @@ import HealthKit
 struct DashboardView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \ClimbSession.date, order: .reverse) private var sessions: [ClimbSession]
+    @Query(sort: \Project.name) private var allProjects: [Project]
     @ObservedObject private var watchReceiver = WatchSessionReceiver.shared
 
     @State private var importMessage: String?
@@ -87,6 +88,8 @@ struct DashboardView: View {
                         }
 
                         statRow
+
+                        pinnedProjectsCard
 
                         trainingWeaknessCard
 
@@ -191,6 +194,44 @@ struct DashboardView: View {
             StatTile(value: "\(sessions.filter(\.isClimbing).count)", label: "Sessions", symbol: "figure.climbing")
             StatTile(value: "\(StatsEngine.climbWeekStreak(sessions))", label: "Streak", symbol: "flame.fill")
             StatTile(value: "\(StatsEngine.sessionsThisWeek(sessions))", label: "Diese Woche", symbol: "calendar")
+        }
+    }
+
+    @ViewBuilder
+    private var pinnedProjectsCard: some View {
+        let pinned = allProjects.filter { $0.isPinned && $0.isActive }
+        if !pinned.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Angepinnte Projekte", systemImage: "pin.fill")
+                    .font(.headline)
+                    .foregroundStyle(Theme.textPrimary)
+                ForEach(pinned) { project in
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle().fill(Theme.gold.opacity(0.12)).frame(width: 36, height: 36)
+                            Image(systemName: "target")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Theme.gold)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(project.name)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                            let attempts = project.ascents.reduce(0) { $0 + $1.attempts }
+                            Text("\(attempts) Versuch\(attempts == 1 ? "" : "e")")
+                                .font(.caption)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        Spacer()
+                        if let grade = project.targetGradeRaw {
+                            Text(grade)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Theme.textTertiary)
+                        }
+                    }
+                }
+            }
+            .card()
         }
     }
 

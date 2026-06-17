@@ -31,6 +31,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var attemptState: AttemptState = .idle  // D1
     @Published var trainingTarget: WatchTrainingTarget? = nil  // C5
     @Published var totalAltitudeGain: Double = 0
+    @Published var selectedProject: ProjectInfo? = nil   // P5.7
 
     var isTraining: Bool { sessionType == .training }
 
@@ -250,7 +251,10 @@ final class WorkoutManager: NSObject, ObservableObject {
             maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
             activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil,
             altitudeTotalGain: altTotal,
-            ascents: attempts.map { $0.toDTO() },
+            ascents: attempts.map { $0.toDTO(
+                projectName: selectedProject?.name,
+                projectID: selectedProject.flatMap { UUID($0.id) }
+            ) },
             rpe: nil,
             focusRaw: trainingTarget?.rawValue,
             energyRaw: nil
@@ -288,6 +292,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         activeEnergyKcal = 0
         attemptState = .idle
         trainingTarget = nil
+        selectedProject = nil
     }
 
     // MARK: - E1: Live-Status an iPhone senden
