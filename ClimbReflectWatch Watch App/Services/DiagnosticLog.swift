@@ -3,6 +3,7 @@ import Combine
 
 // Ring-Puffer für persistente Diagnose-Events (letzte 200 Einträge).
 // Zugriff ausschließlich von MainActor.
+// A6: Disk-Schreibzugriffe gedrosselt (max 1×/10s); flush() für sofortiges Schreiben.
 
 struct DiagnosticEntry: Codable, Identifiable {
     let id: UUID
@@ -29,18 +30,40 @@ final class DiagnosticLog: ObservableObject {
         return docs.appendingPathComponent(fileName)
     }
 
+    private var pendingPersist: Task<Void, Never>?
+
     private init() { load() }
 
     func log(_ event: String) {
         let entry = DiagnosticEntry(event)
         entries.append(entry)
         if entries.count > maxEntries { entries.removeFirst(entries.count - maxEntries) }
+        schedulePersist()
+    }
+
+    /// Sofortige Sicherung – aufrufen bei Session-Ende und App-Hintergrund.
+    func flush() {
+        pendingPersist?.cancel()
+        pendingPersist = nil
         persist()
     }
 
     func clear() {
         entries = []
+        pendingPersist?.cancel()
+        pendingPersist = nil
         try? FileManager.default.removeItem(at: fileURL)
+    }
+
+    // A6: Schreibvorgang debouncen – höchstens 1×/10s
+    private func schedulePersist() {
+        pendingPersist?.cancel()
+        pendingPersist = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(10))
+            guard !Task.isCancelled, let self else { return }
+            self.persist()
+            self.pendingPersist = nil
+        }
     }
 
     private func persist() {

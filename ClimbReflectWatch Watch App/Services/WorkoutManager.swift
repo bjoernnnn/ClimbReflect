@@ -21,13 +21,10 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var sessionType: WatchSessionType = .boulder
     @Published var isRunning = false
     @Published var isPaused = false
-    @Published var elapsedSeconds: Int = 0
     @Published var heartRate: Double = 0
     @Published var maxHeartRate: Double = 0
     @Published var activeEnergyKcal: Double = 0
     @Published var attempts: [WatchAttempt] = []
-    @Published var suggestAttempt = false
-    @Published var pendingClassifications: Int = 0
     @Published var attemptState: AttemptState = .idle  // D1
     @Published var trainingTarget: WatchTrainingTarget? = nil  // C5
     @Published var totalAltitudeGain: Double = 0
@@ -50,9 +47,9 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var accumulatedPaused: TimeInterval = 0
     private var pauseStartedAt: Date?
     private var liveStatusTickCount = 0
+    private var lastPublishedAltitudeInt: Int = -1  // A3: throttle altitude publish
 
     let altimeter = AltimeterService()
-    private let detector = AttemptDetector()
 
     // P0-1: Manueller HR-Mittelwert-Akkumulator (Fallback wenn HK-Builder fehlt)
     private var hrSum: Double = 0
@@ -114,18 +111,8 @@ final class WorkoutManager: NSObject, ObservableObject {
 
         self.isPaused  = (ws.state == .paused)
         self.isRunning = true
-        self.elapsedSeconds = Int(currentElapsed())
 
         await altimeter.start()
-        if !isTraining {
-            detector.onSuggestion = { [weak self] in
-                Task { @MainActor in
-                    self?.suggestAttempt = true
-                    self?.pendingClassifications += 1
-                }
-            }
-            if !sessionType.usesBarometer { detector.startMotionDetection() }
-        }
         if !isPaused { startTimer() }
         DiagnosticLog.shared.log("recoveredActiveSession state=\(ws.state.rawValue) ascents=\(attempts.count)")
     }
@@ -199,7 +186,6 @@ final class WorkoutManager: NSObject, ObservableObject {
     // MARK: - P2-7.3: Resync beim Aufwachen (isLuminanceReduced → false)
 
     func resyncSensors() {
-        elapsedSeconds = Int(currentElapsed())
         Task { [weak self] in
             guard let self else { return }
             let alt = await self.altimeter.totalGain
@@ -216,10 +202,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         sessionType = type
         trainingTarget = target
         attemptState = .idle
+        lastPublishedAltitudeInt = -1  // force first publish
 
         // Timer und UI-State sofort starten – unabhängig von HealthKit.
-        // HealthKit kann beim ersten Start Permission-Dialog zeigen oder fehlschlagen;
-        // der Timer läuft dadurch auch ohne HK-Session korrekt.
         let startDate = Date()
         workoutStartDate = startDate
         isRunning = true
@@ -255,22 +240,6 @@ final class WorkoutManager: NSObject, ObservableObject {
 
         savePendingSnapshot()
         await altimeter.start()
-
-        // C5: Im Trainingsmodus kein Auto-Detektor
-        if !isTraining {
-            detector.onSuggestion = { [weak self] in
-                Task { @MainActor in
-                    self?.suggestAttempt = true
-                    self?.pendingClassifications += 1
-                }
-            }
-            if type.usesBarometer {
-                // Seil: AltimeterService-Feedback an AttemptDetector via Barometer-Poll
-            } else {
-                // P1-4: ohne HR-Parameter – detector.currentHR wird im Timer-Tick gesetzt
-                detector.startMotionDetection()
-            }
-        }
     }
 
     // MARK: - D1: Action Button State Machine
@@ -283,13 +252,11 @@ final class WorkoutManager: NSObject, ObservableObject {
         }
         switch attemptState {
         case .idle:
-            // Versuch starten
             attemptState = .active(startTime: .now)
             WKInterfaceDevice.current().play(.start)
             Task { await altimeter.startAscentTracking() }
 
         case .active:
-            // Versuch beenden → Ergebnis abfragen
             attemptState = .awaitingResult
             WKInterfaceDevice.current().play(.click)
 
@@ -329,7 +296,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         isPaused = true
         pauseStartedAt = Date()
         timer?.invalidate()
-        DiagnosticLog.shared.log("pause elapsed=\(elapsedSeconds)s")
+        DiagnosticLog.shared.log("pause elapsed=\(Int(currentElapsed()))s")
         broadcastLiveStatus()
     }
 
@@ -341,7 +308,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         session?.resume()
         isPaused = false
         startTimer()
-        DiagnosticLog.shared.log("resume elapsed=\(elapsedSeconds)s")
+        DiagnosticLog.shared.log("resume elapsed=\(Int(currentElapsed()))s")
         broadcastLiveStatus()
     }
 
@@ -350,13 +317,6 @@ final class WorkoutManager: NSObject, ObservableObject {
     func removeAttempt(id: UUID) {
         attempts.removeAll { $0.id == id }
         savePendingSnapshot()
-    }
-
-    // MARK: - Fehlhafte Erkennung verwerfen
-
-    func dismissSuggestion() {
-        if pendingClassifications > 0 { pendingClassifications -= 1 }
-        suggestAttempt = pendingClassifications > 0
     }
 
     // MARK: - Versuch banken (W3.2)
@@ -379,9 +339,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         attempts.append(attempt)
         savePendingSnapshot()
         await altimeter.startAscentTracking()
-        if pendingClassifications > 0 { pendingClassifications -= 1 }
-        suggestAttempt = pendingClassifications > 0
-        // Falls aus Action-Button-Flow → State zurücksetzen
         if attemptState == .awaitingResult { attemptState = .idle }
         switch result {
         case .top:     WKInterfaceDevice.current().play(.success)
@@ -394,22 +351,19 @@ final class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Session beenden (W7)
 
     func endWorkout() async -> WatchSessionDTO? {
-        detector.stopMotionDetection()
         await altimeter.stop()
         timer?.invalidate()
         timer = nil
+        DiagnosticLog.shared.flush()
 
         let endDate = Date()
 
-        // HK-Session beenden (best-effort – kann nil sein wenn HK-Setup fehlschlug oder
-        // Session bereits extern beendet wurde, z. B. via didChangeTo(.ended)).
         var resolvedUUID: UUID? = nil
         var avgHR: Double? = nil
         var maxHRfromHK: Double? = nil
         if let ws = session, let wb = builder {
             if ws.state != .ended && ws.state != .stopped { ws.end() }
             try? await wb.endCollection(at: endDate)
-            // P0-1: Ø-HF aus HK-Stats lesen (discreteAverage), nicht Momentanwert
             let bpmUnit = HKUnit.count().unitDivided(by: .minute())
             let hrStats = wb.statistics(for: HKQuantityType(.heartRate))
             avgHR = hrStats?.averageQuantity()?.doubleValue(for: bpmUnit)
@@ -417,7 +371,6 @@ final class WorkoutManager: NSObject, ObservableObject {
             let finishedWorkout = try? await wb.finishWorkout()
             resolvedUUID = finishedWorkout?.uuid
         }
-        // Fallback: manueller Akkumulator (wenn HK-Builder nie gestartet)
         let finalAvgHR = avgHR ?? (hrCount > 0 ? hrSum / Double(hrCount) : nil)
         let finalMaxHR = maxHRfromHK ?? (maxHeartRate > 0 ? maxHeartRate : nil)
 
@@ -449,28 +402,28 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     /// Session verwerfen – kein HKWorkout wird gespeichert, kein DTO gesendet.
     func discardWorkout() {
-        detector.stopMotionDetection()
         timer?.invalidate()
         timer = nil
-        session?.end()  // end() ohne finishWorkout() → HKWorkout wird nicht geschrieben
+        session?.end()
         Task { await altimeter.stop() }
+        DiagnosticLog.shared.flush()
         clearLiveStatus()
         WKInterfaceDevice.current().play(.failure)
         finishSession()
     }
 
-    /// Reset erst NACH Fragebogen + Zusammenfassung aufrufen,
-    /// damit LiveSessionView nicht vorzeitig abgebaut wird.
+    /// Reset erst NACH Fragebogen + Zusammenfassung aufrufen.
     func finishSession() {
         isRunning = false
         isPaused = false
         session = nil
         builder = nil
         attempts = []
-        elapsedSeconds = 0
         heartRate = 0
         maxHeartRate = 0
         activeEnergyKcal = 0
+        totalAltitudeGain = 0
+        lastPublishedAltitudeInt = -1
         attemptState = .idle
         trainingTarget = nil
         selectedProject = nil
@@ -490,7 +443,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     private func broadcastLiveStatus() {
         guard WCSession.default.activationState == .activated else { return }
         let status = WatchLiveStatus(
-            elapsedSeconds: elapsedSeconds,
+            elapsedSeconds: Int(currentElapsed()),  // A1: direkt berechnet, kein @Published-Tick
             sessionTypeRaw: sessionType.rawValue,
             attemptCount: attempts.count,
             isPaused: isPaused,
@@ -509,20 +462,19 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     private func startTimer() {
         timer?.invalidate()
-        // RunLoop.main + .common: Timer feuert auch während UI-Scrolling/Interaktion.
-        // Timer.scheduledTimer würde im async-Kontext ggf. auf falschem RunLoop landen.
-        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+        // A4: 2s-Intervall – TimelineView treibt die Uhranzeige, Timer nur für Sensoren + Broadcast.
+        let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                self.elapsedSeconds = Int(self.currentElapsed())
+                // A1: kein elapsedSeconds-Update – TimelineView + currentElapsed() genügen
                 let alt = await self.altimeter.totalGain
-                self.totalAltitudeGain = alt
-                if self.sessionType.usesBarometer {
-                    self.detector.updateAltitude(alt)
+                // A3: Altitude nur publizieren wenn gerundeter Meterwert sich ändert
+                let altInt = Int(alt)
+                if altInt != self.lastPublishedAltitudeInt {
+                    self.lastPublishedAltitudeInt = altInt
+                    self.totalAltitudeGain = alt
                 }
-                // P1-4: aktuelle HF an Detector weitergeben (war vorher eingefrorener Wert)
-                self.detector.currentHR = self.heartRate
-                // E1: Live-Status alle 5 Sekunden senden
+                // A4+A5: Broadcast alle 5 Ticks × 2s = 10s
                 self.liveStatusTickCount += 1
                 if self.liveStatusTickCount >= 5 {
                     self.liveStatusTickCount = 0
@@ -564,6 +516,10 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                 }
             case .ended, .stopped:
                 if self.isRunning {
+                    // A7: Sensoren sofort stoppen, nicht erst wenn View reagiert
+                    self.timer?.invalidate()
+                    self.timer = nil
+                    Task { await self.altimeter.stop() }
                     self.sessionEndedUnexpectedly = true
                 }
             default:
@@ -587,25 +543,30 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
 extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
     nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}
 
+    // A3: alle Typen in einem einzigen Task verarbeiten statt je Typ einen Task
     nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder,
                                     didCollectDataOf collectedTypes: Set<HKSampleType>) {
+        var bpm: Double? = nil
+        var kcal: Double? = nil
         for type in collectedTypes {
             guard let quantityType = type as? HKQuantityType else { continue }
             let stats = workoutBuilder.statistics(for: quantityType)
-
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                switch quantityType {
-                case HKQuantityType.quantityType(forIdentifier: .heartRate)!:
-                    let bpm = stats?.mostRecentQuantity()?.doubleValue(for: .count().unitDivided(by: .minute())) ?? 0
-                    self.heartRate = bpm
-                    if bpm > self.maxHeartRate { self.maxHeartRate = bpm }
-                    if bpm > 0 { self.hrSum += bpm; self.hrCount += 1 }
-                case HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!:
-                    self.activeEnergyKcal = stats?.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
-                default: break
-                }
+            switch quantityType {
+            case HKQuantityType.quantityType(forIdentifier: .heartRate)!:
+                bpm = stats?.mostRecentQuantity()?.doubleValue(for: .count().unitDivided(by: .minute()))
+            case HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!:
+                kcal = stats?.sumQuantity()?.doubleValue(for: .kilocalorie())
+            default: break
             }
+        }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if let bpm {
+                self.heartRate = bpm
+                if bpm > self.maxHeartRate { self.maxHeartRate = bpm }
+                if bpm > 0 { self.hrSum += bpm; self.hrCount += 1 }
+            }
+            if let kcal { self.activeEnergyKcal = kcal }
         }
     }
 }

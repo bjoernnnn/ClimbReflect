@@ -29,6 +29,15 @@ Pfade: **iOS** `ClimbReflect/ClimbReflect/ClimbReflect/`, **Watch** `ClimbReflec
 
 ## Abgeschlossen (zuletzt)
 
+- ✅ A1 – Timer-Tick entfernt elapsedSeconds; broadcastLiveStatus nutzt currentElapsed() (TODO11)
+- ✅ A2 – Live-Werte (HF, Höhe, Energie, MaxHF) in kleine Blatt-Views isoliert (TODO11)
+- ✅ A3 – Altitude-Publish gedrosselt (nur wenn gerundeter Meterwert ändert); HK-Tasks gebündelt (TODO11)
+- ✅ A4 – Timer-Intervall 1s → 2s (TODO11)
+- ✅ A5 – Live-Status-Broadcast alle 10s (5 Ticks × 2s) (TODO11)
+- ✅ A6 – DiagnosticLog-Schreibzugriffe gedrosselt (max 1×/10s, flush() bei Session-Ende) (TODO11)
+- ✅ A7 – AltimeterService [weak self] im Update-Handler; Sensoren bei unerwartetem Ende stoppen (TODO11)
+- ✅ B1 – AttemptDetector / Accelerometer komplett entfernt (TODO11)
+- ✅ B3 – Höhen-Tracking nur während aktivem Versuch (AltimeterService) (TODO11)
 - ✅ P0-1 – WatchAttempt(fromDTO:) Initializer für Session-Recovery (TODO9)
 - ✅ P0-2 – recoverIfNeeded(): HK-Session wiederaufnehmen oder Snapshot senden (TODO9)
 - ✅ P1-3 – healthKitActive-Flag + Warnbanner in LiveSessionView (TODO9)

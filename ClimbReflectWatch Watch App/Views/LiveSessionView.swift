@@ -49,8 +49,6 @@ struct LiveSessionView: View {
                 case "pause":   workoutManager.pauseWorkout()
                 case "resume":  workoutManager.resumeWorkout()
                 case "end":
-                    // P1-6: Fragebogen durchlaufen wie beim lokalen Beenden
-                    // (Voraussetzung P1-5: Upsert verhindert Doppel-Session)
                     Task { @MainActor in
                         sessionDTO = await workoutManager.endWorkout()
                         navPath = [.questionnaire]
@@ -157,11 +155,10 @@ struct LiveSessionView: View {
         .navigationBarBackButtonHidden(true)
     }
 
-    // MARK: - Tab 1 (Klettern): Session-Info + Verlauf (Wetter-App-Muster: verticalPage)
+    // MARK: - Tab 1 (Klettern): Session-Info + Verlauf
 
     private var sessionInfoPage: some View {
         TabView {
-            // ── Seite 1: Stats ──
             statsPage
                 .overlay {
                     if workoutManager.attemptState == .awaitingResult {
@@ -169,7 +166,6 @@ struct LiveSessionView: View {
                     }
                 }
 
-            // ── Seite 2: Verlauf (nur sichtbar wenn Begehungen vorhanden) ──
             if !workoutManager.attempts.isEmpty {
                 historyPage
             }
@@ -194,6 +190,7 @@ struct LiveSessionView: View {
                 hkWarningBanner
             }
 
+            // A2: vitalsRow liest Sensor-Werte nur noch über Blatt-Views
             vitalsRow
                 .opacity(isLuminanceReduced ? 0.6 : 1.0)
 
@@ -206,7 +203,7 @@ struct LiveSessionView: View {
                           color: WatchTheme.accent)
             }
 
-            if workoutManager.pendingClassifications > 0 { pendingBanner }
+            // B1: pendingBanner entfernt (kein Auto-Detektor mehr)
 
             if !syncService.knownProjects.isEmpty {
                 Button { showProjectPicker = true } label: {
@@ -474,35 +471,7 @@ struct LiveSessionView: View {
         .padding(.horizontal, 10)
     }
 
-    // MARK: - Unklassifizierter-Banner
-
-    private var pendingBanner: some View {
-        Button { currentTab = 2 } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(WatchTheme.gold)
-                    .font(.system(size: 13))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(workoutManager.pendingClassifications == 1
-                         ? "1 Versuch erkannt"
-                         : "\(workoutManager.pendingClassifications) Versuche erkannt")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(WatchTheme.textPrimary)
-                    Text("Zum Klassifizieren wischen →")
-                        .font(.system(size: 9))
-                        .foregroundStyle(WatchTheme.textSecond)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(WatchTheme.gold.opacity(0.12))
-            .overlay(RoundedRectangle(cornerRadius: 10)
-                .stroke(WatchTheme.gold.opacity(0.35), lineWidth: 1))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-        .buttonStyle(.plain)
-    }
+    // MARK: - HealthKit-Warnbanner
 
     private var hkWarningBanner: some View {
         HStack(spacing: 6) {
@@ -519,45 +488,32 @@ struct LiveSessionView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
-    // MARK: - Shared UI
+    // MARK: - Vitals Row (A2: Sensor-Werte in Blatt-Views isoliert)
 
     private var vitalsRow: some View {
         HStack(spacing: 0) {
-            vitalCell(value: heartStr, unit: "BPM",
-                      icon: "heart.fill", color: WatchTheme.danger)
+            HeartRateCell()
             vitalSep
             if workoutManager.isTraining {
-                vitalCell(value: "\(Int(workoutManager.activeEnergyKcal))", unit: "kcal",
-                          icon: "flame.fill", color: WatchTheme.gold)
+                EnergyCell()
             } else {
-                vitalCell(value: String(format: "%.0f", workoutManager.totalAltitudeGain), unit: "m",
-                          icon: "arrow.up.forward", color: WatchTheme.gold)
+                AltitudeGainCell()
             }
             vitalSep
-            vitalCell(value: maxHRStr, unit: "Max",
-                      icon: "arrow.up.heart.fill", color: WatchTheme.danger.opacity(0.7))
+            MaxHRCell()
         }
         .background(WatchTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
-    private var scrollHint: some View {
-        Image(systemName: "chevron.compact.down")
-            .font(.system(size: 14))
-            .foregroundStyle(WatchTheme.textTert)
-            .padding(.bottom, 4)
+    private var vitalSep: some View {
+        Divider().frame(height: 28).background(WatchTheme.elevated)
     }
 
     // MARK: - Hilfsmethoden
 
     private var topCount: Int {
         workoutManager.attempts.filter { $0.result == .top }.count
-    }
-    private var heartStr: String {
-        workoutManager.heartRate > 0 ? "\(Int(workoutManager.heartRate))" : "--"
-    }
-    private var maxHRStr: String {
-        workoutManager.maxHeartRate > 0 ? "\(Int(workoutManager.maxHeartRate))" : "--"
     }
 
     // TimelineView aktualisiert sich auch im Always-On-Modus selbstständig.
@@ -583,22 +539,6 @@ struct LiveSessionView: View {
         let mins = Int(Date().timeIntervalSince(date) / 60)
         if mins < 1 { return "jetzt" }
         return "vor \(mins) min"
-    }
-
-    private func vitalCell(value: String, unit: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Image(systemName: icon).foregroundStyle(color).font(.system(size: 11))
-            Text(value)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundStyle(WatchTheme.textPrimary)
-            Text(unit).font(.system(size: 9)).foregroundStyle(WatchTheme.textSecond)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 7)
-    }
-
-    private var vitalSep: some View {
-        Divider().frame(height: 28).background(WatchTheme.elevated)
     }
 
     // MARK: - Projekt-Picker Sheet (P5.7)
@@ -661,5 +601,70 @@ struct LiveSessionView: View {
         .padding(.horizontal, 10)
         .background(WatchTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+// MARK: - A2: Blatt-Views für Live-Sensor-Werte
+
+private struct HeartRateCell: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+    var body: some View {
+        VStack(spacing: 2) {
+            Image(systemName: "heart.fill").foregroundStyle(WatchTheme.danger).font(.system(size: 11))
+            Text(workoutManager.heartRate > 0 ? "\(Int(workoutManager.heartRate))" : "--")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchTheme.textPrimary)
+            Text("BPM").font(.system(size: 9)).foregroundStyle(WatchTheme.textSecond)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+    }
+}
+
+private struct AltitudeGainCell: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+    var body: some View {
+        VStack(spacing: 2) {
+            Image(systemName: "arrow.up.forward").foregroundStyle(WatchTheme.gold).font(.system(size: 11))
+            Text(workoutManager.totalAltitudeGain > 0
+                 ? String(format: "%.0f", workoutManager.totalAltitudeGain)
+                 : "--")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchTheme.textPrimary)
+            Text("m").font(.system(size: 9)).foregroundStyle(WatchTheme.textSecond)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+    }
+}
+
+private struct EnergyCell: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+    var body: some View {
+        VStack(spacing: 2) {
+            Image(systemName: "flame.fill").foregroundStyle(WatchTheme.gold).font(.system(size: 11))
+            Text("\(Int(workoutManager.activeEnergyKcal))")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchTheme.textPrimary)
+            Text("kcal").font(.system(size: 9)).foregroundStyle(WatchTheme.textSecond)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+    }
+}
+
+private struct MaxHRCell: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+    var body: some View {
+        VStack(spacing: 2) {
+            Image(systemName: "arrow.up.heart.fill")
+                .foregroundStyle(WatchTheme.danger.opacity(0.7)).font(.system(size: 11))
+            Text(workoutManager.maxHeartRate > 0 ? "\(Int(workoutManager.maxHeartRate))" : "--")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchTheme.textPrimary)
+            Text("Max").font(.system(size: 9)).foregroundStyle(WatchTheme.textSecond)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
     }
 }

@@ -82,27 +82,6 @@ struct AttemptLogView: View {
                 }
             }
 
-            // Fehlhafte Erkennung verwerfen (nur wenn auto-erkannt)
-            if workoutManager.pendingClassifications > 0 {
-                Button {
-                    workoutManager.dismissSuggestion()
-                    onBank()
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "xmark.circle")
-                            .font(.system(size: 11))
-                            .foregroundStyle(WatchTheme.textTert)
-                        Text("Erkennungsfehler – Ignorieren")
-                            .font(.system(size: 10))
-                            .foregroundStyle(WatchTheme.textTert)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 7)
-                    .background(WatchTheme.surface.opacity(0.5))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-            }
         }
         .padding(.horizontal, 7)
         .padding(.top, 4)
