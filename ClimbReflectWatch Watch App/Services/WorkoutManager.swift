@@ -32,6 +32,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var lastError: String?
     @Published var healthKitActive = false
     @Published var healthKitDenied = false
+    @Published var pendingSummaryDTO: WatchSessionDTO? = nil
     @Published var selectedProject: ProjectInfo? = nil {  // P5.7 / P2-8
         didSet { persistSelectedProject() }
     }
@@ -96,6 +97,11 @@ final class WorkoutManager: NSObject, ObservableObject {
     }
 
     private func reattach(to ws: HKWorkoutSession) async {
+        // P1: beendete Session nicht als laufend reattachen
+        guard ws.state == .running || ws.state == .paused else {
+            DiagnosticLog.shared.log("recovered ended session state=\(ws.state.rawValue) – nicht reattachen")
+            return
+        }
         let wb = ws.associatedWorkoutBuilder()
         wb.dataSource = HKLiveWorkoutDataSource(healthStore: store,
                                                 workoutConfiguration: ws.workoutConfiguration)
@@ -414,6 +420,10 @@ final class WorkoutManager: NSObject, ObservableObject {
         clearLiveStatus()
         WKInterfaceDevice.current().play(.stop)
 
+        // End-Flow in ContentView treiben; finishSession() setzt isRunning=false
+        // (pendingSummaryDTO bleibt bis der Nutzer in SessionEndFlowView „Fertig" tippt)
+        pendingSummaryDTO = dto
+        finishSession()
         return dto
     }
 
