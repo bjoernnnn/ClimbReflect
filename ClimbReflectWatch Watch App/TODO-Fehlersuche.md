@@ -89,9 +89,33 @@ App kurz vor dem Kill in den Hintergrund geht.
      (Falls Deployment < watchOS 10: einparametrige `onChange`-Variante nutzen.)
 - *Fertig-wenn:* Beim Wechsel active/inactive/background erscheint eine `scenePhase=…`-Zeile.
 
+## Aufgabe 5 — Sichtbare Build-Kennung in der Diagnose-Ansicht (gegen Build-Verwechslung)
+
+- *Kontext:* Mehrfach trat das Problem auf, obwohl Fixes auf `dev` lagen – Ursache war
+  vermutlich ein Build, der nicht dem aktuellen `dev`-Commit entsprach. Eine sichtbare Kennung
+  beseitigt diese Unklarheit.
+- *Dateien:* neu `ClimbReflectWatch Watch App/AppBuildInfo.swift`, Diagnose-View
+- *Aufgabe:*
+  1. Konstante anlegen:
+     ```swift
+     enum AppBuildInfo {
+         /// Bei jeder relevanten Änderung hochzählen/anpassen.
+         static let marker = "S1-mem-logging"
+     }
+     ```
+  2. In der Diagnose-Ansicht ganz oben anzeigen: `Text("Build: \(AppBuildInfo.marker)")`
+     (klein, sekundärfarben).
+- *Fertig-wenn:* Die Diagnose-Ansicht zeigt oben „Build: S1-mem-logging". Erscheint stattdessen
+  etwas anderes/nichts, läuft auf der Uhr ein alter Build.
+
 ---
 
 ## Auswertung nach dem Testlauf
+
+> **VORAUSSETZUNG vor dem Test:** In der Diagnose-Ansicht muss oben „Build: S1-mem-logging"
+> stehen. Steht das nicht da, läuft ein alter Build – dann zuerst `git pull origin dev`,
+> Clean-Build, frisch auf die Uhr installieren. (Prüfen: `git log -1 --oneline` muss den
+> aktuellen `dev`-Commit zeigen.)
 
 Eine Session bis zum Fehler laufen lassen, dann das Diagnose-Log durchsehen:
 

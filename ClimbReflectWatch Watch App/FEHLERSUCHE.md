@@ -64,7 +64,7 @@ sondern vermutlich **nutzungsabhängig**.
 | H5 | Per-Sekunde-Re-Render des ganzen Views (Speicher) | A1 (kein `elapsedSeconds`-Tick) + A2 (Leaf-Views) | ❌ kein Effekt aufs Timing (gleiche ~25 Min) |
 | H6 | Accelerometer/Boulder-Auto-Erkennung (Speicher/Energie) | B1: `AttemptDetector` entfernt | ❌ kein Effekt aufs Timing |
 | H7 | App-Code-Leck (Arrays, Retain-Cycles, Task-Stürme) | vollständiges Audit aller Dauer-Pfade | ❌ kein Leck gefunden (Code sauber) |
-| H8 | Alter/stale Build | Nutzer: Clean-Build von aktuellem `dev`, frisch installiert | ❌ ausgeschlossen |
+| H8 | Alter/stale Build | Nutzer: „auf `dev`, Clean-Build" – **aber** Test 16:02 zeigt Doppel-Ende + roten Banner, die beide auf `dev` (`a81bcbc`) gefixt sind, und kein Memory-Logging | ⚠️ **WIEDER OFFEN** – starke Indizien, dass der Build **nicht** dem aktuellen `dev`-Commit entspricht (lokaler `dev` evtl. hinter `origin/dev`) |
 | H9 | `reattach()` setzt `healthKitActive` nicht → falscher Banner | auf `dev` gefixt (Zeile 122) | ✅ Banner-Fix vorhanden (Banner-Ursprung im aktuellen Test noch zu verifizieren) |
 | H10 | Doppeltes Beenden (`end` 2×) | TODO14 P0-2 (`isFinishing`) auf `dev` | ✅ Fix vorhanden |
 | H11 | Always-On-Rendering häuft Speicher an | Nutzer: Uhr **nicht** im Always-On | ⬇️ stark abgewertet |
@@ -94,13 +94,15 @@ unbegrenztes Wachstum.
 **Ziel:** Ohne .ips feststellen, **ob** Speicher die Ursache ist.
 **Aufgabe:** Im `DiagnosticLog` jede Minute den verfügbaren/genutzten Speicher loggen, z. B.
 `os_proc_available_memory()` (verfügbarer Speicher in Bytes) und/oder die residente Größe.
-Zusätzlich `scenePhase`-Wechsel (active/inactive/background) loggen.
+Zusätzlich `scenePhase`-Wechsel (active/inactive/background) und Handgelenk-Heben loggen.
 **Erwartete Auswertung:**
 - Speicher fällt kontinuierlich Richtung Limit, dann Kill → **es ist Speicher** (→ Schritt 3).
 - Speicher bleibt stabil, App stirbt trotzdem → **kein Speicher** (→ Schritt 4).
-**Status:** ✅ **Implementiert auf `dev`** – `MemoryProbe.swift` (phys_footprint + os_proc_available_memory),
-minutenweises Logging im 2-s-Timer (`mem used=…MB avail=…MB t=…min`, sofort persistiert),
-Startwert beim Session-Beginn, `scenePhase`-Wechsel (inkl. flush bei `.background`).
+**Status:** ✅ **Implementiert auf `dev`** — `MemoryProbe.swift`, minütliches Logging im 2-s-Timer
+(`mem used=…MB avail=…MB t=…min`, sofort persistiert), Startwert beim Start, `scenePhase`-Wechsel
+(flush bei `.background`), Build-Kennung in Diagnose-Ansicht (`AppBuildInfo.marker = "S1-mem-logging"`).
+**Voraussetzung für den Test:** `git pull origin dev` + Clean-Build + frisch auf Uhr. Bestätigung:
+Diagnose-Ansicht zeigt oben „Build: S1-mem-logging".
 
 ### Schritt 2 — Analyse-Dateien prüfen (Kill-Mechanismus bestätigen)
 **Ziel:** Art der Beendigung feststellen.
@@ -154,14 +156,30 @@ nach steigender Kategorie absuchen (CoreAnimation/Render, HealthKit, CoreMotion,
 
 ## 9. Nächster konkreter Schritt
 
-**→ Schritt 1 ist implementiert.** Bitte einen Lauf bis zum Fehler machen und danach
-Watch → Einstellungen → Diagnose öffnen. Gesuchte Muster:
-- `mem start used=…MB avail=…MB` – Ausgangswert
-- `mem used=…MB avail=…MB t=…min` – minütlich
-- `scenePhase=…` – Vordergrund/Hintergrund-Wechsel
+> **GATE (zuerst!): Build-Verifikation.** Test 16:02 (Abbruch nach ~5 Min) zeigt drei Dinge, die
+> mit aktuellem `dev` (`a81bcbc`) unvereinbar sind: doppeltes `end` (564s+565s) und roter Banner
+> (beide gefixt) sowie fehlendes Memory-Logging. **Verdacht: der Build entspricht nicht dem
+> aktuellen `dev`-Commit.** Bevor weitere Tests Sinn ergeben:
+> 1. `git fetch origin && git log -1 --oneline` → muss aktuellen `dev`-Commit zeigen; `git status`
+>    → nicht „behind origin/dev". Falls doch: `git pull origin dev`, Clean-Build, neu installieren.
+> 2. Nach Einbau von **Aufgabe 5** (Build-Marker) muss die Diagnose-Ansicht oben
+>    „Build: S1-mem-logging" zeigen.
 
-**Was schicken:** Foto oder Abschrift der letzten ~20 Log-Einträge (vor allem die `mem`- und
-`scenePhase`-Zeilen kurz vor dem Verschwinden).
+**→ Schritt 1 ist jetzt vollständig implementiert** (alle 5 Aufgaben auf `dev`). Nächste Schritte:
+1. `git pull origin dev` + **Clean-Build** (Cmd+Shift+K) + frisch auf die Uhr installieren.
+2. Diagnose-Ansicht öffnen → oben muss „**Build: S1-mem-logging**" stehen.
+3. Lauf bis zum Fehler → Diagnose-Log schicken (letzte ~20 Einträge, v. a. `mem`- und
+   `scenePhase`-Zeilen). Dann entscheiden: Schritt 3 (Speicher) oder Schritt 4 (Watchdog).
 
-Dann tragen wir das Ergebnis hier in §5 ein und entscheiden: Schritt 3 (Speicher) oder
-Schritt 4 (kein Speicher / Watchdog).
+## 10. Testlauf-Chronik (Ergebnisse eintragen)
+
+| Datum/Zeit | Branch/Build | Dauer bis Abbruch | Beobachtung | Memory-Daten |
+|---|---|---|---|---|
+| (alt) | alter Code | ~25 Min | JetsamEvent 300 MB, frontmost | – (nur .ips) |
+| 16:02 | „dev" (Build fraglich) | ~5–9 Min | Doppel-`end`, roter Banner, `recoveredActiveSession state=2 ascents=1` | **fehlt** (Schritt 1 nicht im Build) |
+
+**Wichtig zur Variabilität:** ~5 Min (16:02-Test) vs. zuvor bis ~50 Min → der Abbruch ist stark
+nutzungs-/zeitvariabel. Ein **5-Minuten-Abbruch ist für einen 300-MB-Leak zu früh** (Speicher
+läge da weit unter dem Limit) → weiteres Indiz, dass die Ursache **nicht** (nur) ein stetiger
+Speicher-Leak ist, sondern evtl. Watchdog/Hintergrund – ODER der getestete Build ist veraltet
+(siehe Gate). Erst nach sauberem Build + Memory-Logging belastbar beurteilbar.
