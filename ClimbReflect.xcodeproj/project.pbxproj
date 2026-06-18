@@ -245,7 +245,6 @@
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "ClimbReflect speichert Kletterworkouts in Apple Health.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ClimbReflect erkennt Kletterbewegungen, um Versuche vorzuschlagen.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = de.dreselbjoern.ClimbReflect;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				INFOPLIST_KEY_WKSupportsAlwaysOnDisplay = YES;
@@ -288,7 +287,6 @@
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "ClimbReflect speichert Kletterworkouts in Apple Health.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ClimbReflect erkennt Kletterbewegungen, um Versuche vorzuschlagen.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = de.dreselbjoern.ClimbReflect;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				INFOPLIST_KEY_WKSupportsAlwaysOnDisplay = YES;

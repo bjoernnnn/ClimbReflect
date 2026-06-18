@@ -29,6 +29,8 @@ Pfade: **iOS** `ClimbReflect/ClimbReflect/ClimbReflect/`, **Watch** `ClimbReflec
 
 ## Abgeschlossen (zuletzt)
 
+- ✅ TODO12 – INFOPLIST_KEY_WKBackgroundModes-String aus Build-Settings entfernt; Array bleibt in expliziter Info.plist (fix/wkbackgroundmodes)
+- ✅ A1–A7, B1, B3 – Energie-/Speicher-Effizienz Watch-App (feature/energy-efficiency)
 - ✅ P0-1 – WatchAttempt(fromDTO:) Initializer für Session-Recovery (TODO9)
 - ✅ P0-2 – recoverIfNeeded(): HK-Session wiederaufnehmen oder Snapshot senden (TODO9)
 - ✅ P1-3 – healthKitActive-Flag + Warnbanner in LiveSessionView (TODO9)
@@ -41,19 +43,7 @@ Pfade: **iOS** `ClimbReflect/ClimbReflect/ClimbReflect/`, **Watch** `ClimbReflec
 - ✅ P2-5 – Einzelne Info.plist-Quelle für Watch-Target; explizite plist entfernt (TODO8)
 - ✅ P2-6 – In-App-Diagnoseprotokoll (Ring-Puffer 200 Einträge, DiagnosticView) (TODO8)
 - ✅ P2-7 – Auth-Check vor Start, idempotente Sensoren, Resync beim Aufwachen (TODO8)
-- ✅ P5.1 – Echte Project ↔ Ascent-Relation; ProjectMedia-Modell; isPinned, targetGradeRaw
-- ✅ P5.2 – Einmalige Migration projectName → Project-Entität
-- ✅ P5.3 – Session-Projektmodus iOS: aktives Projekt-Banner + Picker in SessionDetailView; AddAscentView mit Chip-Picker
-- ✅ P5.4 – Anpinnen: eigene Sektion in ProjectsView; Pin-Toggle in DetailSheet; Karte im Dashboard
-- ✅ P5.5 – ProjectDetailView: Header, Verlaufs-Chart, Beta-Notizen, Versuchs-Timeline
-- ✅ P5.6 – Medienbereich: PhotosPicker + ProjectMedia-Galerie in ProjectDetailView
-- ✅ P5.7 – Watch Projekt-Wahl: AscentDTO bekommt projectName/projectID; ProjectInfo über WC; Watch-Selektor in LiveSessionView; WatchSessionReceiver mappt auf Project-Entität
-- ✅ P5.8 – DTO-Strukturen angeglichen (beide Sendable, nonisolated, gleiche Felder)
-- ✅ N1 – Begehung einem Projekt zuordnen (iOS + Watch, als Teil von P5.3/P5.7)
-- ✅ N4 – Erfolge zusammenführen (eine Sektion, adaptive + App-Erfolge)
-- ✅ N5.1 – Widget Extension Target „ClimbReflectActivity" per xcodeproj-Gem angelegt
-- ✅ N5.2 – `NSSupportsLiveActivities = YES` in iOS Info.plist
-- ✅ N5.3 – `ClimbActivityAttributes.swift` (iOS App + Extension)
-- ✅ N5.4 – `LiveActivityController` (Start/Update/Ende an `liveStatus`-Wechsel)
-- ✅ N5.5 – Widget-UI: Sperrbildschirm + Dynamic Island (compact/expanded/minimal)
-- ✅ N5.7 – Verwaiste Live Activities beim App-Start beenden
+- ✅ P5.1–P5.8 – Projekt-Feature (iOS + Watch, Relation, Migration, Picker, Medien, Sync)
+- ✅ N1 – Begehung einem Projekt zuordnen
+- ✅ N4 – Erfolge zusammenführen
+- ✅ N5.1–N5.5, N5.7 – Live Activity / Widget
