@@ -3,19 +3,13 @@ import WatchKit
 
 // Tab-Reihenfolge Klettern:  [Steuerung] ← [Session] → [Klassifizieren]
 // Tab-Reihenfolge Training:  [Steuerung] ← [Session]
-// Nach Ende: Fragebogen → Zusammenfassung
-
-enum WatchNavStep: Hashable {
-    case questionnaire, summary
-}
+// Nach Ende: ContentView zeigt SessionEndFlowView via pendingSummaryDTO (Blackscreen-Fix)
 
 struct LiveSessionView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     @ObservedObject private var syncService = SyncService.shared
     @State private var currentTab = 1
     @State private var showEndConfirm = false
-    @State private var navPath = [WatchNavStep]()
-    @State private var sessionDTO: WatchSessionDTO? = nil
     @State private var selectedAttempt: WatchAttempt? = nil
     @State private var showDiscardConfirm = false
     @State private var showProjectPicker = false
@@ -23,7 +17,7 @@ struct LiveSessionView: View {
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     var body: some View {
-        NavigationStack(path: $navPath) {
+        NavigationStack {
             if workoutManager.isTraining {
                 trainingTabView
             } else {
@@ -31,10 +25,10 @@ struct LiveSessionView: View {
             }
         }
         .onChange(of: workoutManager.sessionEndedUnexpectedly) { _, ended in
-            guard ended, navPath.isEmpty else { return }
+            guard ended else { return }
+            // endWorkout() setzt pendingSummaryDTO → ContentView zeigt SessionEndFlowView
             Task { @MainActor in
-                sessionDTO = await workoutManager.endWorkout()
-                navPath = [.questionnaire]
+                _ = await workoutManager.endWorkout()
                 workoutManager.sessionEndedUnexpectedly = false
             }
         }
@@ -48,11 +42,7 @@ struct LiveSessionView: View {
                 switch cmd {
                 case "pause":   workoutManager.pauseWorkout()
                 case "resume":  workoutManager.resumeWorkout()
-                case "end":
-                    Task { @MainActor in
-                        sessionDTO = await workoutManager.endWorkout()
-                        navPath = [.questionnaire]
-                    }
+                case "end":     Task { _ = await workoutManager.endWorkout() }
                 default: break
                 }
             }
@@ -74,10 +64,7 @@ struct LiveSessionView: View {
         }
         .confirmationDialog("Session beenden?", isPresented: $showEndConfirm) {
             Button("Beenden", role: .destructive) {
-                Task {
-                    sessionDTO = await workoutManager.endWorkout()
-                    navPath = [.questionnaire]
-                }
+                Task { _ = await workoutManager.endWorkout() }
             }
             Button("Weiter", role: .cancel) {}
         }
@@ -89,24 +76,6 @@ struct LiveSessionView: View {
         } message: {
             Text("Diese Session wird nicht gespeichert.")
         }
-        .navigationDestination(for: WatchNavStep.self) { step in
-            switch step {
-            case .questionnaire:
-                if let dto = sessionDTO {
-                    SessionEndQuestionnaireView(dto: dto) { enriched in
-                        SyncService.shared.send(dto: enriched)
-                        sessionDTO = enriched
-                        navPath = [.summary]
-                    }
-                }
-            case .summary:
-                SessionSummaryView(dto: sessionDTO, onDone: {
-                    navPath = []
-                    workoutManager.finishSession()
-                })
-            }
-        }
-        .navigationBarBackButtonHidden(true)
     }
 
     // MARK: - Training: 2-Tab-View
@@ -120,10 +89,7 @@ struct LiveSessionView: View {
         .background(WatchTheme.bg)
         .confirmationDialog("Training beenden?", isPresented: $showEndConfirm) {
             Button("Beenden", role: .destructive) {
-                Task {
-                    sessionDTO = await workoutManager.endWorkout()
-                    navPath = [.questionnaire]
-                }
+                Task { _ = await workoutManager.endWorkout() }
             }
             Button("Weiter", role: .cancel) {}
         }
@@ -135,24 +101,6 @@ struct LiveSessionView: View {
         } message: {
             Text("Dieses Training wird nicht gespeichert.")
         }
-        .navigationDestination(for: WatchNavStep.self) { step in
-            switch step {
-            case .questionnaire:
-                if let dto = sessionDTO {
-                    SessionEndQuestionnaireView(dto: dto, skipFocus: true) { enriched in
-                        SyncService.shared.send(dto: enriched)
-                        sessionDTO = enriched
-                        navPath = [.summary]
-                    }
-                }
-            case .summary:
-                SessionSummaryView(dto: sessionDTO, onDone: {
-                    navPath = []
-                    workoutManager.finishSession()
-                })
-            }
-        }
-        .navigationBarBackButtonHidden(true)
     }
 
     // MARK: - Tab 1 (Klettern): Session-Info + Verlauf
@@ -547,6 +495,7 @@ struct LiveSessionView: View {
     // MARK: - Projekt-Picker Sheet (P5.7)
 
     private var projectPickerSheet: some View {
+        NavigationStack {
         List {
             Button {
                 workoutManager.selectedProject = nil
@@ -585,6 +534,7 @@ struct LiveSessionView: View {
             }
         }
         .navigationTitle("Projekt")
+        }
     }
 
     private func statBadge(value: String, label: String, icon: String, color: Color) -> some View {
