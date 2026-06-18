@@ -18,8 +18,6 @@ Pfade: **iOS** `ClimbReflect/ClimbReflect/ClimbReflect/`, **Watch** `ClimbReflec
 
 ## Backlog (später)
 
-### N3 · Statistik-Unterscreen
-- Dashboard-Charts in einen eigenen „Statistik"-Tab auslagern, Startseite verschlanken.
 
 ### N6 · CoreML-Bewegungsklassifikator (Watch)
 - On-Device-ML als Upgrade der heuristischen Versuchserkennung.
@@ -29,6 +27,7 @@ Pfade: **iOS** `ClimbReflect/ClimbReflect/ClimbReflect/`, **Watch** `ClimbReflec
 
 ## Abgeschlossen (zuletzt)
 
+- ✅ TODO14 – P0-1: healthKitActive nach Recovery gesetzt (falscher Banner); P0-2: endWorkout() gegen Doppelaufruf gesichert; P1-2: sharingDenied-Fall mit klarem Banner
 - ✅ TODO13 – P0: Branches zusammengeführt; P1: doppeltes Ende / veralteter Banner / Recovery-Guard behoben
 - ✅ TODO12 – INFOPLIST_KEY_WKBackgroundModes-String aus Build-Settings entfernt; Array bleibt in expliziter Info.plist
 - ✅ A1–A7, B1, B3 – Energie-/Speicher-Effizienz Watch-App (TODO11)

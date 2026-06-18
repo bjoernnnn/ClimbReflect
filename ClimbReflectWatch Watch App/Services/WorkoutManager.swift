@@ -31,6 +31,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var sessionEndedUnexpectedly = false
     @Published var lastError: String?
     @Published var healthKitActive = false
+    @Published var healthKitDenied = false
     @Published var selectedProject: ProjectInfo? = nil {  // P5.7 / P2-8
         didSet { persistSelectedProject() }
     }
@@ -117,6 +118,8 @@ final class WorkoutManager: NSObject, ObservableObject {
 
         self.isPaused  = (ws.state == .paused)
         self.isRunning = true
+        // S14: didChangeTo(.running) feuert bei Recovery nicht → Flag explizit setzen
+        self.healthKitActive = (ws.state == .running || ws.state == .paused)
 
         await altimeter.start()
         if !isPaused { startTimer() }
@@ -224,24 +227,26 @@ final class WorkoutManager: NSObject, ObservableObject {
         config.locationType = .indoor
 
         if store.authorizationStatus(for: HKObjectType.workoutType()) == .sharingDenied {
-            DiagnosticLog.shared.log("HK sharingDenied – Timer-only session, no background")
-        }
-
-        do {
-            let ws = try HKWorkoutSession(healthStore: store, configuration: config)
-            let wb = ws.associatedWorkoutBuilder()
-            wb.dataSource = HKLiveWorkoutDataSource(healthStore: store, workoutConfiguration: config)
-            ws.delegate = self
-            wb.delegate = self
-            self.session = ws
-            self.builder = wb
-            ws.startActivity(with: startDate)
-            try await wb.beginCollection(at: startDate)
-            healthKitActive = true
-            DiagnosticLog.shared.log("beginCollection ok")
-        } catch {
+            healthKitDenied = true
             healthKitActive = false
-            DiagnosticLog.shared.log("HK setup failed: \(error.localizedDescription)")
+            DiagnosticLog.shared.log("HK sharingDenied – Timer-only session, no background")
+        } else {
+            do {
+                let ws = try HKWorkoutSession(healthStore: store, configuration: config)
+                let wb = ws.associatedWorkoutBuilder()
+                wb.dataSource = HKLiveWorkoutDataSource(healthStore: store, workoutConfiguration: config)
+                ws.delegate = self
+                wb.delegate = self
+                self.session = ws
+                self.builder = wb
+                ws.startActivity(with: startDate)
+                try await wb.beginCollection(at: startDate)
+                healthKitActive = true
+                DiagnosticLog.shared.log("beginCollection ok")
+            } catch {
+                healthKitActive = false
+                DiagnosticLog.shared.log("HK setup failed: \(error.localizedDescription)")
+            }
         }
 
         savePendingSnapshot()
@@ -357,7 +362,8 @@ final class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Session beenden (W7)
 
     func endWorkout() async -> WatchSessionDTO? {
-        // P1-2: Absichtliches Ende signalisieren – verhindert sessionEndedUnexpectedly im Delegate
+        // S4: Guard gegen Doppelaufruf (z. B. UI + Delegate parallel)
+        guard !isFinishingIntentionally else { return nil }
         isFinishingIntentionally = true
         await altimeter.stop()
         timer?.invalidate()
@@ -442,9 +448,10 @@ final class WorkoutManager: NSObject, ObservableObject {
         pauseStartedAt = nil
         workoutStartDate = nil
         healthKitActive = false
+        healthKitDenied = false
         sessionEndedUnexpectedly = false
         lastError = nil
-        isFinishingIntentionally = false  // P1-2: für nächste Session zurücksetzen
+        isFinishingIntentionally = false
         PendingSessionStore.clear()
     }
 
