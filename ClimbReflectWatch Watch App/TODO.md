@@ -29,8 +29,9 @@ Pfade: **iOS** `ClimbReflect/ClimbReflect/ClimbReflect/`, **Watch** `ClimbReflec
 
 ## Abgeschlossen (zuletzt)
 
-- ✅ TODO12 – INFOPLIST_KEY_WKBackgroundModes-String aus Build-Settings entfernt; Array bleibt in expliziter Info.plist (fix/wkbackgroundmodes)
-- ✅ A1–A7, B1, B3 – Energie-/Speicher-Effizienz Watch-App (feature/energy-efficiency)
+- ✅ TODO13 – P0: Branches zusammengeführt; P1: doppeltes Ende / veralteter Banner / Recovery-Guard behoben
+- ✅ TODO12 – INFOPLIST_KEY_WKBackgroundModes-String aus Build-Settings entfernt; Array bleibt in expliziter Info.plist
+- ✅ A1–A7, B1, B3 – Energie-/Speicher-Effizienz Watch-App (TODO11)
 - ✅ P0-1 – WatchAttempt(fromDTO:) Initializer für Session-Recovery (TODO9)
 - ✅ P0-2 – recoverIfNeeded(): HK-Session wiederaufnehmen oder Snapshot senden (TODO9)
 - ✅ P1-3 – healthKitActive-Flag + Warnbanner in LiveSessionView (TODO9)
