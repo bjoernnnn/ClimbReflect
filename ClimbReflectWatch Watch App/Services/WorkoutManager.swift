@@ -598,14 +598,17 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
             default: break
             }
         }
+        // A6: unveränderliche Kopien vor dem Task – verhindert Swift-6-Capture-Warnung
+        let finalBpm = bpm
+        let finalKcal = kcal
         Task { @MainActor [weak self] in
             guard let self else { return }
-            if let bpm {
-                self.heartRate = bpm
-                if bpm > self.maxHeartRate { self.maxHeartRate = bpm }
-                if bpm > 0 { self.hrSum += bpm; self.hrCount += 1 }
+            if let finalBpm {
+                self.heartRate = finalBpm
+                if finalBpm > self.maxHeartRate { self.maxHeartRate = finalBpm }
+                if finalBpm > 0 { self.hrSum += finalBpm; self.hrCount += 1 }
             }
-            if let kcal { self.activeEnergyKcal = kcal }
+            if let finalKcal { self.activeEnergyKcal = finalKcal }
         }
     }
 }
