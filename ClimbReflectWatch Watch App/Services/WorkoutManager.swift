@@ -48,6 +48,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var pauseStartedAt: Date?
     private var liveStatusTickCount = 0
     private var lastPublishedAltitudeInt: Int = -1  // A3: throttle altitude publish
+    private var isFinishingIntentionally = false    // P1-2: kein doppeltes Ende
 
     let altimeter = AltimeterService()
 
@@ -79,6 +80,11 @@ final class WorkoutManager: NSObject, ObservableObject {
     /// Versucht zuerst eine noch aktive HK-Session wiederherzustellen;
     /// fällt andernfalls auf den Snapshot-Rettungs-Pfad zurück.
     func recoverIfNeeded() async {
+        // P1-3: Nur beim echten Kaltstart ausführen
+        guard !isRunning, session == nil else { return }
+        // P1-2: Alte Fehler aus einer vorherigen Session zurücksetzen
+        lastError = nil
+        sessionEndedUnexpectedly = false
         if HKHealthStore.isHealthDataAvailable(),
            let recovered = try? await store.recoverActiveWorkoutSession() {
             await reattach(to: recovered)
@@ -351,6 +357,8 @@ final class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Session beenden (W7)
 
     func endWorkout() async -> WatchSessionDTO? {
+        // P1-2: Absichtliches Ende signalisieren – verhindert sessionEndedUnexpectedly im Delegate
+        isFinishingIntentionally = true
         await altimeter.stop()
         timer?.invalidate()
         timer = nil
@@ -402,6 +410,7 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     /// Session verwerfen – kein HKWorkout wird gespeichert, kein DTO gesendet.
     func discardWorkout() {
+        isFinishingIntentionally = true  // P1-2
         timer?.invalidate()
         timer = nil
         session?.end()
@@ -435,6 +444,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         healthKitActive = false
         sessionEndedUnexpectedly = false
         lastError = nil
+        isFinishingIntentionally = false  // P1-2: für nächste Session zurücksetzen
         PendingSessionStore.clear()
     }
 
@@ -520,7 +530,10 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                     self.timer?.invalidate()
                     self.timer = nil
                     Task { await self.altimeter.stop() }
-                    self.sessionEndedUnexpectedly = true
+                    // P1-2: sessionEndedUnexpectedly nur bei unerwartetem Ende setzen
+                    if !self.isFinishingIntentionally {
+                        self.sessionEndedUnexpectedly = true
+                    }
                 }
             default:
                 break
@@ -532,8 +545,12 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                                     didFailWithError error: Error) {
         Task { @MainActor [weak self] in
             DiagnosticLog.shared.log("didFailWithError \(error.localizedDescription)")
-            self?.lastError = error.localizedDescription
-            self?.sessionEndedUnexpectedly = true
+            guard let self else { return }
+            // P1-2: Fehler beim absichtlichen Beenden nicht als unerwartetes Ende werten
+            if !self.isFinishingIntentionally {
+                self.lastError = error.localizedDescription
+                self.sessionEndedUnexpectedly = true
+            }
         }
     }
 }
