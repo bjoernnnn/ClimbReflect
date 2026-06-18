@@ -474,11 +474,14 @@ struct LiveSessionView: View {
     // MARK: - HealthKit-Warnbanner
 
     private var hkWarningBanner: some View {
-        HStack(spacing: 6) {
+        let message = workoutManager.healthKitDenied
+            ? "HealthKit verweigert – Einstellungen"
+            : "Kein HealthKit – kein Hintergrund"
+        return HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(WatchTheme.danger)
                 .font(.system(size: 11))
-            Text("Kein HealthKit – kein Hintergrund")
+            Text(message)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(WatchTheme.danger)
         }

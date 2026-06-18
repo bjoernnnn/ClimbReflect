@@ -146,6 +146,23 @@ welcher Schlüssel woher kommt; nach Build im gebauten `Info.plist` verifizieren
 Sensor-Handler auf eine dedizierte Hintergrund-`OperationQueue`; nur Ergebnisse auf den
 Main-Actor holen. Sonst Rückstau → Watchdog-Hang.
 
+**S14 – `healthKitActive`-Flag nach Recovery wiederherstellen (sonst lügt der Banner).**
+Das Flag `healthKitActive` (steuert den Banner „Kein HealthKit – kein Hintergrund") wird nur in
+`startWorkout` (nach `beginCollection`) und in `didChangeTo .running` auf `true` gesetzt. Bei der
+**Recovery** (`reattach`) wird es **nicht** gesetzt – und `didChangeTo .running` feuert dort nicht,
+weil die wiederhergestellte Session schon `.running` ist. Folge: nach jedem Recovery erscheint der
+**falsche** Banner „Kein HealthKit", obwohl HealthKit läuft (HF wird erfasst). Das hat eine ganze
+Fehlersuche fehlgeleitet (man dachte, HealthKit deaktiviere sich). → In `reattach()` immer
+`healthKitActive = (ws.state == .running || ws.state == .paused)` setzen. **Merke:** HF-Anzeige
+> 0 BPM beweist, dass HealthKit aktiv ist – der Banner ist dann ein App-Bug, kein Permission-
+Problem. Status-Anzeigen immer an den **echten** Session-Status koppeln, nicht an ein Flag, das
+in einem Pfad vergessen werden kann.
+
+**S15 – HF-Anzeige als Wahrheits-Check für HealthKit.**
+`heartRate` wird ausschließlich in `didCollectDataOf` gesetzt. Zeigt die Live-Ansicht eine
+plausible HF (> 0), liefert der HKLiveWorkoutBuilder Daten → HealthKit ist aktiv. Das ist der
+schnellste Weg, ein echtes Berechtigungsproblem von einem Anzeige-Bug zu unterscheiden.
+
 ---
 
 ## 5. Branch- & Arbeitsweise-Konventionen
@@ -182,11 +199,14 @@ Main-Actor holen. Sonst Rückstau → Watchdog-Hang.
 
 ## 7. Offene Punkte / aktuelle Baustelle
 
-- **Speicher-Jetsam (S3):** Energie-/Speicher-Fixes (TODO11: A1/A2 Re-Render, B1 Accelerometer,
-  B3 Höhe) auf den aktiven Branch bringen und per 30-Min-Test verifizieren. **Dies ist die
-  wahrscheinliche Ursache des „App verschwindet nach ~24 Min".**
-- **Roter Banner (S4/S5):** `endWorkout()` idempotent, kein Doppel-Ende, alte Fehler beim Öffnen
-  zurücksetzen.
+- **✅ Falscher „Kein HealthKit"-Banner (S14):** Behoben in TODO14. `reattach()` setzt nun
+  `healthKitActive = (ws.state == .running || ws.state == .paused)`.
+- **✅ Speicher-Jetsam (S3):** Energie-/Speicher-Fixes (A1–A7, B1, B3) auf `dev` zusammengeführt
+  (TODO13). 30–60-Min-Test auf echter Uhr noch ausstehend (P1-1, Nutzer-Aufgabe).
+- **✅ Doppeltes Beenden (S4):** `endWorkout()` durch `guard !isFinishingIntentionally` gegen
+  Doppelaufruf gesichert. `sessionEndedUnexpectedly` wird bei bewusstem Ende nicht gesetzt.
+- **✅ HealthKit-Berechtigung (P1-2):** Bei `sharingDenied` früher Abbruch der HK-Session; Banner
+  zeigt „HealthKit verweigert – Einstellungen" statt generischem Text.
 - **Frontmost (Ziel):** Nach behobenem Leck verifizieren, dass die laufende Workout-Session die
   App frontmost hält; nur falls nötig `WKExtendedRuntimeSession`.
 - **Projekt-Sync zur Watch:** `knownProjects` kam im Test leer an – prüfen, ob
