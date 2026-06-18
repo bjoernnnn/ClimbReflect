@@ -48,6 +48,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var accumulatedPaused: TimeInterval = 0
     private var pauseStartedAt: Date?
     private var liveStatusTickCount = 0
+    private var memLogTickCount = 0
     private var lastPublishedAltitudeInt: Int = -1  // A3: throttle altitude publish
     private var isFinishingIntentionally = false    // P1-2: kein doppeltes Ende
 
@@ -219,6 +220,8 @@ final class WorkoutManager: NSObject, ObservableObject {
         isRunning = true
         isPaused = false
         DiagnosticLog.shared.log("start sessionType=\(type.rawValue)")
+        DiagnosticLog.shared.log(String(format: "mem start used=%.0fMB avail=%.0fMB",
+            MemoryProbe.footprintMB(), MemoryProbe.availableMB()))
         startTimer()
 
         // HealthKit-Session aufsetzen (best-effort)
@@ -439,6 +442,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         activeEnergyKcal = 0
         totalAltitudeGain = 0
         lastPublishedAltitudeInt = -1
+        memLogTickCount = 0
         attemptState = .idle
         trainingTarget = nil
         selectedProject = nil
@@ -496,6 +500,17 @@ final class WorkoutManager: NSObject, ObservableObject {
                 if self.liveStatusTickCount >= 5 {
                     self.liveStatusTickCount = 0
                     self.broadcastLiveStatus()
+                }
+                // Diagnose: Speicher einmal pro Minute loggen und sofort persistieren
+                self.memLogTickCount += 1
+                if self.memLogTickCount >= 30 {
+                    self.memLogTickCount = 0
+                    let used = MemoryProbe.footprintMB()
+                    let avail = MemoryProbe.availableMB()
+                    let mins = Int(self.currentElapsed()) / 60
+                    DiagnosticLog.shared.log(
+                        String(format: "mem used=%.0fMB avail=%.0fMB t=%dmin", used, avail, mins),
+                        flushImmediately: true)
                 }
             }
         }

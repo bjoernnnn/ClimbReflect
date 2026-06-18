@@ -34,11 +34,11 @@ final class DiagnosticLog: ObservableObject {
 
     private init() { load() }
 
-    func log(_ event: String) {
+    func log(_ event: String, flushImmediately: Bool = false) {
         let entry = DiagnosticEntry(event)
         entries.append(entry)
         if entries.count > maxEntries { entries.removeFirst(entries.count - maxEntries) }
-        schedulePersist()
+        if flushImmediately { flush() } else { schedulePersist() }
     }
 
     /// Sofortige Sicherung – aufrufen bei Session-Ende und App-Hintergrund.
