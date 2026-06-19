@@ -48,7 +48,6 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var accumulatedPaused: TimeInterval = 0
     private var pauseStartedAt: Date?
     private var liveStatusTickCount = 0
-    private var memLogTickCount = 0
     private var lastPublishedAltitudeInt: Int = -1  // A3: throttle altitude publish
     private var isFinishingIntentionally = false    // P1-2: kein doppeltes Ende
 
@@ -96,10 +95,7 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     private func reattach(to ws: HKWorkoutSession) async {
         // P1: beendete Session nicht als laufend reattachen
-        guard ws.state == .running || ws.state == .paused else {
-            DiagnosticLog.shared.log("recovered ended session state=\(ws.state.rawValue) – nicht reattachen")
-            return
-        }
+        guard ws.state == .running || ws.state == .paused else { return }
         ws.delegate = self
         self.session = ws
 
@@ -126,17 +122,12 @@ final class WorkoutManager: NSObject, ObservableObject {
         if !isPaused { startTimer() }
         startStreamingHeartRate()
         startStreamingEnergy()
-        DiagnosticLog.shared.log("recoveredActiveSession state=\(ws.state.rawValue) ascents=\(attempts.count)")
     }
 
     private func recoverPendingSessionIfNeeded() {
         guard let pending = PendingSessionStore.load() else { return }
         PendingSessionStore.clear()
-        guard !pending.ascents.isEmpty else {
-            DiagnosticLog.shared.log("pendingSession found but empty – discarded")
-            return
-        }
-        DiagnosticLog.shared.log("recoveredPendingSession ascents=\(pending.ascents.count)")
+        guard !pending.ascents.isEmpty else { return }
         let dto = WatchSessionDTO(
             id: pending.id,
             workoutUUID: nil,
@@ -224,9 +215,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         workoutStartDate = startDate
         isRunning = true
         isPaused = false
-        DiagnosticLog.shared.log("start sessionType=\(type.rawValue)")
-        DiagnosticLog.shared.log(String(format: "mem start used=%.0fMB avail=%.0fMB",
-            MemoryProbe.footprintMB(), MemoryProbe.availableMB()))
         startTimer()
 
         // HealthKit-Session aufsetzen (best-effort)
@@ -237,7 +225,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         if store.authorizationStatus(for: HKObjectType.workoutType()) == .sharingDenied {
             healthKitDenied = true
             healthKitActive = false
-            DiagnosticLog.shared.log("HK sharingDenied – Timer-only session, no background")
         } else {
             do {
                 let ws = try HKWorkoutSession(healthStore: store, configuration: config)
@@ -247,10 +234,8 @@ final class WorkoutManager: NSObject, ObservableObject {
                 startStreamingHeartRate()
                 startStreamingEnergy()
                 healthKitActive = true
-                DiagnosticLog.shared.log("streaming queries started")
             } catch {
                 healthKitActive = false
-                DiagnosticLog.shared.log("HK setup failed: \(error.localizedDescription)")
             }
         }
 
@@ -312,7 +297,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         isPaused = true
         pauseStartedAt = Date()
         timer?.invalidate()
-        DiagnosticLog.shared.log("pause elapsed=\(Int(currentElapsed()))s")
         broadcastLiveStatus()
     }
 
@@ -324,7 +308,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         session?.resume()
         isPaused = false
         startTimer()
-        DiagnosticLog.shared.log("resume elapsed=\(Int(currentElapsed()))s")
         broadcastLiveStatus()
     }
 
@@ -374,7 +357,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         timer?.invalidate()
         timer = nil
         stopStreamingQueries()
-        DiagnosticLog.shared.flush()
 
         let endDate = Date()
 
@@ -395,9 +377,7 @@ final class WorkoutManager: NSObject, ObservableObject {
                 }
                 try await wb.endCollection(at: endDate)
                 resolvedUUID = try await wb.finishWorkout()?.uuid
-            } catch {
-                DiagnosticLog.shared.log("HK workout save failed: \(error.localizedDescription)")
-            }
+            } catch { }
         }
         let finalAvgHR = hrCount > 0 ? hrSum / Double(hrCount) : nil
         let finalMaxHR = maxHeartRate > 0 ? maxHeartRate : nil
@@ -421,7 +401,6 @@ final class WorkoutManager: NSObject, ObservableObject {
             energyRaw: nil
         )
 
-        DiagnosticLog.shared.log("end ascents=\(attempts.count) duration=\(Int(duration))s")
         clearLiveStatus()
         WKInterfaceDevice.current().play(.stop)
 
@@ -440,7 +419,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         stopStreamingQueries()
         session?.end()
         Task { await altimeter.stop() }
-        DiagnosticLog.shared.flush()
         clearLiveStatus()
         WKInterfaceDevice.current().play(.failure)
         finishSession()
@@ -459,7 +437,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         activeEnergyKcal = 0
         totalAltitudeGain = 0
         lastPublishedAltitudeInt = -1
-        memLogTickCount = 0
         attemptState = .idle
         trainingTarget = nil
         selectedProject = nil
@@ -521,7 +498,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         q.updateHandler = handler
         store.execute(q)
         hrQuery = q
-        DiagnosticLog.shared.log("hrQuery started")
     }
 
     private func startStreamingEnergy() {
@@ -545,13 +521,11 @@ final class WorkoutManager: NSObject, ObservableObject {
         q.updateHandler = handler
         store.execute(q)
         energyQuery = q
-        DiagnosticLog.shared.log("energyQuery started")
     }
 
     private func stopStreamingQueries() {
         if let q = hrQuery { store.stop(q); hrQuery = nil }
         if let q = energyQuery { store.stop(q); energyQuery = nil }
-        DiagnosticLog.shared.log("streaming queries stopped")
     }
 
     // MARK: - Timer
@@ -576,17 +550,6 @@ final class WorkoutManager: NSObject, ObservableObject {
                     self.liveStatusTickCount = 0
                     self.broadcastLiveStatus()
                 }
-                // Diagnose: Speicher einmal pro Minute loggen und sofort persistieren
-                self.memLogTickCount += 1
-                if self.memLogTickCount >= 30 {
-                    self.memLogTickCount = 0
-                    let used = MemoryProbe.footprintMB()
-                    let avail = MemoryProbe.availableMB()
-                    let mins = Int(self.currentElapsed()) / 60
-                    DiagnosticLog.shared.log(
-                        String(format: "mem used=%.0fMB avail=%.0fMB t=%dmin", used, avail, mins),
-                        flushImmediately: true)
-                }
             }
         }
         RunLoop.main.add(t, forMode: .common)
@@ -603,7 +566,6 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                                     date: Date) {
         Task { @MainActor [weak self] in
             guard let self else { return }
-            DiagnosticLog.shared.log("didChangeTo \(toState.rawValue)")
             switch toState {
             case .paused:
                 if !self.isPaused {
@@ -641,7 +603,6 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession,
                                     didFailWithError error: Error) {
         Task { @MainActor [weak self] in
-            DiagnosticLog.shared.log("didFailWithError \(error.localizedDescription)")
             guard let self else { return }
             // P1-2: Fehler beim absichtlichen Beenden nicht als unerwartetes Ende werten
             if !self.isFinishingIntentionally {

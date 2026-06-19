@@ -1,4 +1,4 @@
-# ClimbReflect – Fehlersuche Schritt 1: Speicher- & scenePhase-Logging
+y# ClimbReflect – Fehlersuche Schritt 1: Speicher- & scenePhase-Logging
 
 Branch: `dev`. **Reine Diagnose-Instrumentierung**, kein Verhaltensfix. Ziel: ohne JetsamEvent-
 Datei feststellen, ob der Speicher während der Session Richtung 300-MB-Limit wächst, und ob die
