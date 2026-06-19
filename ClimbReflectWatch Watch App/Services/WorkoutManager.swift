@@ -394,8 +394,7 @@ final class WorkoutManager: NSObject, ObservableObject {
                     try await wb.addSamples([s])
                 }
                 try await wb.endCollection(at: endDate)
-                let saved = try await wb.finishWorkout()
-                resolvedUUID = saved.uuid
+                resolvedUUID = try await wb.finishWorkout()?.uuid
             } catch {
                 DiagnosticLog.shared.log("HK workout save failed: \(error.localizedDescription)")
             }
@@ -505,7 +504,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         let startDate = workoutStartDate ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil,
                                                      options: .strictStartDate)
-        let handler: (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = {
+        let handler: @Sendable (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = {
             [weak self] _, samples, _, _, _ in
             guard let bpm = (samples as? [HKQuantitySample])?.last?
                 .quantity.doubleValue(for: unit) else { return }
@@ -530,7 +529,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         let startDate = workoutStartDate ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil,
                                                      options: .strictStartDate)
-        let handler: (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = {
+        let handler: @Sendable (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = {
             [weak self] _, samples, _, _, _ in
             let delta = (samples as? [HKQuantitySample])?.reduce(0.0) {
                 $0 + $1.quantity.doubleValue(for: .kilocalorie())
