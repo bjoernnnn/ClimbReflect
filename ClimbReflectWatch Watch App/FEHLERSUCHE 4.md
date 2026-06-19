@@ -1,0 +1,212 @@
+# ClimbReflect – Fehlersuche: Watch-App wird während des Workouts beendet
+
+**Zweck:** Lebendes Dokument, das wir Schritt für Schritt gemeinsam abarbeiten. Es hält das
+Fehlerbild, alle bereits getesteten Hypothesen (mit Ergebnis) und einen strukturierten
+Diagnoseplan fest. Nach jedem Schritt aktualisieren wir die Tabellen.
+
+Stand: Branch `dev` (`a81bcbc`), getestet auf Apple Watch Ultra.
+
+---
+
+## 1. Fehlerbild (Symptom)
+
+Während eines laufenden Workouts (bisher v. a. `lead`/Seil) wird die Watch-App nach
+**variabler Zeit** beendet:
+- Die App ist plötzlich **nicht mehr im Vordergrund**; beim Öffnen steht man wieder bei der
+  Sportart-Auswahl **oder** sieht die Live-Session mit einem **roten Banner**.
+- Diagnose-Log zeigt dann `recoveredActiveSession state=2` → der **App-Prozess wurde beendet**,
+  aber die **HK-Workout-Session hat überlebt** (state=2 = running), und die Recovery hat sie
+  wieder angebunden.
+- Das **iPhone** läuft unbeeinflusst weiter.
+- Nach der Recovery läuft die Aufzeichnung weiter (HF wird angezeigt, z. B. 69 BPM).
+
+**Wichtig – Variabilität:** Die Zeit bis zum Beenden schwankt stark (~10 Min, ~24–25 Min, in
+anderen Läufen **~50 Min ohne sichtbares Problem**). Der Fehler ist also **nicht deterministisch**,
+sondern vermutlich **nutzungsabhängig**.
+
+## 2. Zielverhalten
+
+- App bleibt während des Workouts die aktive Trainings-App und wird **nicht** beendet.
+- Display darf bei abgesenktem Handgelenk **aus** sein; beim Heben erscheint **die App** (nicht
+  das Zifferblatt). Aufzeichnung läuft durchgehend.
+- Kein roter Fehlerbanner, kein Datenverlust.
+
+## 3. Umgebung
+
+- Gerät: Apple Watch Ultra. **Kein** Always-On-Modus aktiv (Display nur bei Handgelenk-Heben an).
+- Branch: `dev` (`a81bcbc`), per Clean-Build (Cmd+Shift+K) frisch auf die Uhr installiert.
+- Session-Typ in den Tests: `lead` (Seil), `.climbing`, `locationType = .indoor`.
+- Stack: SwiftUI, HealthKit (`HKWorkoutSession` + `HKLiveWorkoutBuilder` + `HKLiveWorkoutDataSource`),
+  WatchConnectivity.
+
+## 4. Gesicherte Fakten
+
+- ✅ **Ein** historischer JetsamEvent (.ips, **alter** Code): `per-process-limit`, **300,0 MB**,
+  Prozess `ClimbReflectWatch Watch App`, Zustand `active, frontmost`, ~25 Min. → damals
+  Speicher-Jetsam.
+- ✅ HealthKit funktioniert, wenn HF angezeigt wird (HF kommt nur aus dem aktiven Builder).
+- ✅ Recovery funktioniert (bindet die überlebende Session wieder an).
+- ✅ Hintergrundlaufzeit funktioniert grundsätzlich (Session überlebt → `state=2` bei Recovery).
+- ✅ App-Code auf `dev` ist auditiert und **sauber** (kein Leck in eigenen Datenstrukturen,
+  siehe §6).
+- ✅ Build ist bestätigt aktueller `dev`-Stand (Clean-Build, frisch installiert).
+- ❌ **Keine** JetsamEvent-Datei für die `dev`-Tests vorhanden → Kill-Ursache auf `dev`
+  **unbestätigt**.
+
+## 5. Bereits getestete Hypothesen & Ergebnisse
+
+| # | Hypothese | Getestet / geprüft wie | Ergebnis |
+|---|-----------|------------------------|----------|
+| H1 | Timer friert im Always-On ein → Uhr/Logik stoppt | Zeit auf monoton + `TimelineView` umgestellt | ❌ widerlegt (Problem blieb; Always-On ohnehin inaktiv) |
+| H2 | `WKBackgroundModes` fehlt/kein Array → keine Hintergrundlaufzeit | explizite Info.plist mit Array wiederhergestellt | ❌ als alleinige Ursache widerlegt (Session überlebt jetzt = `state=2`) |
+| H3 | HealthKit-Berechtigung verloren / deaktiviert sich | HF = 69 BPM beweist aktives HK; Banner ist Anzeigefehler | ❌ widerlegt (HK war aktiv) |
+| H4 | Recovery beendet die Session selbst | `end`-Event war **manuelles** Beenden durch Nutzer | ❌ widerlegt |
+| H5 | Per-Sekunde-Re-Render des ganzen Views (Speicher) | A1 (kein `elapsedSeconds`-Tick) + A2 (Leaf-Views) | ❌ kein Effekt aufs Timing (gleiche ~25 Min) |
+| H6 | Accelerometer/Boulder-Auto-Erkennung (Speicher/Energie) | B1: `AttemptDetector` entfernt | ❌ kein Effekt aufs Timing |
+| H7 | App-Code-Leck (Arrays, Retain-Cycles, Task-Stürme) | vollständiges Audit aller Dauer-Pfade | ❌ kein Leck gefunden (Code sauber) |
+| H8 | Alter/stale Build | Nutzer: „auf `dev`, Clean-Build" – **aber** Test 16:02 zeigt Doppel-Ende + roten Banner, die beide auf `dev` (`a81bcbc`) gefixt sind, und kein Memory-Logging | ⚠️ **WIEDER OFFEN** – starke Indizien, dass der Build **nicht** dem aktuellen `dev`-Commit entspricht (lokaler `dev` evtl. hinter `origin/dev`) |
+| H9 | `reattach()` setzt `healthKitActive` nicht → falscher Banner | auf `dev` gefixt (Zeile 122) | ✅ Banner-Fix vorhanden (Banner-Ursprung im aktuellen Test noch zu verifizieren) |
+| H10 | Doppeltes Beenden (`end` 2×) | TODO14 P0-2 (`isFinishing`) auf `dev` | ✅ Fix vorhanden |
+| H11 | Always-On-Rendering häuft Speicher an | Nutzer: Uhr **nicht** im Always-On | ⬇️ stark abgewertet |
+
+**Audit-Details zu H7 (Code ist sauber):** `WorkoutManager` (2-s-Timer, ein Task pro
+HK-Callback, Snapshot nur bei Nutzer-Aktionen, Recovery geguarded, Broadcast alle 10 s),
+`AltimeterService` (kein Array, `[weak self]`, begrenzt), `LiveSessionView` (`TimelineView` nur um
+die Uhr, Leaf-Views, keine Dauer-Animationen), `SyncService`, `DiagnosticLog` – alle ohne
+unbegrenztes Wachstum.
+
+## 6. Offene Hypothesen (noch nicht widerlegt)
+
+| # | Hypothese | Warum plausibel | Wie testen |
+|---|-----------|-----------------|------------|
+| O1 | ~~Kill ist gar kein Speicher-Jetsam~~ | – | ✅ **GELÖST: Es IST Speicher** (Test 2:20 h: 298 MB → Reset auf 14 MB) |
+| O2 | **HealthKit-Live-Collection** (`HKLiveWorkoutBuilder`) wächst im Speicher | konstant über alle Code-Versionen; Framework-intern | Memory-Logging; Experiment „Collection reduzieren" |
+| O3 | **Watchdog/Hang** beendet die App | Session überlebt auch bei Watchdog; intermittierend | Analyse-Dateien auf Hang/Crash-Log prüfen |
+| O4 | **Nutzungsabhängiger** Effekt (Handgelenk-Heben-Häufigkeit, Bewegung, HF-Rate) | erklärt 25 vs 50 Min | Memory-Logging + Verhalten mitschreiben |
+| O5 | Falscher Banner stammt aus einem **anderen** Pfad als Recovery | Banner trat trotz H9-Fix auf | gezielt Banner-Trigger im Test beobachten |
+
+## 7. Strukturierter Diagnose-Plan (Schritt für Schritt)
+
+> Wir gehen **einen** Schritt nach dem anderen. Nach jedem Schritt Ergebnis hier eintragen,
+> dann nächsten Schritt.
+
+### Schritt 1 — Speicherverbrauch sichtbar machen (Instrumentierung)
+**Ziel:** Ohne .ips feststellen, **ob** Speicher die Ursache ist.
+**Status:** ✅ **ERLEDIGT – Speicher ist BESTÄTIGT die Ursache.**
+**Ergebnis (Test 2:20 h, Nutzer schlief):** `mem used=298MB avail=2MB t=138min` (19:02:52),
+danach `mem used=14MB avail=286MB t=140min` (frischer Prozess nach Kill+Recovery). Der Speicher
+klettert bis ~300 MB → Jetsam. **Grundleck ~2 MB/Min** (geringe Interaktion); bei aktivem
+Klettern 5–25 Min bis Limit → ~12–57 MB/Min. → **Leck ist nutzungs-/rendering-abhängig
+verstärkt.**
+
+### Schritt 3 — Leckquelle isolieren
+**Ziel:** Den dominierenden Verbraucher der ~300 MB finden.
+**Status:** ✅ **ERLEDIGT – `HKLiveWorkoutBuilder` ist die Quelle.**
+**Experiment A (Builder DISABLED, 2 Läufe ruhig liegend):** Speicher bleibt **flach** —
+Test 1 (Vorstieg, 20 Min): konstant 20 MB; Test 2 (Bouldern): konstant 25 MB. Mit Builder
+(früher): 298 MB nach 138 Min. → **Der Builder akkumuliert die gesammelten HealthKit-Samples bis
+Session-Ende.** Die DataSource wird ohne `typesToCollect`-Einschränkung erstellt (Standardsatz),
+obwohl die App nur HF + aktive Energie nutzt.
+
+### Schritt 3a — Fix testen: DataSource auf HF/Energie einschränken (`TODO-Schritt3a.md`)
+**Ziel:** Builder behalten, aber nur genutzte Typen sammeln → prüfen, ob Speicher flach wird.
+**Status:** ❌ **FEHLGESCHLAGEN.** Test3 (30 Min still sitzend, nur HF+Energie): Speicher klettert
+trotzdem 10 MB → **286 MB in 29 Min** (~9,5 MB/Min) → Jetsam. → Das Einschränken der Typen hilft
+nicht; die **Akkumulation der HF-Samples durch den Builder selbst** ist die Ursache. Die Rate
+skaliert mit der HF-Sample-Frequenz (wach/aktiv schneller, Schlaf langsamer) → erklärt die
+Variabilität.
+
+### Schritt 3b — Fix A3: Live-Daten per Streaming statt Builder (`TODO-Schritt3b.md`)
+**Ziel:** Leck endgültig beheben. `HKWorkoutSession` für Hintergrund behalten (Exp. A bewies:
+funktioniert ohne Builder), Live-HF/Energie per `HKAnchoredObjectQuery` (Streaming, verwerfen →
+keine Akkumulation), Builder-Live-Sammlung entfernen, am Ende optional schlankes Workout speichern.
+**Offene Entscheidung:** Workout in Apple Health speichern (Variante A, empfohlen) oder nicht (B)?
+**Status:** _offen (nächster Schritt – der eigentliche Fix)_
+
+### Schritt 2 — Analyse-Dateien prüfen (Kill-Mechanismus bestätigen)
+**Ziel:** Art der Beendigung feststellen.
+**Aufgabe:** Nach einem Fehlversuch auf dem **iPhone**: Einstellungen → Datenschutz & Sicherheit
+→ Analyse & Verbesserungen → **Analysedaten**. Dort nach Dateien suchen, die mit `JetsamEvent`,
+`ClimbReflect` oder `WatchdogResource`/Hang beginnen (Datum des Tests).
+**Erwartete Auswertung:**
+- `JetsamEvent` mit `per-process-limit` ~300 MB → Speicher (→ Schritt 3).
+- Crash-Log (Exception) → Absturz (→ eigener Fix).
+- Hang/Watchdog-Report → Watchdog (→ Schritt 4).
+- Nichts → wahrscheinlich Suspension/Watchdog (→ Schritt 4).
+**Status:** _offen (Nutzer hat aktuell keine Datei – Schritt 1 ersetzt dies notfalls)_
+
+### Schritt 3 — NUR falls Speicher bestätigt: Framework-Quelle isolieren
+**Ziel:** HealthKit-Collection als Quelle bestätigen/ausschließen.
+**Aufgabe:** Testlauf, bei dem die `HKWorkoutSession` (für Hintergrund) bleibt, aber der
+`HKLiveWorkoutBuilder`/`beginCollection` **testweise weggelassen** wird. Mit Memory-Logging aus
+Schritt 1.
+**Erwartete Auswertung:**
+- Speicher bleibt flach → **HealthKit-Collection** ist die Quelle → gezielter Fix (collected
+  types beschränken / periodisch entlasten / Builder-Strategie ändern).
+- Speicher wächst weiter → Quelle liegt woanders → Allocations-Profiler (Schritt 5).
+**Status:** _offen_
+
+### Schritt 4 — NUR falls kein Speicher: Beendigungs-Mechanismus eingrenzen
+**Ziel:** Watchdog/Suspension vs. Systemende unterscheiden.
+**Aufgabe:** Mit `scenePhase`- und Heartbeat-Logging (Schritt 1) prüfen, ob die App kurz vor dem
+Kill in `background` ging und wie lange. Prüfen, ob `didChangeTo`-Events (3/6) auftreten. Ggf.
+Hauptthread-Last beobachten.
+**Erwartete Auswertung:** zeigt, ob die App suspendiert + beendet wird (Hintergrund-Thema) oder
+hängt (Watchdog).
+**Status:** _offen_
+
+### Schritt 5 — Allocations/Leaks-Profiler (endgültiges Pinpointing)
+**Ziel:** Exakte Allokationsgruppe identifizieren.
+**Aufgabe:** Xcode → Profile → Allocations (+ Leaks), echte Uhr, ~10–15 Min, „Persistent Bytes"
+nach steigender Kategorie absuchen (CoreAnimation/Render, HealthKit, CoreMotion, App-Objekte).
+**Status:** _offen (sobald Mac/Zeit verfügbar)_
+
+## 8. Diagnose-Hilfen
+
+- **Diagnose-Log-Statuscodes (`didChangeTo N`):** 1 notStarted, 2 running, 3 ended, 4 paused,
+  5 prepared, 6 stopped.
+- **Schlüssel-Signaturen im Log:**
+  - `recoveredActiveSession state=2` → App-Prozess war tot, Session überlebte, Recovery lief.
+  - `beginCollection ok` → HealthKit-Session aktiv.
+  - `end ascents=… duration=…s` → Beenden (Quelle prüfen: manuell vs. automatisch).
+- **Wahrheits-Check HealthKit:** HF-Anzeige > 0 BPM = HK aktiv (Banner dann = Anzeigefehler).
+- **JetsamEvent lesen:** Speicher = `rpages × pageSize / 1048576` MB; `reason: per-process-limit`
+  + `largestProcess` = gekillter Prozess.
+
+## 9. Nächster konkreter Schritt
+
+> **GATE (zuerst!): Build-Verifikation.** Test 16:02 (Abbruch nach ~5 Min) zeigt drei Dinge, die
+> mit aktuellem `dev` (`a81bcbc`) unvereinbar sind: doppeltes `end` (564s+565s) und roter Banner
+> (beide gefixt) sowie fehlendes Memory-Logging. **Verdacht: der Build entspricht nicht dem
+> aktuellen `dev`-Commit.** Bevor weitere Tests Sinn ergeben:
+> 1. `git fetch origin && git log -1 --oneline` → muss aktuellen `dev`-Commit zeigen; `git status`
+>    → nicht „behind origin/dev". Falls doch: `git pull origin dev`, Clean-Build, neu installieren.
+> 2. Nach Einbau von **Aufgabe 5** (Build-Marker) muss die Diagnose-Ansicht oben
+>    „Build: S1-mem-logging" zeigen.
+
+**→ Danach Schritt 1 umsetzen:** Memory-Logging (pro Minute) + `scenePhase`-Logging ins
+`DiagnosticLog` einbauen (Datei `TODO-Schritt1.md`). Dann einen Lauf bis zum Fehler machen und das
+Diagnose-Log schicken. Damit sehen wir **ohne** .ips eindeutig, ob der Speicher Richtung Limit
+läuft – und (über den Build-Marker), dass wirklich der neue Code läuft.
+
+## 10. Testlauf-Chronik (Ergebnisse eintragen)
+
+| Datum/Zeit | Branch/Build | Dauer bis Abbruch | Beobachtung | Memory-Daten |
+|---|---|---|---|---|
+| (alt) | alter Code | ~25 Min | JetsamEvent 300 MB, frontmost | – (nur .ips) |
+| 16:02 | „dev" (Build fraglich) | ~5–9 Min | Doppel-`end`, roter Banner, `recoveredActiveSession state=2 ascents=1` | **fehlt** (Schritt 1 nicht im Build) |
+| 19:xx | dev + Schritt 1 (Memory-Log) | ~138 Min (Nutzer schlief) | `mem used=298MB avail=2MB t=138min` → Reset auf 14MB; Recovery+Banner ok; **Blackscreen beim Beenden**; Doppel-`end` (8453s+8521s) | ✅ **Speicher bestätigt**, Grundleck ~2 MB/Min |
+
+**Neuer Bug (B-End): Blackscreen beim Beenden.** Fragebogen (Zustand/Anstrengung) nach dem Ende
+schwarz/unbedienbar, erst nach Force-Quit ok. **Ursache (verifiziert):** Fragebogen liegt in der
+`NavigationStack` der `LiveSessionView`; `endWorkout()→finishSession()` setzt sofort
+`isRunning=false` (WorkoutManager Z.432) → ContentView wechselt auf `SportSelectionView` und
+zerstört `LiveSessionView` samt Fragebogen-Navigation. → Fix: End-Flow von `isRunning`/
+`LiveSessionView`-Lebenszyklus entkoppeln (eigener Zustand in ContentView). Siehe `TODO-Blackscreen.md`.
+
+**Nebenbefund:** `recoveredActiveSession state=3` (ended) — Recovery sollte eine **bereits
+beendete** Session (state 3/6) nicht wie eine laufende reattachen.
+
+**Wichtig zur Variabilität:** ~5 Min vs. ~138 Min → das Leck ist stark nutzungsabhängig
+(Interaktion/Rendering beschleunigt). Für den realen Kletteralltag (schnelle Abbrüche) ist der
+rendering-/interaktionsabhängige Anteil der Hauptverursacher.
