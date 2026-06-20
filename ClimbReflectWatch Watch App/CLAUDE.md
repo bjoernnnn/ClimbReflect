@@ -159,9 +159,28 @@ Problem. Status-Anzeigen immer an den **echten** Session-Status koppeln, nicht a
 in einem Pfad vergessen werden kann.
 
 **S15 – HF-Anzeige als Wahrheits-Check für HealthKit.**
-`heartRate` wird ausschließlich in `didCollectDataOf` gesetzt. Zeigt die Live-Ansicht eine
-plausible HF (> 0), liefert der HKLiveWorkoutBuilder Daten → HealthKit ist aktiv. Das ist der
-schnellste Weg, ein echtes Berechtigungsproblem von einem Anzeige-Bug zu unterscheiden.
+Zeigt die Live-Ansicht eine plausible HF (> 0), liefert HealthKit Daten → HealthKit ist aktiv.
+Das ist der schnellste Weg, ein echtes Berechtigungsproblem von einem Anzeige-Bug zu unterscheiden.
+(Hinweis: Seit S16 kommt die Live-HF aus einer Streaming-Query, nicht mehr aus dem Builder.)
+
+**S16 – KEIN `HKLiveWorkoutBuilder` für die Live-Datensammlung (Speicherleck!).**
+Der `HKLiveWorkoutBuilder` mit `HKLiveWorkoutDataSource` + `beginCollection` hält **alle**
+gesammelten Samples bis Session-Ende im Speicher → der phys_footprint klettert ans 300-MB-Limit →
+Jetsam (per-process-limit). Belegt durch Messung: mit Builder 298 MB nach 138 Min (bzw. 286 MB
+nach 29 Min wach); Builder aus → flach (~20 MB); Streaming-Fix → flach (17 MB über 20 Min).
+**Die Rate skaliert mit der HF-Sample-Frequenz** (wach/aktiv schneller, Schlaf langsamer) – das
+erklärte die scheinbar zufällige Abbruchzeit (5–138 Min). Das Einschränken von `typesToCollect`
+hilft **nicht** (HF allein reicht zum Volllaufen). **Lösung:** `HKWorkoutSession` für die
+Hintergrundlaufzeit behalten, Live-HF/Energie über `HKAnchoredObjectQuery` (Streaming) beziehen
+und Samples **verwerfen** (keine Akkumulation); am Ende optional ein schlankes Workout via den
+assoziierten `HKWorkoutBuilder` speichern (ohne Per-Sample-Sammlung).
+**ACHTUNG (Regression-Erkenntnis):** `beginCollection` auf dem assoziierten Builder ist **trotzdem
+nötig** — ohne aktive Collection bewahrt `recoverActiveWorkoutSession()` die Session nicht über
+einen Kill hinweg, und watchOS behandelt die App nicht als aktive Workout-App (aggressiveres
+Backgrounding). Fix: `beginCollection` aufrufen, aber **keine `HKLiveWorkoutDataSource` setzen** →
+der Builder hat nichts zu sammeln → kein Speicherleck, aber Session-Preservation funktioniert.
+Beim Beenden die Streaming-Queries mit `store.stop(query)` stoppen. **Merke:** Für lange
+Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für Recovery.
 
 ---
 
@@ -199,14 +218,18 @@ schnellste Weg, ein echtes Berechtigungsproblem von einem Anzeige-Bug zu untersc
 
 ## 7. Offene Punkte / aktuelle Baustelle
 
-- **✅ Falscher „Kein HealthKit"-Banner (S14):** Behoben in TODO14. `reattach()` setzt nun
-  `healthKitActive = (ws.state == .running || ws.state == .paused)`.
-- **✅ Speicher-Jetsam (S3):** Energie-/Speicher-Fixes (A1–A7, B1, B3) auf `dev` zusammengeführt
-  (TODO13). 30–60-Min-Test auf echter Uhr noch ausstehend (P1-1, Nutzer-Aufgabe).
-- **✅ Doppeltes Beenden (S4):** `endWorkout()` durch `guard !isFinishingIntentionally` gegen
-  Doppelaufruf gesichert. `sessionEndedUnexpectedly` wird bei bewusstem Ende nicht gesetzt.
-- **✅ HealthKit-Berechtigung (P1-2):** Bei `sharingDenied` früher Abbruch der HK-Session; Banner
-  zeigt „HealthKit verweigert – Einstellungen" statt generischem Text.
+- **Falscher „Kein HealthKit"-Banner (S14) – ZUERST:** `reattach()` setzt `healthKitActive` nicht
+  → nach jeder Recovery falscher Banner. Schnell zu fixen, nimmt die Verwirrung raus.
+- **Speicher-Jetsam (S3) – die eigentliche Ursache des Verschwindens:** Energie-/Speicher-Fixes
+  (TODO11: A1/A2 Re-Render, B1 Accelerometer, B3 Höhe) liegen auf `feature/energy-efficiency`,
+  **nicht** auf dem getesteten `fix/wkbackgroundmodes`. Zusammenführen + per 30–60-Min-Test
+  (kein neuer JetsamEvent) verifizieren. Wenn HealthKit aktiv ist, wächst der Speicher schneller
+  (HKLiveWorkoutBuilder + per-Sekunde-Re-Render) → Kill → Recovery → falscher Banner (S14).
+- **Doppeltes Beenden (S4):** Zwei `end`-Events im Log. `endWorkout()` per `isFinishing`-Flag
+  gegen Doppelaufruf absichern; `sessionEndedUnexpectedly` nicht bei bewusstem Ende setzen.
+- **HealthKit-Berechtigung/Onboarding:** Dev-Builds setzen Berechtigungen teils zurück. Klares
+  Onboarding + Status-Check (`authorizationStatus(for: workoutType)`) vor Session-Start; nicht
+  still im Timer-only-Modus starten. Aber: Gating an den **echten** Status koppeln (S14).
 - **Frontmost (Ziel):** Nach behobenem Leck verifizieren, dass die laufende Workout-Session die
   App frontmost hält; nur falls nötig `WKExtendedRuntimeSession`.
 - **Projekt-Sync zur Watch:** `knownProjects` kam im Test leer an – prüfen, ob

@@ -1,0 +1,51 @@
+import SwiftUI
+
+struct DiagnosticView: View {
+    @StateObject private var log = DiagnosticLog.shared
+    @State private var showClearConfirm = false
+
+    private static let formatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f
+    }()
+
+    var body: some View {
+        List {
+            Text("Build: \(AppBuildInfo.marker)")
+                .font(.system(size: 9))
+                .foregroundStyle(WatchTheme.textTert)
+                .listRowBackground(Color.clear)
+
+            if log.entries.isEmpty {
+                Text("Keine Einträge")
+                    .font(.caption)
+                    .foregroundStyle(WatchTheme.textTert)
+            } else {
+                ForEach(log.entries.reversed()) { entry in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.event)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(WatchTheme.textPrimary)
+                            .lineLimit(3)
+                        Text(Self.formatter.string(from: entry.timestamp))
+                            .font(.system(size: 9))
+                            .foregroundStyle(WatchTheme.textTert)
+                    }
+                    .padding(.vertical, 2)
+                }
+
+                Button(role: .destructive) { showClearConfirm = true } label: {
+                    Text("Log löschen")
+                        .font(.caption)
+                        .foregroundStyle(WatchTheme.danger)
+                }
+            }
+        }
+        .navigationTitle("Diagnose")
+        .confirmationDialog("Log löschen?", isPresented: $showClearConfirm) {
+            Button("Löschen", role: .destructive) { log.clear() }
+            Button("Abbrechen", role: .cancel) {}
+        }
+    }
+}

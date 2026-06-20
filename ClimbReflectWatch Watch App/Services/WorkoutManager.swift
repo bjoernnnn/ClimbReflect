@@ -41,6 +41,7 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     private let store = HKHealthStore()
     private var session: HKWorkoutSession?
+    private var builder: HKLiveWorkoutBuilder?
     private var hrQuery: HKAnchoredObjectQuery?
     private var energyQuery: HKAnchoredObjectQuery?
     private var timer: Timer?
@@ -98,6 +99,8 @@ final class WorkoutManager: NSObject, ObservableObject {
         guard ws.state == .running || ws.state == .paused else { return }
         ws.delegate = self
         self.session = ws
+        // Builder referenzieren – Collection läuft bereits (S16)
+        self.builder = ws.associatedWorkoutBuilder()
 
         // Live-State aus Snapshot wiederherstellen
         if let p = PendingSessionStore.load() {
@@ -122,6 +125,8 @@ final class WorkoutManager: NSObject, ObservableObject {
         if !isPaused { startTimer() }
         startStreamingHeartRate()
         startStreamingEnergy()
+        DiagnosticLog.shared.log("streaming queries started")
+        DiagnosticLog.shared.log("recoveredActiveSession state=\(ws.state.rawValue) ascents=\(attempts.count)")
     }
 
     private func recoverPendingSessionIfNeeded() {
@@ -215,6 +220,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         workoutStartDate = startDate
         isRunning = true
         isPaused = false
+        DiagnosticLog.shared.log("start sessionType=\(type.rawValue)")
         startTimer()
 
         // HealthKit-Session aufsetzen (best-effort)
@@ -231,11 +237,18 @@ final class WorkoutManager: NSObject, ObservableObject {
                 ws.delegate = self
                 self.session = ws
                 ws.startActivity(with: startDate)
+                // S16: Builder NUR für Session-Preservation – KEINE DataSource, keine Samples
+                let wb = ws.associatedWorkoutBuilder()
+                try await wb.beginCollection(at: startDate)
+                self.builder = wb
                 startStreamingHeartRate()
                 startStreamingEnergy()
                 healthKitActive = true
+                DiagnosticLog.shared.log("beginCollection ok")
+                DiagnosticLog.shared.log("streaming queries started")
             } catch {
                 healthKitActive = false
+                DiagnosticLog.shared.log("HK setup failed: \(error.localizedDescription)")
             }
         }
 
@@ -357,27 +370,22 @@ final class WorkoutManager: NSObject, ObservableObject {
         timer?.invalidate()
         timer = nil
         stopStreamingQueries()
+        DiagnosticLog.shared.flush()
 
         let endDate = Date()
 
         var resolvedUUID: UUID? = nil
-        if let ws = session, let startDate = workoutStartDate {
+        if let ws = session, let wb = builder, let startDate = workoutStartDate {
             if ws.state != .ended && ws.state != .stopped { ws.end() }
-            // Variante A: schlankes Workout ohne Stream-Akkumulation in HealthKit speichern
-            let wb = HKWorkoutBuilder(healthStore: store,
-                                      configuration: ws.workoutConfiguration,
-                                      device: .local())
-            do {
-                try await wb.beginCollection(at: startDate)
-                if activeEnergyKcal > 0 {
-                    let qty = HKQuantity(unit: .kilocalorie(), doubleValue: activeEnergyKcal)
-                    let s = HKQuantitySample(type: HKQuantityType(.activeEnergyBurned),
-                                             quantity: qty, start: startDate, end: endDate)
-                    try await wb.addSamples([s])
-                }
-                try await wb.endCollection(at: endDate)
-                resolvedUUID = try await wb.finishWorkout()?.uuid
-            } catch { }
+            // Energie-Sample hinzufügen, dann Builder abschließen (S16: kein neuer Builder nötig)
+            if activeEnergyKcal > 0 {
+                let qty = HKQuantity(unit: .kilocalorie(), doubleValue: activeEnergyKcal)
+                let s = HKQuantitySample(type: HKQuantityType(.activeEnergyBurned),
+                                         quantity: qty, start: startDate, end: endDate)
+                try? await wb.addSamples([s])
+            }
+            try? await wb.endCollection(at: endDate)
+            resolvedUUID = try? await wb.finishWorkout()?.uuid
         }
         let finalAvgHR = hrCount > 0 ? hrSum / Double(hrCount) : nil
         let finalMaxHR = maxHeartRate > 0 ? maxHeartRate : nil
@@ -401,6 +409,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             energyRaw: nil
         )
 
+        DiagnosticLog.shared.log("end ascents=\(attempts.count) duration=\(Int(duration))s")
         clearLiveStatus()
         WKInterfaceDevice.current().play(.stop)
 
@@ -419,6 +428,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         stopStreamingQueries()
         session?.end()
         Task { await altimeter.stop() }
+        DiagnosticLog.shared.flush()
         clearLiveStatus()
         WKInterfaceDevice.current().play(.failure)
         finishSession()
@@ -429,6 +439,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         isRunning = false
         isPaused = false
         session = nil
+        builder = nil
         hrQuery = nil
         energyQuery = nil
         attempts = []
@@ -526,6 +537,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     private func stopStreamingQueries() {
         if let q = hrQuery { store.stop(q); hrQuery = nil }
         if let q = energyQuery { store.stop(q); energyQuery = nil }
+        DiagnosticLog.shared.log("streaming queries stopped")
     }
 
     // MARK: - Timer
@@ -566,6 +578,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                                     date: Date) {
         Task { @MainActor [weak self] in
             guard let self else { return }
+            DiagnosticLog.shared.log("didChangeTo \(toState.rawValue)")
             switch toState {
             case .paused:
                 if !self.isPaused {
@@ -604,6 +617,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                                     didFailWithError error: Error) {
         Task { @MainActor [weak self] in
             guard let self else { return }
+            DiagnosticLog.shared.log("didFailWithError \(error.localizedDescription)")
             // P1-2: Fehler beim absichtlichen Beenden nicht als unerwartetes Ende werten
             if !self.isFinishingIntentionally {
                 self.lastError = error.localizedDescription

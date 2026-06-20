@@ -34,6 +34,23 @@ struct SportSelectionView: View {
                 .padding(.horizontal, 8)
                 .padding(.top, 4)
 
+            NavigationLink(destination: DiagnosticView()) {
+                HStack(spacing: 10) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .foregroundStyle(WatchTheme.textTert)
+                        .frame(width: 24)
+                    Text("Diagnose")
+                        .foregroundStyle(WatchTheme.textSecond)
+                        .font(.footnote)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(WatchTheme.elevated)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+
             ForEach(WatchSessionType.allCases) { type in
                 Button {
                     if type == .training {
