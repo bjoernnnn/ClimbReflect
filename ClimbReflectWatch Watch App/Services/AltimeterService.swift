@@ -20,6 +20,8 @@ actor AltimeterService {
         running = true
         let queue = OperationQueue()
         queue.qualityOfService = .utility
+        // C: serielle Queue verhindert Task-Stau bei verzögerten Altitude-Updates
+        queue.maxConcurrentOperationCount = 1
         // A7: [weak self] vermeidet Retain-Cycle AltimeterService → CMAltimeter → closure → AltimeterService
         altimeter.startRelativeAltitudeUpdates(to: queue) { [weak self] data, _ in
             guard let self, let data else { return }

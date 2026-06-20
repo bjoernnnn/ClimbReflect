@@ -36,6 +36,12 @@ struct LiveSessionView: View {
             // P2-7.3: Sensoren nach Aufwachen sofort synchronisieren
             if !reduced { workoutManager.resyncSensors() }
         }
+        .onChange(of: currentTab) { _, tab in
+            DiagnosticLog.shared.log("tab=\(tab) mem=\(MemoryFootprint.residentMB())MB")
+        }
+        .onChange(of: showProjectPicker) { _, open in
+            DiagnosticLog.shared.log("projectPicker \(open ? "open" : "close") mem=\(MemoryFootprint.residentMB())MB")
+        }
         .onAppear {
             // E2: iPhone-Befehle verarbeiten
             SyncService.shared.onCommand = { [workoutManager] cmd in

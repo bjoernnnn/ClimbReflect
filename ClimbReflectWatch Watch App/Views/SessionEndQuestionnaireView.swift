@@ -43,6 +43,12 @@ struct SessionEndQuestionnaireView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .onAppear {
+            DiagnosticLog.shared.log("Questionnaire appear mem=\(MemoryFootprint.residentMB())MB")
+        }
+        .onDisappear {
+            DiagnosticLog.shared.log("Questionnaire disappear mem=\(MemoryFootprint.residentMB())MB")
+        }
     }
 
     // MARK: - Schritt 1: RPE

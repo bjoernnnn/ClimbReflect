@@ -50,6 +50,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var pauseStartedAt: Date?
     private var liveStatusTickCount = 0
     private var memTickCount = 0
+    private var lastMemMB = 0
     private var lastPublishedAltitudeInt: Int = -1  // A3: throttle altitude publish
     private var isFinishingIntentionally = false    // P1-2: kein doppeltes Ende
 
@@ -282,6 +283,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         case .idle:
             attemptState = .active(startTime: .now)
             WKInterfaceDevice.current().play(.start)
+            DiagnosticLog.shared.log("ascentTracking start mem=\(MemoryFootprint.residentMB())MB")
             Task { await altimeter.startAscentTracking() }
 
         case .active:
@@ -291,10 +293,12 @@ final class WorkoutManager: NSObject, ObservableObject {
         case .awaitingResult:
             break
         }
+        DiagnosticLog.shared.log("actionButton -> \(String(describing: attemptState)) mem=\(MemoryFootprint.residentMB())MB")
     }
 
     /// Schnelles Banken aus dem Action-Button-Flow (ohne Grad-Auswahl)
     func quickBank(result: WatchAscentResult) async {
+        DiagnosticLog.shared.log("ascentTracking stop mem=\(MemoryFootprint.residentMB())MB")
         let gain = await altimeter.stopAscentTracking()
         let attempt = WatchAttempt(
             gradeSystem: WatchGradeSystem(rawValue: UserDefaults.standard.string(forKey: "watchGradeSystem") ?? "fontainebleau") ?? sessionType.defaultGradeSystem,
@@ -309,6 +313,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         attempts.append(attempt)
         savePendingSnapshot()
         attemptState = .idle
+        DiagnosticLog.shared.log("ascentTracking start mem=\(MemoryFootprint.residentMB())MB")
         await altimeter.startAscentTracking()
         switch result {
         case .top:     WKInterfaceDevice.current().play(.success)
@@ -351,6 +356,7 @@ final class WorkoutManager: NSObject, ObservableObject {
                      grade: String?,
                      result: WatchAscentResult?,
                      style: WatchAscentStyle?) async {
+        DiagnosticLog.shared.log("ascentTracking stop mem=\(MemoryFootprint.residentMB())MB")
         let gain = await altimeter.stopAscentTracking()
         let attempt = WatchAttempt(
             gradeSystem: gradeSystem,
@@ -364,6 +370,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         )
         attempts.append(attempt)
         savePendingSnapshot()
+        DiagnosticLog.shared.log("ascentTracking start mem=\(MemoryFootprint.residentMB())MB")
         await altimeter.startAscentTracking()
         if attemptState == .awaitingResult { attemptState = .idle }
         switch result {
@@ -503,6 +510,8 @@ final class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Streaming Queries (A3)
 
     private func startStreamingHeartRate() {
+        // C: laufende Query stoppen bevor neue gestartet wird (kein paralleler Doppel-Stream)
+        if let q = hrQuery { store.stop(q); hrQuery = nil }
         let hrType = HKQuantityType(.heartRate)
         let unit = HKUnit.count().unitDivided(by: .minute())
         let startDate = workoutStartDate ?? Date()
@@ -537,6 +546,8 @@ final class WorkoutManager: NSObject, ObservableObject {
     }
 
     private func startStreamingEnergy() {
+        // C: laufende Query stoppen bevor neue gestartet wird (kein paralleler Doppel-Stream)
+        if let q = energyQuery { store.stop(q); energyQuery = nil }
         let energyType = HKQuantityType(.activeEnergyBurned)
         let startDate = workoutStartDate ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil,
@@ -595,7 +606,11 @@ final class WorkoutManager: NSObject, ObservableObject {
                 self.memTickCount += 1
                 if self.memTickCount >= 30 {
                     self.memTickCount = 0
-                    DiagnosticLog.shared.log("tick mem=\(MemoryFootprint.residentMB())MB hr=\(Int(self.heartRate)) max=\(Int(self.maxHeartRate))")
+                    let m = MemoryFootprint.residentMB()
+                    let d = m - self.lastMemMB
+                    self.lastMemMB = m
+                    let sign = d >= 0 ? "+" : ""
+                    DiagnosticLog.shared.log("tick mem=\(m)MB \u{0394}=\(sign)\(d) hr=\(Int(self.heartRate)) max=\(Int(self.maxHeartRate))")
                     self.savePendingSnapshot()
                 }
             }
