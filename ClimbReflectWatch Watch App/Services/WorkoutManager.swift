@@ -95,15 +95,21 @@ final class WorkoutManager: NSObject, ObservableObject {
         sessionEndedUnexpectedly = false
         if HKHealthStore.isHealthDataAvailable(),
            let recovered = try? await store.recoverActiveWorkoutSession() {
+            DiagnosticLog.shared.log("recover: hk session state=\(recovered.state.rawValue)")
             await reattach(to: recovered)
             return
         }
-        recoverPendingSessionIfNeeded()
+        DiagnosticLog.shared.log("recover: keine HK-Session – finalize")
+        await finalizeUnrecoverableSession()
     }
 
     private func reattach(to ws: HKWorkoutSession) async {
         // P1: beendete Session nicht als laufend reattachen
-        guard ws.state == .running || ws.state == .paused else { return }
+        guard ws.state == .running || ws.state == .paused else {
+            DiagnosticLog.shared.log("reattach abgebrochen: state=\(ws.state.rawValue)")
+            await finalizeUnrecoverableSession()
+            return
+        }
         ws.delegate = self
         self.session = ws
         // Builder referenzieren – Collection läuft bereits (S16)
@@ -141,26 +147,35 @@ final class WorkoutManager: NSObject, ObservableObject {
         DiagnosticLog.shared.log("recoveredActiveSession state=\(ws.state.rawValue) ascents=\(attempts.count)")
     }
 
-    private func recoverPendingSessionIfNeeded() {
-        guard let pending = PendingSessionStore.load() else { return }
+    /// Session kann nicht wieder aufgenommen werden → sauber finalisieren:
+    /// Begehungen ans Handy syncen (falls vorhanden) und Handy-Live-Anzeige in jedem Fall beenden.
+    private func finalizeUnrecoverableSession() async {
+        if let pending = PendingSessionStore.load(), !pending.ascents.isEmpty {
+            let avg: Double? = {
+                guard let sum = pending.hrSum, let cnt = pending.hrCount, cnt > 0 else { return nil }
+                return sum / Double(cnt)
+            }()
+            let dto = WatchSessionDTO(
+                id: pending.id,
+                workoutUUID: nil,
+                date: pending.startDate,
+                durationSeconds: -pending.accumulatedPaused + Date().timeIntervalSince(pending.startDate),
+                sessionTypeRaw: pending.sessionTypeRaw,
+                avgHeartRate: avg,
+                maxHeartRate: pending.maxHeartRate,
+                activeEnergyKcal: pending.activeEnergyKcal,
+                altitudeTotalGain: 0,
+                ascents: pending.ascents,
+                rpe: nil, focusRaw: nil, energyRaw: nil
+            )
+            SyncService.shared.send(dto: dto)
+            DiagnosticLog.shared.log("finalize: DTO gesendet ascents=\(pending.ascents.count)")
+        } else {
+            DiagnosticLog.shared.log("finalize: keine ascents – nur Live-Status löschen")
+        }
         PendingSessionStore.clear()
-        guard !pending.ascents.isEmpty else { return }
-        let dto = WatchSessionDTO(
-            id: pending.id,
-            workoutUUID: nil,
-            date: pending.startDate,
-            durationSeconds: -pending.accumulatedPaused + Date().timeIntervalSince(pending.startDate),
-            sessionTypeRaw: pending.sessionTypeRaw,
-            avgHeartRate: nil,
-            maxHeartRate: nil,
-            activeEnergyKcal: nil,
-            altitudeTotalGain: 0,
-            ascents: pending.ascents,
-            rpe: nil,
-            focusRaw: nil,
-            energyRaw: nil
-        )
-        SyncService.shared.send(dto: dto)
+        clearLiveStatus()      // leeres Data → Handy setzt liveStatus = nil (Live-Anzeige aus)
+        isRunning = false
     }
 
     func currentElapsed() -> TimeInterval {
@@ -313,8 +328,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         attempts.append(attempt)
         savePendingSnapshot()
         attemptState = .idle
-        DiagnosticLog.shared.log("ascentTracking start mem=\(MemoryFootprint.residentMB())MB")
-        await altimeter.startAscentTracking()
         switch result {
         case .top:     WKInterfaceDevice.current().play(.success)
         case .attempt: WKInterfaceDevice.current().play(.click)
@@ -370,8 +383,6 @@ final class WorkoutManager: NSObject, ObservableObject {
         )
         attempts.append(attempt)
         savePendingSnapshot()
-        DiagnosticLog.shared.log("ascentTracking start mem=\(MemoryFootprint.residentMB())MB")
-        await altimeter.startAscentTracking()
         if attemptState == .awaitingResult { attemptState = .idle }
         switch result {
         case .top:     WKInterfaceDevice.current().play(.success)
