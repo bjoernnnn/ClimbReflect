@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 struct DiagnosticView: View {
     @StateObject private var log = DiagnosticLog.shared
@@ -28,6 +29,15 @@ struct DiagnosticView: View {
                             .foregroundStyle(WatchTheme.textTert)
                     }
                     .padding(.vertical, 2)
+                }
+
+                Button {
+                    SyncService.shared.sendDiagnostics(log.entries)
+                    WKInterfaceDevice.current().play(.success)
+                } label: {
+                    Text("Ans iPhone senden")
+                        .font(.caption)
+                        .foregroundStyle(WatchTheme.accent)
                 }
 
                 Button(role: .destructive) { showClearConfirm = true } label: {

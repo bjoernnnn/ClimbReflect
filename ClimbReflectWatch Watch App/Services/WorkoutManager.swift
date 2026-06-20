@@ -49,6 +49,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var accumulatedPaused: TimeInterval = 0
     private var pauseStartedAt: Date?
     private var liveStatusTickCount = 0
+    private var memTickCount = 0
     private var lastPublishedAltitudeInt: Int = -1  // A3: throttle altitude publish
     private var isFinishingIntentionally = false    // P1-2: kein doppeltes Ende
 
@@ -116,10 +117,10 @@ final class WorkoutManager: NSObject, ObservableObject {
                 self.selectedProject = ProjectInfo(id: id, name: name)
             }
             self.attempts = p.ascents.map { WatchAttempt(fromDTO: $0, sessionType: self.sessionType) }
+            // B3: hrSum/hrCount/activeEnergyKcal werden in startStreamingHR/Energy aus der
+            // kompletten HealthKit-Historie neu aufgebaut – hier nicht restoren (Doppelzählung).
+            // maxHeartRate und lastHeartRate als Anzeige-Seed, damit die UI nicht kurz auf 0 springt.
             if let max  = p.maxHeartRate   { self.maxHeartRate     = max  }
-            if let sum  = p.hrSum          { self.hrSum            = sum  }
-            if let cnt  = p.hrCount        { self.hrCount          = cnt  }
-            if let kcal = p.activeEnergyKcal { self.activeEnergyKcal = kcal }
             if let hr   = p.lastHeartRate  { self.heartRate        = hr   }
         } else {
             // Kein Snapshot – startDate aus dem assoziierten Builder lesen (read-only, kein Collect)
@@ -176,6 +177,9 @@ final class WorkoutManager: NSObject, ObservableObject {
            let name = ud.string(forKey: Self.selectedProjectNameKey) {
             _selectedProject = Published(wrappedValue: ProjectInfo(id: id, name: name))
         }
+        let launchCount = ud.integer(forKey: "launchCount") + 1
+        ud.set(launchCount, forKey: "launchCount")
+        DiagnosticLog.shared.log("app launch #\(launchCount) mem=\(MemoryFootprint.residentMB())MB")
     }
 
     private func persistSelectedProject() {
@@ -504,16 +508,25 @@ final class WorkoutManager: NSObject, ObservableObject {
         let startDate = workoutStartDate ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil,
                                                      options: .strictStartDate)
+        // B1: Ø-Akkumulatoren vor Start zurücksetzen – anchor:nil liefert die komplette Historie,
+        // also wird Ø vollständig aus dem Stream neu aufgebaut (keine Doppelzählung nach Relaunch).
+        hrSum = 0
+        hrCount = 0
         let handler: @Sendable (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = {
             [weak self] _, samples, _, _, _ in
-            guard let bpm = (samples as? [HKQuantitySample])?.last?
-                .quantity.doubleValue(for: unit) else { return }
-            let finalBpm = bpm
+            guard let quantitySamples = samples as? [HKQuantitySample], !quantitySamples.isEmpty
+            else { return }
+            let bpms = quantitySamples.map { $0.quantity.doubleValue(for: unit) }
+            let lastBpm = bpms.last ?? 0
+            let batchMax = bpms.max() ?? 0
+            let batchSum = bpms.reduce(0, +)
+            let batchCount = bpms.count
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.heartRate = finalBpm
-                if finalBpm > self.maxHeartRate { self.maxHeartRate = finalBpm }
-                if finalBpm > 0 { self.hrSum += finalBpm; self.hrCount += 1 }
+                self.heartRate = lastBpm
+                if batchMax > self.maxHeartRate { self.maxHeartRate = batchMax }
+                self.hrSum += batchSum
+                self.hrCount += batchCount
             }
         }
         let q = HKAnchoredObjectQuery(type: hrType, predicate: predicate, anchor: nil,
@@ -528,6 +541,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         let startDate = workoutStartDate ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil,
                                                      options: .strictStartDate)
+        // B2: Akkumulator zurücksetzen – anchor:nil liefert die komplette Historie, die Summe
+        // wird vollständig neu aufgebaut (keine Doppelzählung nach Relaunch).
+        activeEnergyKcal = 0
         let handler: @Sendable (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = {
             [weak self] _, samples, _, _, _ in
             let delta = (samples as? [HKQuantitySample])?.reduce(0.0) {
@@ -556,6 +572,7 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     private func startTimer() {
         timer?.invalidate()
+        memTickCount = 0
         // A4: 2s-Intervall – TimelineView treibt die Uhranzeige, Timer nur für Sensoren + Broadcast.
         let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -573,6 +590,13 @@ final class WorkoutManager: NSObject, ObservableObject {
                 if self.liveStatusTickCount >= 5 {
                     self.liveStatusTickCount = 0
                     self.broadcastLiveStatus()
+                }
+                // Memory-Log + Snapshot alle 30 Ticks × 2s = 60s
+                self.memTickCount += 1
+                if self.memTickCount >= 30 {
+                    self.memTickCount = 0
+                    DiagnosticLog.shared.log("tick mem=\(MemoryFootprint.residentMB())MB hr=\(Int(self.heartRate)) max=\(Int(self.maxHeartRate))")
+                    self.savePendingSnapshot()
                 }
             }
         }

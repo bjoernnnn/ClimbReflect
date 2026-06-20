@@ -45,6 +45,12 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
         }
     }
 
+    // Diagnose-Log ans iPhone übertragen (transferUserInfo → zuverlässig auch im Hintergrund)
+    func sendDiagnostics(_ entries: [DiagnosticEntry]) {
+        guard let data = try? JSONEncoder().encode(entries) else { return }
+        WCSession.default.transferUserInfo(["diagnosticLog": data])
+    }
+
     // W5.3: Pending-Queue absenden wenn Verbindung wieder da
     private func flushPending() {
         guard !pendingDTOs.isEmpty else { return }

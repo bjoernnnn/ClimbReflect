@@ -238,6 +238,19 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
 - **Grad-Skalen:** Picker-Leiter (`Enums`) und `GradeConverter` divergieren – perspektivisch eine
   kanonische Leiter pro Disziplin.
 
+**S17 – `HKAnchoredObjectQuery` mit `anchor: nil` liefert beim (Neu-)Start die komplette
+  Historie seit dem Predicate-Start.** Akkumulatoren (`hrSum`, `hrCount`, `activeEnergyKcal`)
+  müssen deshalb **vor** `execute` auf 0 gesetzt und ausschließlich aus dem Stream rekonstruiert
+  werden – niemals zusätzlich aus einem Snapshot addieren (Doppelzählung). `maxHeartRate` ist
+  idempotent (immer das bisherige Maximum) und darf als Anzeige-Seed aus dem Snapshot gesetzt
+  bleiben.
+
+**S18 – Ein `maxHeartRate`-Reset auf die momentane HF nach Wiederöffnen ist der
+  Fingerabdruck eines App-Relaunch via `reattach()`.** Tritt er auf, wurde der Prozess neu
+  gestartet – die `HKWorkoutSession` selbst lebt (state=2). Ursache war: Snapshot beim Start
+  schreibt `maxHeartRate = nil` (noch 0); Streaming-Query nimmt nur `.last`-Sample → max = aktuelle
+  HF. Behoben in B1/B3: alle Samples auswerten + maxHeartRate als Seed aus Snapshot restoren.
+
 ---
 
 *Dieses Dokument bei jeder größeren Entscheidung/jedem Fix aktualisieren, damit der rote Faden

@@ -11,6 +11,8 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
     static let projectsKey = "knownProjects"
 
     @Published var liveStatus: WatchLiveStatus?
+    @Published var diagnosticLogText: String = ""
+    @Published var diagnosticLogFileURL: URL?
 
     private var modelContext: ModelContext?
 
@@ -88,6 +90,10 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
 
     nonisolated func session(_ session: WCSession,
                              didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        if let diagData = userInfo["diagnosticLog"] as? Data {
+            Task { @MainActor [self] in self.storeDiagnostics(diagData) }
+            return
+        }
         // Literal statt WatchSessionDTO.transferKey — nonisolated Kontext darf keine
         // @MainActor-isolierten statischen Properties lesen (SWIFT_DEFAULT_ACTOR_ISOLATION).
         guard let data = userInfo["watchSessionDTO"] as? Data else { return }
@@ -99,6 +105,22 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             self.liveStatus = nil
             LiveActivityController.shared.update(with: nil)
         }
+    }
+
+    @MainActor
+    private func storeDiagnostics(_ data: Data) {
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("watchDiagnostics.json")
+        try? data.write(to: url, options: .atomic)
+        diagnosticLogFileURL = url
+
+        struct Entry: Decodable { let timestamp: Date; let event: String }
+        guard let entries = try? JSONDecoder().decode([Entry].self, from: data) else { return }
+        let df = DateFormatter()
+        df.dateFormat = "HH:mm:ss"
+        diagnosticLogText = entries
+            .map { "\(df.string(from: $0.timestamp))  \($0.event)" }
+            .joined(separator: "\n")
     }
 
     // MARK: - Persistierung
