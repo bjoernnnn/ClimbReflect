@@ -12,11 +12,6 @@ struct DiagnosticView: View {
 
     var body: some View {
         List {
-            Text("Build: \(AppBuildInfo.marker)")
-                .font(.system(size: 9))
-                .foregroundStyle(WatchTheme.textTert)
-                .listRowBackground(Color.clear)
-
             if log.entries.isEmpty {
                 Text("Keine Einträge")
                     .font(.caption)
