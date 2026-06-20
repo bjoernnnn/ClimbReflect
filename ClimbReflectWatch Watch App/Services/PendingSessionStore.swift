@@ -14,6 +14,13 @@ struct PendingSession: Codable {
     let ascents: [WatchSessionDTO.AscentDTO]
     let accumulatedPaused: TimeInterval
 
+    // Optionals → alte Snapshots ohne diese Felder laden ohne Crash
+    var maxHeartRate: Double?
+    var hrSum: Double?
+    var hrCount: Int?
+    var activeEnergyKcal: Double?
+    var lastHeartRate: Double?
+
     var projectInfo: ProjectInfo? {
         guard let id = projectID, let name = projectName else { return nil }
         return ProjectInfo(id: id, name: name)

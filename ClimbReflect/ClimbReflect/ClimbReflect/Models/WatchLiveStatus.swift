@@ -6,6 +6,8 @@ struct WatchLiveStatus: Codable {
     let attemptCount: Int
     let isPaused: Bool
     let startedAt: Date
+    var heartRate: Double?
+    var activeEnergyKcal: Double?
 
     static let key = "watchLiveStatus"
 

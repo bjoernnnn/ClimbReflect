@@ -72,7 +72,12 @@ final class WorkoutManager: NSObject, ObservableObject {
             projectID: selectedProject?.id,
             projectName: selectedProject?.name,
             ascents: attempts.map { $0.toDTO() },
-            accumulatedPaused: accumulatedPaused
+            accumulatedPaused: accumulatedPaused,
+            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
+            hrSum: hrSum > 0 ? hrSum : nil,
+            hrCount: hrCount > 0 ? hrCount : nil,
+            activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil,
+            lastHeartRate: heartRate > 0 ? heartRate : nil
         )
         PendingSessionStore.save(snapshot)
     }
@@ -111,6 +116,11 @@ final class WorkoutManager: NSObject, ObservableObject {
                 self.selectedProject = ProjectInfo(id: id, name: name)
             }
             self.attempts = p.ascents.map { WatchAttempt(fromDTO: $0, sessionType: self.sessionType) }
+            if let max  = p.maxHeartRate   { self.maxHeartRate     = max  }
+            if let sum  = p.hrSum          { self.hrSum            = sum  }
+            if let cnt  = p.hrCount        { self.hrCount          = cnt  }
+            if let kcal = p.activeEnergyKcal { self.activeEnergyKcal = kcal }
+            if let hr   = p.lastHeartRate  { self.heartRate        = hr   }
         } else {
             // Kein Snapshot – startDate aus dem assoziierten Builder lesen (read-only, kein Collect)
             self.workoutStartDate = ws.associatedWorkoutBuilder().startDate
@@ -473,7 +483,9 @@ final class WorkoutManager: NSObject, ObservableObject {
             sessionTypeRaw: sessionType.rawValue,
             attemptCount: attempts.count,
             isPaused: isPaused,
-            startedAt: workoutStartDate ?? Date()
+            startedAt: workoutStartDate ?? Date(),
+            heartRate: heartRate > 0 ? heartRate : nil,
+            activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil
         )
         guard let data = try? JSONEncoder().encode(status) else { return }
         try? WCSession.default.updateApplicationContext([WatchLiveStatus.key: data])
