@@ -119,10 +119,11 @@ struct LiveSessionView: View {
                         quickResultOverlay
                     }
                 }
-
-            if !workoutManager.attempts.isEmpty {
-                historyPage
-            }
+            // TEST L-A: historyPage temporär deaktiviert – prüft ob verschachteltes TabView
+            // (Seitenzahl 1↔2) die Ursache des ~10 MB/min-Leaks ist.
+            // if !workoutManager.attempts.isEmpty {
+            //     historyPage
+            // }
         }
         .tabViewStyle(.verticalPage)
         .background(WatchTheme.bg)
