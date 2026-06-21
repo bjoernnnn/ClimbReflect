@@ -152,7 +152,7 @@ struct LiveSessionView: View {
                     .padding(.leading, 12)
                 Spacer(minLength: 0)
             }
-            .padding(.top, -12)
+            .padding(.top, +8)
 
             if !workoutManager.healthKitActive {
                 hkWarningBanner
