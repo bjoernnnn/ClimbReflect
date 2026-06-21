@@ -149,9 +149,10 @@ struct LiveSessionView: View {
             HStack {
                 elapsedView
                     .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
-                    .padding(.leading, 6)
+                    .padding(.leading, 12)
                 Spacer(minLength: 0)
             }
+            .padding(.top, -6)
 
             if !workoutManager.healthKitActive {
                 hkWarningBanner

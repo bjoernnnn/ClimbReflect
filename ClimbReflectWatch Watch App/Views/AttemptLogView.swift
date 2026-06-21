@@ -37,17 +37,21 @@ struct AttemptLogView: View {
     var body: some View {
         VStack(spacing: 6) {
             // Grad per Digital Crown
-            Text(gradeSystem.grades[gradeIndex])
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundStyle(WatchTheme.accent)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
-                .focusable(true)
-                .digitalCrownRotation(
-                    Binding(get: { Double(gradeIndex) },
-                            set: { gradeIndex = min(max(Int($0.rounded()), 0), gradeSystem.grades.count - 1) }),
-                    from: 0, through: Double(gradeSystem.grades.count - 1), by: 1,
-                    sensitivity: .low, isContinuous: false)
+            HStack {
+                Text(gradeSystem.grades[gradeIndex])
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(WatchTheme.accent)
+                    .padding(.leading, 12)
+                    .padding(.vertical, 4)
+                    .focusable(true)
+                    .digitalCrownRotation(
+                        Binding(get: { Double(gradeIndex) },
+                                set: { gradeIndex = min(max(Int($0.rounded()), 0), gradeSystem.grades.count - 1) }),
+                        from: 0, through: Double(gradeSystem.grades.count - 1), by: 1,
+                        sensitivity: .low, isContinuous: false)
+                Spacer(minLength: 0)
+            }
+            .padding(.top, -6)
 
             // Outcome-Grid
             LazyVGrid(columns: columns, spacing: 6) {
