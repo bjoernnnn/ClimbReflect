@@ -149,6 +149,7 @@ struct LiveSessionView: View {
             HStack {
                 elapsedView
                     .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
+                    .padding(.leading, 6)
                 Spacer(minLength: 0)
             }
 
