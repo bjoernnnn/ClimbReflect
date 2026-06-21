@@ -11,6 +11,7 @@ struct WatchSessionDTO: Codable, Sendable {
         let styleRaw: String?
         let attempts: Int
         let altitudeGain: Double
+        let durationSeconds: Double?
         let date: Date
         let sessionTypeRaw: String
         let projectName: String?

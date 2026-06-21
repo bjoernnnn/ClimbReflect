@@ -36,6 +36,11 @@ struct LiveSessionView: View {
             // P2-7.3: Sensoren nach Aufwachen sofort synchronisieren
             if !reduced { workoutManager.resyncSensors() }
         }
+        .onChange(of: workoutManager.attemptState) { _, state in
+            if case .awaitingResult = state, !workoutManager.isTraining {
+                currentTab = 2
+            }
+        }
         .onChange(of: currentTab) { _, tab in
             DiagnosticLog.shared.log("tab=\(tab) mem=\(MemoryFootprint.residentMB())MB")
         }
@@ -188,7 +193,7 @@ struct LiveSessionView: View {
 
             Spacer(minLength: 0)
 
-            actionStateIndicator.padding(.bottom, 4)
+            attemptActionButton.padding(.bottom, 4)
         }
         .padding(.horizontal, 8)
     }
@@ -206,30 +211,46 @@ struct LiveSessionView: View {
         }
     }
 
-    // MARK: - D1: Action-Button Indikator & Quick-Result-Overlay
+    // MARK: - C1: Versuch-Start/Stop-Button (On-Screen + Doppeltipp-Geste)
 
-    private var actionStateIndicator: some View {
-        Group {
-            switch workoutManager.attemptState {
-            case .idle:
-                EmptyView()
-            case .active:
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(WatchTheme.danger)
-                        .frame(width: 8, height: 8)
-                        .symbolEffect(.pulse, options: .repeating)
-                    Text("Versuch läuft")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(WatchTheme.danger)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(WatchTheme.danger.opacity(0.12))
-                .clipShape(Capsule())
-            case .awaitingResult:
-                EmptyView()
+    @ViewBuilder
+    private var attemptActionButton: some View {
+        switch workoutManager.attemptState {
+        case .idle:
+            Button { workoutManager.handleActionButton() } label: {
+                Label("Versuch starten", systemImage: "figure.climbing")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(WatchTheme.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(WatchTheme.accent.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
             }
+            .buttonStyle(.plain)
+            .handGestureShortcut(.primaryAction)
+
+        case .active(let startTime):
+            Button { workoutManager.handleActionButton() } label: {
+                VStack(spacing: 3) {
+                    TimelineView(.periodic(from: startTime, by: 1)) { _ in
+                        Text(formatDuration(Date().timeIntervalSince(startTime)))
+                            .font(.system(size: 11, design: .monospaced, weight: .semibold))
+                            .foregroundStyle(WatchTheme.danger)
+                    }
+                    Label("Stopp", systemImage: "stop.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(WatchTheme.danger)
+                        .frame(maxWidth: .infinity)
+                }
+                .padding(.vertical, 7)
+                .background(WatchTheme.danger.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+            .handGestureShortcut(.primaryAction)
+
+        case .awaitingResult:
+            EmptyView()
         }
     }
 
@@ -491,6 +512,11 @@ struct LiveSessionView: View {
             Text("00:00")
                 .font(.system(.title, design: .monospaced, weight: .bold))
         }
+    }
+
+    private func formatDuration(_ t: TimeInterval) -> String {
+        let s = Int(t)
+        return String(format: "%d:%02d", s / 60, s % 60)
     }
 
     private func formatElapsed(_ t: TimeInterval) -> String {

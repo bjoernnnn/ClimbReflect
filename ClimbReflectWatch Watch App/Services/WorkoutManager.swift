@@ -53,6 +53,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var lastMemMB = 0
     private var lastPublishedAltitudeInt: Int = -1  // A3: throttle altitude publish
     private var isFinishingIntentionally = false    // P1-2: kein doppeltes Ende
+    private var lastAttemptDurationSeconds: Double? = nil
 
     let altimeter = AltimeterService()
 
@@ -301,9 +302,10 @@ final class WorkoutManager: NSObject, ObservableObject {
             DiagnosticLog.shared.log("ascentTracking start mem=\(MemoryFootprint.residentMB())MB")
             Task { await altimeter.startAscentTracking() }
 
-        case .active:
+        case .active(let startTime):
+            lastAttemptDurationSeconds = Date().timeIntervalSince(startTime)
             attemptState = .awaitingResult
-            WKInterfaceDevice.current().play(.click)
+            WKInterfaceDevice.current().play(.stop)
 
         case .awaitingResult:
             break
@@ -315,12 +317,15 @@ final class WorkoutManager: NSObject, ObservableObject {
     func quickBank(result: WatchAscentResult) async {
         DiagnosticLog.shared.log("ascentTracking stop mem=\(MemoryFootprint.residentMB())MB")
         let gain = await altimeter.stopAscentTracking()
+        let duration = lastAttemptDurationSeconds
+        lastAttemptDurationSeconds = nil
         let attempt = WatchAttempt(
             gradeSystem: WatchGradeSystem(rawValue: UserDefaults.standard.string(forKey: "watchGradeSystem") ?? "fontainebleau") ?? sessionType.defaultGradeSystem,
             grade: nil,
             result: result,
             style: result == .top ? nil : nil,
             altitudeGain: gain,
+            durationSeconds: duration,
             heartRateAtBanking: heartRate > 0 ? heartRate : nil,
             sessionType: sessionType,
             projectInfo: selectedProject
@@ -371,12 +376,15 @@ final class WorkoutManager: NSObject, ObservableObject {
                      style: WatchAscentStyle?) async {
         DiagnosticLog.shared.log("ascentTracking stop mem=\(MemoryFootprint.residentMB())MB")
         let gain = await altimeter.stopAscentTracking()
+        let duration = lastAttemptDurationSeconds
+        lastAttemptDurationSeconds = nil
         let attempt = WatchAttempt(
             gradeSystem: gradeSystem,
             grade: grade,
             result: result,
             style: style,
             altitudeGain: gain,
+            durationSeconds: duration,
             heartRateAtBanking: heartRate > 0 ? heartRate : nil,
             sessionType: sessionType,
             projectInfo: selectedProject
@@ -481,6 +489,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         totalAltitudeGain = 0
         lastPublishedAltitudeInt = -1
         attemptState = .idle
+        lastAttemptDurationSeconds = nil
         trainingTarget = nil
         selectedProject = nil
         hrSum = 0

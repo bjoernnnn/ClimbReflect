@@ -59,6 +59,13 @@ struct AscentDetailView: View {
                                   valueColor: WatchTheme.danger)
                     }
 
+                    if let dur = attempt.durationSeconds, dur > 0 {
+                        Divider().background(WatchTheme.elevated)
+                        detailRow(icon: "timer",
+                                  label: "Dauer",
+                                  value: formatDuration(dur))
+                    }
+
                     if attempt.altitudeGain > 0.5 {
                         Divider().background(WatchTheme.elevated)
                         detailRow(icon: "arrow.up.right",
@@ -99,6 +106,11 @@ struct AscentDetailView: View {
             .padding(.vertical, 6)
         }
         .background(WatchTheme.bg)
+    }
+
+    private func formatDuration(_ t: Double) -> String {
+        let s = Int(t)
+        return String(format: "%d:%02d", s / 60, s % 60)
     }
 
     private func detailRow(icon: String, label: String, value: String,

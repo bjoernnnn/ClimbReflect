@@ -10,6 +10,7 @@ struct WatchAttempt: Identifiable {
     var style: WatchAscentStyle?
     var attempts: Int
     var altitudeGain: Double
+    var durationSeconds: Double?
     var heartRateAtBanking: Double?   // Snapshot der HF zum Zeitpunkt des Bankens
     var note: String?
     var date: Date
@@ -22,6 +23,7 @@ struct WatchAttempt: Identifiable {
          style: WatchAscentStyle? = nil,
          attempts: Int = 1,
          altitudeGain: Double = 0,
+         durationSeconds: Double? = nil,
          heartRateAtBanking: Double? = nil,
          note: String? = nil,
          sessionType: WatchSessionType = .boulder,
@@ -33,6 +35,7 @@ struct WatchAttempt: Identifiable {
         self.style = style
         self.attempts = attempts
         self.altitudeGain = altitudeGain
+        self.durationSeconds = durationSeconds
         self.heartRateAtBanking = heartRateAtBanking
         self.note = note
         self.date = .now
@@ -48,6 +51,7 @@ struct WatchAttempt: Identifiable {
         self.style       = dto.styleRaw.flatMap(WatchAscentStyle.init)
         self.attempts    = dto.attempts
         self.altitudeGain = dto.altitudeGain
+        self.durationSeconds = dto.durationSeconds
         self.heartRateAtBanking = nil
         self.note        = nil
         self.date        = dto.date
@@ -71,6 +75,7 @@ struct WatchAttempt: Identifiable {
             styleRaw: style?.rawValue,
             attempts: attempts,
             altitudeGain: altitudeGain,
+            durationSeconds: durationSeconds,
             date: date,
             sessionTypeRaw: sessionType.rawValue,
             projectName: projectInfo?.name,
