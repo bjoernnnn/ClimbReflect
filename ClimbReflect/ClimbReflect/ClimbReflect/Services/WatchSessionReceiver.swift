@@ -187,6 +187,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
                 session: climbSession
             )
             ascent.altitudeGain = ascentDTO.altitudeGain
+            ascent.durationSeconds = ascentDTO.durationSeconds
 
             // P2-7: Projekt-Relation aufbauen
             // ID vorhanden → nur per ID matchen, nie neu anlegen (iPhone ist Source of Truth)

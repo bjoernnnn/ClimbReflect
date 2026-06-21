@@ -23,6 +23,8 @@ final class Ascent {
 
     // Kletterhöhe (B1 – Watch-Barometer, optional manuell)
     var altitudeGain: Double = 0
+    // Versuchdauer aus dem Action-Button-Flow (optional, nur Watch)
+    var durationSeconds: Double?
 
     // Gym-/Set-Kontext (P3.13)
     var setName: String?               // z. B. "Gelb rechts", "Sektor B"

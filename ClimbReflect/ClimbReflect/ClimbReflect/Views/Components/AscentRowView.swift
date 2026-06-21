@@ -40,6 +40,10 @@ struct AscentRowView: View {
                              : "\(ascent.attempts) Versuch\(ascent.attempts == 1 ? "" : "e")")
                             .foregroundStyle(Theme.textSecondary)
                     }
+                    if let dur = ascent.durationSeconds, dur > 0 {
+                        Label(formatDuration(dur), systemImage: "timer")
+                            .foregroundStyle(Theme.textTertiary)
+                    }
                     if ascent.altitudeGain >= 1 {
                         Label(String(format: "%.0f m", ascent.altitudeGain),
                               systemImage: "arrow.up.right")
@@ -76,5 +80,10 @@ struct AscentRowView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func formatDuration(_ t: Double) -> String {
+        let s = Int(t)
+        return String(format: "%d:%02d", s / 60, s % 60)
     }
 }
