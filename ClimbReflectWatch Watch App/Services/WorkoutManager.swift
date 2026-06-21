@@ -195,7 +195,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         }
         let launchCount = ud.integer(forKey: "launchCount") + 1
         ud.set(launchCount, forKey: "launchCount")
-        DiagnosticLog.shared.log("app launch #\(launchCount) mem=\(MemoryFootprint.residentMB())MB")
+        DiagnosticLog.shared.log("app launch #\(launchCount) \(AppVersion.short) mem=\(MemoryFootprint.residentMB())MB")
     }
 
     private func persistSelectedProject() {

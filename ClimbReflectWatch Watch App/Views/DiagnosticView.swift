@@ -48,6 +48,14 @@ struct DiagnosticView: View {
             }
         }
         .navigationTitle("Diagnose")
+        .safeAreaInset(edge: .top) {
+            Text(AppVersion.short)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(WatchTheme.textSecond)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+                .background(WatchTheme.bg)
+        }
         .confirmationDialog("Log löschen?", isPresented: $showClearConfirm) {
             Button("Löschen", role: .destructive) { log.clear() }
             Button("Abbrechen", role: .cancel) {}

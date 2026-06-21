@@ -1,7 +1,7 @@
 import SwiftUI
 import WatchKit
 
-// Tab-Reihenfolge Klettern:  [Steuerung] ← [Session] → [Klassifizieren]
+// Tab-Reihenfolge Klettern:  [Steuerung] ← [Session] (AttemptLogView als Sheet, nicht Tab)
 // Tab-Reihenfolge Training:  [Steuerung] ← [Session]
 // Nach Ende: ContentView zeigt SessionEndFlowView via pendingSummaryDTO (Blackscreen-Fix)
 
@@ -9,6 +9,7 @@ struct LiveSessionView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     @ObservedObject private var syncService = SyncService.shared
     @State private var currentTab = 1
+    @State private var showAttemptSheet = false
     @State private var showEndConfirm = false
     @State private var selectedAttempt: WatchAttempt? = nil
     @State private var showDiscardConfirm = false
@@ -61,12 +62,14 @@ struct LiveSessionView: View {
         TabView(selection: $currentTab) {
             controlsPage.tag(0)
             sessionInfoPage.tag(1)
-            AttemptLogView(onBank: { currentTab = 1 }).tag(2)
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
         .background(WatchTheme.bg)
         .sheet(isPresented: $showProjectPicker) {
             projectPickerSheet
+        }
+        .sheet(isPresented: $showAttemptSheet) {
+            AttemptLogView(onBank: { showAttemptSheet = false })
         }
         .confirmationDialog("Session beenden?", isPresented: $showEndConfirm) {
             Button("Beenden", role: .destructive) {
@@ -157,6 +160,17 @@ struct LiveSessionView: View {
                           label: "Tops", icon: "checkmark.circle.fill",
                           color: WatchTheme.accent)
             }
+
+            Button { showAttemptSheet = true } label: {
+                Label("Versuch", systemImage: "plus.circle.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(WatchTheme.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(WatchTheme.accent.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
 
             // B1: pendingBanner entfernt (kein Auto-Detektor mehr)
 

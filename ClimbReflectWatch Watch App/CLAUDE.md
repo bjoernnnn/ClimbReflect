@@ -251,6 +251,22 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   schreibt `maxHeartRate = nil` (noch 0); Streaming-Query nimmt nur `.last`-Sample → max = aktuelle
   HF. Behoben in B1/B3: alle Samples auswerten + maxHeartRate als Seed aus Snapshot restoren.
 
+**S19 – Memory-Leak liegt in der verschachtelten Paging-`TabView`, nicht im Altimeter.**
+  Reproduziert: Speicher flach, bis Tab 2 (`AttemptLogView`) das erste Mal besucht wird; danach
+  linearer Anstieg ~10 MB/min bis Jetsam. Nach Recovery ohne Tab-2-Besuch flach trotz ascents.
+  Lehre: `.page`-TabView mit verschachteltem `.verticalPage`-TabView + 1-Hz-`TimelineView`
+  vermeiden; modale Sheets statt Swipe-Tabs für selten genutzte Views.
+
+**S20 – Korrelation ≠ Ursache (Altimeter-Fehlspur).** Das Auto-Re-Arm
+  (`startAscentTracking()` nach jedem Bank) ließ den Altimeter wie den Leak-Trigger aussehen,
+  weil Banken und Tracking gekoppelt waren. Erst Entkopplung (Subscription nur während echtem
+  Versuch) + Test über die AttemptLogView zeigte: Leak besteht ohne aktiven Altimeter.
+
+**S21 – Recovery nach Jetsam.** `recoverActiveWorkoutSession()` liefert bei laufender Session
+  `state=2` → `reattach()`. Liefert sie eine beendete Session oder `nil`, **muss**
+  `finalizeUnrecoverableSession()` laufen (DTO syncen + `clearLiveStatus()`), sonst läuft das
+  Handy weiter, während die Watch in der Auswahl steht. Recover-Logging gibt den Zweig preis.
+
 ---
 
 *Dieses Dokument bei jeder größeren Entscheidung/jedem Fix aktualisieren, damit der rote Faden
