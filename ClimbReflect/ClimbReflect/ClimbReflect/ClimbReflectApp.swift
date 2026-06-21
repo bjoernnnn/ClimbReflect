@@ -55,10 +55,17 @@ struct ClimbReflectApp: App {
         }
     }
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
             DashboardView()
         }
         .modelContainer(container)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                LiveActivityController.shared.retryIfNeeded()
+            }
+        }
     }
 }

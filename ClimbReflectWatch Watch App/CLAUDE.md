@@ -273,6 +273,11 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   Wheel-`Picker`). Lehre: schwere/zustandsbehaftete Views nicht dauerhaft als Pager-Tab halten;
   content-gaten oder als Sheet öffnen.
 
+**S26 – iPhone Live Activity lässt sich nur im Vordergrund starten** (`Activity.request`).
+  Watch startet Session → iPhone wacht im Hintergrund auf → `request()` schlägt fehl (still).
+  Fix: `lastStatus` puffern, bei `scenePhase == .active` `retryIfNeeded()` aufrufen → startet
+  beim nächsten Vordergrund-Werden. Echter Hintergrund-Start nur via Push-to-Start (APNs/Server).
+
 **S25 – System-Uhrzeit/Statusleiste ist in watchOS nicht ausblendbar** (Apple: Watch ist
   Zeitmessgerät). Inhalte oben **links** platzieren, um die Uhr oben rechts nicht zu
   überschneiden. VideoPlayer-Hack o. Ä. bewusst vermeiden – fragil und App-Store-Risiko.

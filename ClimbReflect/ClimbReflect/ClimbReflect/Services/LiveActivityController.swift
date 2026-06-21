@@ -6,10 +6,12 @@ final class LiveActivityController {
     static let shared = LiveActivityController()
 
     private var currentActivity: Activity<ClimbActivityAttributes>?
+    private var lastStatus: WatchLiveStatus?   // C2: Puffer für Vordergrund-Start
 
     private init() {}
 
     func update(with status: WatchLiveStatus?) {
+        lastStatus = status
         if let status {
             let state = ClimbActivityAttributes.ContentState(
                 startedAt: status.startedAt,
@@ -27,8 +29,24 @@ final class LiveActivityController {
         }
     }
 
+    // C2: beim Vordergrund-Werden erneut versuchen, falls kein laufendes Widget
+    func retryIfNeeded() {
+        guard currentActivity == nil, let status = lastStatus else { return }
+        let state = ClimbActivityAttributes.ContentState(
+            startedAt: status.startedAt,
+            isPaused: status.isPaused,
+            pausedElapsed: status.elapsedSeconds,
+            sessionTypeRaw: status.sessionTypeRaw
+        )
+        startActivity(state: state, sessionTypeRaw: status.sessionTypeRaw)
+    }
+
     private func startActivity(state: ClimbActivityAttributes.ContentState, sessionTypeRaw: String) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        let info = ActivityAuthorizationInfo()
+        guard info.areActivitiesEnabled else {
+            print("LiveActivity: areActivitiesEnabled=false – in Einstellungen aktivieren")
+            return
+        }
         let attrs = ClimbActivityAttributes(
             sportLabel: label(for: sessionTypeRaw),
             sportSymbol: symbol(for: sessionTypeRaw)
@@ -39,8 +57,9 @@ final class LiveActivityController {
                 content: .init(state: state, staleDate: nil),
                 pushType: nil
             )
+            print("LiveActivity gestartet: \(currentActivity?.id ?? "?")")
         } catch {
-            // Live Activity not available in Simulator — silently ignore
+            print("LiveActivity start fehlgeschlagen: \(error)")
         }
     }
 
@@ -50,6 +69,7 @@ final class LiveActivityController {
             await activity.end(nil as ActivityContent<ClimbActivityAttributes.ContentState>?, dismissalPolicy: .immediate)
         }
         currentActivity = nil
+        lastStatus = nil
     }
 
     private func label(for raw: String) -> String {

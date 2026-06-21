@@ -19,6 +19,10 @@ struct ClimbReflectWatchApp: App {
                 .task {
                     await workoutManager.requestAuthorization()
                     await workoutManager.recoverIfNeeded()
+                    // B2: Session starten falls Action Button gesetzt hat
+                    if !workoutManager.isRunning, let type = PendingStart.consume() {
+                        await workoutManager.startWorkout(type: type)
+                    }
                 }
         }
         .onChange(of: scenePhase) { _, phase in
