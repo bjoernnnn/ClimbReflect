@@ -273,6 +273,10 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   Wheel-`Picker`). Lehre: schwere/zustandsbehaftete Views nicht dauerhaft als Pager-Tab halten;
   content-gaten oder als Sheet öffnen.
 
+**S25 – System-Uhrzeit/Statusleiste ist in watchOS nicht ausblendbar** (Apple: Watch ist
+  Zeitmessgerät). Inhalte oben **links** platzieren, um die Uhr oben rechts nicht zu
+  überschneiden. VideoPlayer-Hack o. Ä. bewusst vermeiden – fragil und App-Store-Risiko.
+
 **S24 – Versuch-Start/Stopp läuft über die „Versuche"-Badge** (Tipp → gold + Timer; erneut
   → zurück zur Anzahl + Auto-Nav zu Tab 2). Kein separater Button → kein Layout-Shift.
   Auslöser zusätzlich per `.handGestureShortcut(.primaryAction)` (Doppeltipp). Verbose-Logging

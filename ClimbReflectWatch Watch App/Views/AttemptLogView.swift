@@ -32,21 +32,25 @@ struct AttemptLogView: View {
         Outcome(label: "Abbruch",  symbol: "xmark.circle.fill",      color: WatchTheme.danger, result: .quit,    style: nil),
     ]
 
-    private let columns = [GridItem(.flexible(), spacing: 5), GridItem(.flexible(), spacing: 5)]
+    private let columns = [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)]
 
     var body: some View {
         VStack(spacing: 6) {
-            // Grad-Wheel
-            Picker("Grad", selection: $gradeIndex) {
-                ForEach(0..<gradeSystem.grades.count, id: \.self) { i in
-                    Text(gradeSystem.grades[i]).tag(i)
-                }
-            }
-            .pickerStyle(.wheel)
-            .frame(height: 60)
+            // Grad per Digital Crown
+            Text(gradeSystem.grades[gradeIndex])
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchTheme.accent)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+                .focusable(true)
+                .digitalCrownRotation(
+                    Binding(get: { Double(gradeIndex) },
+                            set: { gradeIndex = min(max(Int($0.rounded()), 0), gradeSystem.grades.count - 1) }),
+                    from: 0, through: Double(gradeSystem.grades.count - 1), by: 1,
+                    sensitivity: .low, isContinuous: false)
 
             // Outcome-Grid
-            LazyVGrid(columns: columns, spacing: 5) {
+            LazyVGrid(columns: columns, spacing: 6) {
                 ForEach(outcomes) { outcome in
                     Button {
                         let grade = gradeSystem.grades[gradeIndex]
@@ -62,18 +66,18 @@ struct AttemptLogView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: outcome.symbol)
-                                .font(.system(size: 12))
+                                .font(.system(size: 15))
                                 .foregroundStyle(outcome.color)
-                                .frame(width: 14)
+                                .frame(width: 18)
                             Text(outcome.label)
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(WatchTheme.textPrimary)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)
                                 .truncationMode(.tail)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 9)
+                        .padding(.vertical, 14)
                         .padding(.horizontal, 8)
                         .background(WatchTheme.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 9))
@@ -83,7 +87,7 @@ struct AttemptLogView: View {
             }
 
         }
-        .padding(.horizontal, 7)
+        .padding(.horizontal, 3)
         .padding(.top, 4)
         .background(WatchTheme.bg)
         .onAppear {

@@ -145,11 +145,12 @@ struct LiveSessionView: View {
     }
 
     private var statsPage: some View {
-        VStack(spacing: 8) {
-            Spacer(minLength: 0)
-
-            elapsedView
-                .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
+        VStack(spacing: 6) {
+            HStack {
+                elapsedView
+                    .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
+                Spacer(minLength: 0)
+            }
 
             if !workoutManager.healthKitActive {
                 hkWarningBanner
@@ -191,7 +192,7 @@ struct LiveSessionView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 3)
     }
 
     private var historyPage: some View {
@@ -213,25 +214,17 @@ struct LiveSessionView: View {
     private var attemptToggleBadge: some View {
         Button { workoutManager.handleActionButton() } label: {
             if case .active(let startTime) = workoutManager.attemptState {
-                HStack(spacing: 5) {
-                    Image(systemName: "stop.circle.fill")
-                        .foregroundStyle(WatchTheme.gold)
-                        .font(.system(size: 11))
-                    VStack(alignment: .leading, spacing: 0) {
-                        TimelineView(.periodic(from: startTime, by: 1)) { _ in
-                            Text(formatDuration(Date().timeIntervalSince(startTime)))
-                                .font(.system(size: 16, weight: .bold, design: .monospaced))
-                                .foregroundStyle(WatchTheme.gold)
-                        }
-                        Text("läuft")
-                            .font(.system(size: 9))
-                            .foregroundStyle(WatchTheme.gold)
-                    }
+                TimelineView(.periodic(from: startTime, by: 1)) { _ in
+                    Text(formatDuration(Date().timeIntervalSince(startTime)))
+                        .font(.system(size: 22, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.orange)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 10)
-                .background(WatchTheme.gold.opacity(0.18))
+                .padding(.vertical, 12)
+                .padding(.horizontal, 8)
+                .background(Color.orange.opacity(0.18))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             } else {
                 statBadge(value: "\(workoutManager.attempts.count)",
@@ -569,7 +562,7 @@ struct LiveSessionView: View {
             Image(systemName: icon).foregroundStyle(color).font(.system(size: 11))
             VStack(alignment: .leading, spacing: 0) {
                 Text(value)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(WatchTheme.textPrimary)
                 Text(label)
                     .font(.system(size: 9))
@@ -577,7 +570,7 @@ struct LiveSessionView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
         .padding(.horizontal, 10)
         .background(WatchTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
