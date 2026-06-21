@@ -234,7 +234,7 @@ struct LiveSessionView: View {
                 VStack(spacing: 3) {
                     TimelineView(.periodic(from: startTime, by: 1)) { _ in
                         Text(formatDuration(Date().timeIntervalSince(startTime)))
-                            .font(.system(size: 11, design: .monospaced, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
                             .foregroundStyle(WatchTheme.danger)
                     }
                     Label("Stopp", systemImage: "stop.fill")
