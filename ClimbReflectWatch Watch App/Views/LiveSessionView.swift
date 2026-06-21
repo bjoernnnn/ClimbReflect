@@ -42,10 +42,10 @@ struct LiveSessionView: View {
             }
         }
         .onChange(of: currentTab) { _, tab in
-            DiagnosticLog.shared.log("tab=\(tab) mem=\(MemoryFootprint.residentMB())MB")
+            DiagnosticLog.shared.logVerbose("tab=\(tab) mem=\(MemoryFootprint.residentMB())MB")
         }
         .onChange(of: showProjectPicker) { _, open in
-            DiagnosticLog.shared.log("projectPicker \(open ? "open" : "close") mem=\(MemoryFootprint.residentMB())MB")
+            DiagnosticLog.shared.logVerbose("projectPicker \(open ? "open" : "close") mem=\(MemoryFootprint.residentMB())MB")
         }
         .onAppear {
             // E2: iPhone-Befehle verarbeiten
@@ -160,9 +160,7 @@ struct LiveSessionView: View {
                 .opacity(isLuminanceReduced ? 0.6 : 1.0)
 
             HStack(spacing: 8) {
-                statBadge(value: "\(workoutManager.attempts.count)",
-                          label: "Versuche", icon: "figure.climbing",
-                          color: WatchTheme.textSecond)
+                attemptToggleBadge
                 statBadge(value: "\(topCount)",
                           label: "Tops", icon: "checkmark.circle.fill",
                           color: WatchTheme.accent)
@@ -192,8 +190,6 @@ struct LiveSessionView: View {
             }
 
             Spacer(minLength: 0)
-
-            attemptActionButton.padding(.bottom, 4)
         }
         .padding(.horizontal, 8)
     }
@@ -211,47 +207,40 @@ struct LiveSessionView: View {
         }
     }
 
-    // MARK: - C1: Versuch-Start/Stop-Button (On-Screen + Doppeltipp-Geste)
+    // MARK: - C1: Versuche-Badge als Start/Stopp-Schalter (Doppeltipp-Geste)
 
     @ViewBuilder
-    private var attemptActionButton: some View {
-        switch workoutManager.attemptState {
-        case .idle:
-            Button { workoutManager.handleActionButton() } label: {
-                Label("Versuch starten", systemImage: "figure.climbing")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(WatchTheme.accent)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(WatchTheme.accent.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
-            .buttonStyle(.plain)
-            .handGestureShortcut(.primaryAction)
-
-        case .active(let startTime):
-            Button { workoutManager.handleActionButton() } label: {
-                VStack(spacing: 3) {
-                    TimelineView(.periodic(from: startTime, by: 1)) { _ in
-                        Text(formatDuration(Date().timeIntervalSince(startTime)))
-                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(WatchTheme.danger)
+    private var attemptToggleBadge: some View {
+        Button { workoutManager.handleActionButton() } label: {
+            if case .active(let startTime) = workoutManager.attemptState {
+                HStack(spacing: 5) {
+                    Image(systemName: "stop.circle.fill")
+                        .foregroundStyle(WatchTheme.gold)
+                        .font(.system(size: 11))
+                    VStack(alignment: .leading, spacing: 0) {
+                        TimelineView(.periodic(from: startTime, by: 1)) { _ in
+                            Text(formatDuration(Date().timeIntervalSince(startTime)))
+                                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                .foregroundStyle(WatchTheme.gold)
+                        }
+                        Text("läuft")
+                            .font(.system(size: 9))
+                            .foregroundStyle(WatchTheme.gold)
                     }
-                    Label("Stopp", systemImage: "stop.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(WatchTheme.danger)
-                        .frame(maxWidth: .infinity)
                 }
-                .padding(.vertical, 7)
-                .background(WatchTheme.danger.opacity(0.12))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 10)
+                .background(WatchTheme.gold.opacity(0.18))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else {
+                statBadge(value: "\(workoutManager.attempts.count)",
+                          label: "Versuche", icon: "figure.climbing",
+                          color: WatchTheme.textSecond)
             }
-            .buttonStyle(.plain)
-            .handGestureShortcut(.primaryAction)
-
-        case .awaitingResult:
-            EmptyView()
         }
+        .buttonStyle(.plain)
+        .handGestureShortcut(.primaryAction)
     }
 
     @ViewBuilder

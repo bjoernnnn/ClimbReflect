@@ -273,6 +273,11 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   Wheel-`Picker`). Lehre: schwere/zustandsbehaftete Views nicht dauerhaft als Pager-Tab halten;
   content-gaten oder als Sheet öffnen.
 
+**S24 – Versuch-Start/Stopp läuft über die „Versuche"-Badge** (Tipp → gold + Timer; erneut
+  → zurück zur Anzahl + Auto-Nav zu Tab 2). Kein separater Button → kein Layout-Shift.
+  Auslöser zusätzlich per `.handGestureShortcut(.primaryAction)` (Doppeltipp). Verbose-Logging
+  über `DiagnosticLog.isVerbose`-Schalter (Standard: aus) kontrollierbar.
+
 **S23 – Action Button (Watch Ultra) ist für Dritt-Apps nur via App Intents ansprechbar**
   (Start-/Shortcut-Modell), **kein** Live-Toggle in der laufenden App. In-App-Ersatz:
   On-Screen-Button + `.handGestureShortcut(.primaryAction)` (Doppeltipp).

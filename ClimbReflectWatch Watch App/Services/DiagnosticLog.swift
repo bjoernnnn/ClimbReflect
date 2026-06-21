@@ -34,6 +34,16 @@ final class DiagnosticLog: ObservableObject {
 
     private init() { load() }
 
+    var isVerbose: Bool {
+        get { UserDefaults.standard.bool(forKey: "diagVerbose") }
+        set { UserDefaults.standard.set(newValue, forKey: "diagVerbose") }
+    }
+
+    func logVerbose(_ event: String) {
+        guard isVerbose else { return }
+        log(event)
+    }
+
     func log(_ event: String, flushImmediately: Bool = false) {
         let entry = DiagnosticEntry(event)
         entries.append(entry)

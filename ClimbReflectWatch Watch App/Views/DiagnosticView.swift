@@ -40,6 +40,15 @@ struct DiagnosticView: View {
                         .foregroundStyle(WatchTheme.accent)
                 }
 
+                Toggle(isOn: Binding(
+                    get: { log.isVerbose },
+                    set: { log.isVerbose = $0 }
+                )) {
+                    Text("Ausführlich")
+                        .font(.caption)
+                        .foregroundStyle(WatchTheme.textSecond)
+                }
+
                 Button(role: .destructive) { showClearConfirm = true } label: {
                     Text("Log löschen")
                         .font(.caption)

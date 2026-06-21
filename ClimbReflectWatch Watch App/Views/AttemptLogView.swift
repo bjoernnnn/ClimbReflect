@@ -88,10 +88,10 @@ struct AttemptLogView: View {
         .background(WatchTheme.bg)
         .onAppear {
             gradeIndex = gradeSystem.grades.count / 2
-            DiagnosticLog.shared.log("AttemptLogView appear mem=\(MemoryFootprint.residentMB())MB")
+            DiagnosticLog.shared.logVerbose("AttemptLogView appear mem=\(MemoryFootprint.residentMB())MB")
         }
         .onDisappear {
-            DiagnosticLog.shared.log("AttemptLogView disappear mem=\(MemoryFootprint.residentMB())MB")
+            DiagnosticLog.shared.logVerbose("AttemptLogView disappear mem=\(MemoryFootprint.residentMB())MB")
         }
     }
 }

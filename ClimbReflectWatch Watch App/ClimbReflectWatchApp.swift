@@ -22,6 +22,7 @@ struct ClimbReflectWatchApp: App {
                 }
         }
         .onChange(of: scenePhase) { _, phase in
+            if phase == .background { DiagnosticLog.shared.flush() }
             let name: String
             switch phase {
             case .active:     name = "active"
@@ -29,8 +30,7 @@ struct ClimbReflectWatchApp: App {
             case .background: name = "background"
             @unknown default: name = "unknown"
             }
-            DiagnosticLog.shared.log("scenePhase=\(name) mem=\(MemoryFootprint.residentMB())MB",
-                                     flushImmediately: phase == .background)
+            DiagnosticLog.shared.logVerbose("scenePhase=\(name) mem=\(MemoryFootprint.residentMB())MB")
         }
     }
 }

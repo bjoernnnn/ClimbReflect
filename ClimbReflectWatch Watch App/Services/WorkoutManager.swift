@@ -630,7 +630,7 @@ final class WorkoutManager: NSObject, ObservableObject {
                     let d = m - self.lastMemMB
                     self.lastMemMB = m
                     let sign = d >= 0 ? "+" : ""
-                    DiagnosticLog.shared.log("tick mem=\(m)MB \u{0394}=\(sign)\(d) hr=\(Int(self.heartRate)) max=\(Int(self.maxHeartRate))")
+                    DiagnosticLog.shared.logVerbose("tick mem=\(m)MB \u{0394}=\(sign)\(d) hr=\(Int(self.heartRate)) max=\(Int(self.maxHeartRate))")
                     self.savePendingSnapshot()
                 }
             }
