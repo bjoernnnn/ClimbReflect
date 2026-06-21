@@ -267,6 +267,16 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   `finalizeUnrecoverableSession()` laufen (DTO syncen + `clearLiveStatus()`), sonst läuft das
   Handy weiter, während die Watch in der Auswahl steht. Recover-Logging gibt den Zweig preis.
 
+**S22 – Memory-Leak war AttemptLogView als Dauer-Tab in der Paging-`TabView`.** Als modales
+  Sheet (oder content-gated: `if currentTab == 2 { AttemptLogView(…) } else { Color.clear }`)
+  flach; als dauerhaft gehaltener Swipe-Tab Leak (~10 MB/min, vermutlich retainierter
+  Wheel-`Picker`). Lehre: schwere/zustandsbehaftete Views nicht dauerhaft als Pager-Tab halten;
+  content-gaten oder als Sheet öffnen.
+
+**S23 – Action Button (Watch Ultra) ist für Dritt-Apps nur via App Intents ansprechbar**
+  (Start-/Shortcut-Modell), **kein** Live-Toggle in der laufenden App. In-App-Ersatz:
+  On-Screen-Button + `.handGestureShortcut(.primaryAction)` (Doppeltipp).
+
 ---
 
 *Dieses Dokument bei jeder größeren Entscheidung/jedem Fix aktualisieren, damit der rote Faden
