@@ -8,6 +8,14 @@ struct SessionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
     @State private var showAddAscent = false
+    @State private var showLocationEditor = false
+    @State private var editedShoe: Ascent? = nil
+
+    // ST-2: distinct gymNames aus allen Sessions
+    @Query(sort: \ClimbSession.date, order: .reverse) private var allSessions: [ClimbSession]
+    private var knownGymNames: [String] {
+        Array(Set(allSessions.compactMap(\.gymName).filter { !$0.isEmpty })).sorted()
+    }
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -101,8 +109,70 @@ struct SessionDetailView: View {
                 .font(.subheadline.weight(.semibold))
                 .card()
             }
+            // SI-2/SI-3: Session-Insights
+            insightsSection
         }
         .padding(.top, 8)
+    }
+
+    // MARK: - Session-Insights (SI-2 / SI-3)
+
+    @ViewBuilder
+    private var insightsSection: some View {
+        let insights = StatsEngine.insights(for: session)
+        if session.isClimbing {
+            if insights.hasAttemptTimes {
+                SessionTimeDonut(insights: insights)
+                insightsMetrics(insights: insights)
+            } else if session.durationSeconds > 0 {
+                Text("Zur Zeitaufteilung gibt es für diese Session keine Daten – Aktivzeit wird nur bei Watch-Sessions mit Start/Stopp pro Versuch gemessen.")
+                    .font(.caption).foregroundStyle(Theme.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card()
+                insightsMetrics(insights: insights)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func insightsMetrics(insights: StatsEngine.SessionInsights) -> some View {
+        let items: [(label: String, value: String, symbol: String, color: Color)?] = [
+            insights.hasAttemptTimes ? ("Aktivzeit",
+                formatMinutes(insights.activeSeconds),
+                "figure.climbing", Theme.accent) : nil,
+            insights.avgAttemptSeconds.map { ("Ø Versuch",
+                formatSeconds($0), "timer", Theme.accent2) },
+            insights.load.map { ("Belastung (sRPE)",
+                "\($0)", "gauge.medium", Theme.gold) },
+            insights.successRate.map { ("Erfolgsquote",
+                "\(Int($0 * 100))%", "percent", Theme.textSecondary) },
+            insights.hardestTopGrade.map { ("Top-Grad",
+                $0, "trophy", Theme.gold) },
+        ]
+        let valid = items.compactMap { $0 }
+        if !valid.isEmpty {
+            let cols = valid.count >= 4
+                ? [GridItem(.flexible()), GridItem(.flexible())]
+                : [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+            VStack(alignment: .leading, spacing: 14) {
+                LazyVGrid(columns: cols, spacing: 10) {
+                    ForEach(Array(valid.enumerated()), id: \.offset) { _, item in
+                        metricTile(item.label, value: item.value, symbol: item.symbol, color: item.color)
+                    }
+                }
+            }
+            .card()
+        }
+    }
+
+    private func formatMinutes(_ seconds: Double) -> String {
+        let m = Int(seconds / 60)
+        return "\(m) Min"
+    }
+
+    private func formatSeconds(_ t: Double) -> String {
+        let s = Int(t)
+        return String(format: "%d:%02d", s / 60, s % 60)
     }
 
     // MARK: - Begehungen-Sektion (zweiter Screen)
@@ -142,10 +212,109 @@ struct SessionDetailView: View {
                 }
                 .font(.caption)
                 .foregroundStyle(Theme.textSecondary)
+                // ST-1: Standort-Chip
+                if session.outdoor {
+                    Label("Outdoor", systemImage: "mountain.2.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.accent2)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Theme.accent2.opacity(0.12)))
+                } else if let gym = session.gymName, !gym.isEmpty {
+                    Label(gym, systemImage: "building.2.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.accent2)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Theme.accent2.opacity(0.12)))
+                }
             }
             Spacer()
+            // ST-2: Standort-Editor öffnen
+            Button {
+                showLocationEditor.toggle()
+            } label: {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 16))
+                    .foregroundStyle(session.outdoor || (session.gymName != nil) ? Theme.accent2 : Theme.textTertiary)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.top, 8)
+        .sheet(isPresented: $showLocationEditor) {
+            locationEditorSheet
+        }
+    }
+
+    // MARK: - ST-2: Standort-Editor
+
+    private var locationEditorSheet: some View {
+        NavigationStack {
+            ZStack {
+                Theme.bg.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 20) {
+                    Toggle("Outdoor", isOn: Binding(
+                        get: { session.outdoor },
+                        set: { session.outdoor = $0; session.updatedAt = .now }
+                    ))
+                    .tint(Theme.accent)
+                    .foregroundStyle(Theme.textPrimary)
+
+                    if !session.outdoor {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Halle")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Theme.textSecondary)
+
+                            TextField("Hallenname", text: Binding(
+                                get: { session.gymName ?? "" },
+                                set: { session.gymName = $0.isEmpty ? nil : $0; session.updatedAt = .now }
+                            ))
+                            .foregroundStyle(Theme.textPrimary)
+                            .padding(12)
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
+
+                            // Quick-Pick aus bekannten Hallen
+                            if !knownGymNames.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(knownGymNames, id: \.self) { gym in
+                                            Button {
+                                                session.gymName = gym
+                                                session.updatedAt = .now
+                                            } label: {
+                                                Text(gym)
+                                                    .font(.caption.weight(.semibold))
+                                                    .padding(.horizontal, 12)
+                                                    .padding(.vertical, 6)
+                                                    .background(Capsule().fill(
+                                                        session.gymName == gym ? Theme.accent : Theme.bgElevated
+                                                    ))
+                                                    .foregroundStyle(session.gymName == gym ? Theme.bg : Theme.textSecondary)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer()
+                }
+                .padding(20)
+            }
+            .navigationTitle("Standort")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Fertig") { showLocationEditor = false }
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 
     // MARK: - Vitalwerte
@@ -241,10 +410,15 @@ struct SessionDetailView: View {
                 VStack(spacing: 0) {
                     ForEach(sorted) { ascent in
                         AscentRowView(ascent: ascent)
+                            .contentShape(Rectangle())
+                            .onTapGesture { editedShoe = ascent }
                         if ascent.id != sorted.last?.id {
                             Divider().background(Theme.surfaceStroke)
                         }
                     }
+                }
+                .sheet(item: $editedShoe) { ascent in
+                    EditAscentAssociationsSheet(ascent: ascent)
                 }
 
                 let tops = sorted.filter { $0.result == .top }
