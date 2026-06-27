@@ -273,6 +273,19 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   Wheel-`Picker`). Lehre: schwere/zustandsbehaftete Views nicht dauerhaft als Pager-Tab halten;
   content-gaten oder als Sheet öffnen.
 
+**S27 – Aktivzeit ist gemessen, nie geschätzt.**
+  Zeitaufteilung in den Session-Insights basiert ausschließlich auf `Ascent.durationSeconds`
+  (gemessen im Watch-Start/Stopp-Flow). Ohne Daten: Hinweistext anzeigen (oder Diagramm
+  ausblenden), **nie** schätzen oder interpolieren (Vorgabe S6). Kennzahlen leben in
+  `StatsEngine.insights(for:)`.
+
+**S28 – Schuh spiegelt die Projekt-Architektur.**
+  `Shoe`-Modell (SwiftData) ist erstklassig wie `Project`. iPhone = Source of Truth
+  (Anlage nur dort). Watch wählt aus `knownShoes`/`selectedShoe`; Snapshot beim Banken in
+  `WatchAttempt.shoeInfo`. Empfang ohne Auto-Anlegen: bei unbekannter ID/Name bleibt
+  `ascent.shoe = nil`, `shoeName`-Cache bleibt erhalten. `deleteRule: .nullify` – Schuh
+  löschen entfernt keine Begehungen aus der Statistik.
+
 **S26 – iPhone Live Activity lässt sich nur im Vordergrund starten** (`Activity.request`).
   Watch startet Session → iPhone wacht im Hintergrund auf → `request()` schlägt fehl (still).
   Fix: `lastStatus` puffern, bei `scenePhase == .active` `retryIfNeeded()` aufrufen → startet
