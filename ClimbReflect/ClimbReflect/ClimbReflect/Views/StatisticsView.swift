@@ -28,11 +28,15 @@ struct StatisticsView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 24) {
                             ProgressChartView(points: weekly)
+                            EfficiencyTrendView(sessions: sessions)
+                            GradeProgressView(sessions: sessions)
                             RPETrendView(sessions: sessions)
-                            LimiterFrequencyView(sessions: sessions)
-                            SessionTypeChartView(sessions: sessions)
+                            LoadManagementView(sessions: sessions)
                             GradePyramidView(sessions: sessions)
+                            TerrainHeatmapView(sessions: sessions)
+                            LimiterFrequencyView(sessions: sessions)
                             AntistyleRadarView(sessions: sessions)
+                            SessionTypeChartView(sessions: sessions)
                             WeeklyRecapView(sessions: sessions)
                         }
                         .padding(.horizontal, 20)

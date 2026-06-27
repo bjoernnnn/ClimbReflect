@@ -111,6 +111,11 @@ struct SessionDetailView: View {
             }
             // SI-2/SI-3: Session-Insights
             insightsSection
+
+            // A3: Session-Verlauf
+            if session.isClimbing {
+                SessionFatigueView(session: session)
+            }
         }
         .padding(.top, 8)
     }
@@ -465,6 +470,10 @@ struct SessionDetailView: View {
 
             Divider().background(Theme.surfaceStroke)
 
+            focusRatingPicker
+
+            Divider().background(Theme.surfaceStroke)
+
             reflectionField(
                 "Was habe ich gelernt?",
                 icon: "lightbulb.fill",
@@ -628,6 +637,7 @@ struct SessionDetailView: View {
             session.perceivedEffort != nil ||
             !session.limiterRaw.isEmpty ||
             !session.techniqueFocusesRaw.isEmpty ||
+            session.focusRating != nil ||
             session.learned != nil ||
             session.hardestPart != nil ||
             session.improveNext != nil
@@ -683,6 +693,61 @@ struct SessionDetailView: View {
                     .buttonStyle(.plain)
                 }
             }
+        }
+    }
+
+    // MARK: - Fokus-Bewertung (A7)
+
+    private var focusRatingPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Fokus-Bewertung")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textSecondary)
+                Spacer()
+                if session.focusRating != nil {
+                    Button("Löschen") {
+                        session.focusRating = nil
+                        updateReflectionCompleted()
+                        session.updatedAt = .now
+                    }
+                    .font(.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                }
+            }
+
+            HStack(spacing: 8) {
+                ForEach(1...5, id: \.self) { star in
+                    let active = (session.focusRating ?? 0) >= star
+                    Button {
+                        session.focusRating = session.focusRating == star ? nil : star
+                        updateReflectionCompleted()
+                        session.updatedAt = .now
+                    } label: {
+                        Image(systemName: active ? "star.fill" : "star")
+                            .font(.system(size: 26))
+                            .foregroundStyle(active ? Theme.gold : Theme.bgElevated)
+                    }
+                    .buttonStyle(.plain)
+                    .animation(.easeInOut(duration: 0.1), value: session.focusRating)
+                }
+                Spacer()
+                if let r = session.focusRating {
+                    Text(focusRatingLabel(r))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+        }
+    }
+
+    private func focusRatingLabel(_ r: Int) -> String {
+        switch r {
+        case 1: return "Abgelenkt"
+        case 2: return "Wenig Fokus"
+        case 3: return "Okay"
+        case 4: return "Fokussiert"
+        default: return "Im Flow"
         }
     }
 

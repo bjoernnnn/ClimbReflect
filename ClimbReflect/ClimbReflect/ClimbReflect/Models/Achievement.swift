@@ -502,6 +502,235 @@ enum StatsEngine {
         )
     }
 
+    // MARK: - A1: Effizienz-Trend
+
+    struct EfficiencyPoint: Identifiable {
+        let id = UUID()
+        let monthStart: Date
+        let avgAttemptsToTop: Double?
+        let flashRate: Double?
+    }
+
+    static func efficiencyTrend(_ sessions: [ClimbSession], months: Int = 6,
+                                calendar: Calendar = .current) -> [EfficiencyPoint] {
+        var cal = calendar
+        cal.firstWeekday = 2
+        let now = Date()
+        return (0..<months).reversed().compactMap { offset -> EfficiencyPoint? in
+            let refDate = cal.date(byAdding: .month, value: -offset, to: now) ?? now
+            let comps = cal.dateComponents([.year, .month], from: refDate)
+            guard let monthStart = cal.date(from: comps),
+                  let monthEnd = cal.date(byAdding: .month, value: 1, to: monthStart)
+            else { return nil }
+            let tops = climbing(sessions)
+                .filter { $0.date >= monthStart && $0.date < monthEnd }
+                .flatMap(\.ascents)
+                .filter { $0.result == .top }
+            let flashes = tops.filter { $0.style == .flash }
+            return EfficiencyPoint(
+                monthStart: monthStart,
+                avgAttemptsToTop: tops.isEmpty ? nil : Double(tops.reduce(0) { $0 + $1.attempts }) / Double(tops.count),
+                flashRate: tops.isEmpty ? nil : Double(flashes.count) / Double(tops.count)
+            )
+        }
+    }
+
+    // MARK: - A2: Terrain-Heatmap
+
+    struct TerrainCell: Identifiable {
+        var id: String { "\(wallAngle.rawValue)_\(holdType.rawValue)" }
+        let wallAngle: WallAngle
+        let holdType: HoldType
+        let sendRate: Double
+        let count: Int
+    }
+
+    static func terrainSendRates(_ sessions: [ClimbSession]) -> [TerrainCell] {
+        let all = climbing(sessions).flatMap(\.ascents)
+        var cells: [TerrainCell] = []
+        for angle in WallAngle.allCases {
+            for hold in HoldType.allCases {
+                let group = all.filter { $0.wallAngle == angle && $0.holdType == hold }
+                guard !group.isEmpty else { continue }
+                let tops = group.filter { $0.result == .top }.count
+                cells.append(TerrainCell(
+                    wallAngle: angle, holdType: hold,
+                    sendRate: Double(tops) / Double(group.count),
+                    count: group.count
+                ))
+            }
+        }
+        return cells
+    }
+
+    // MARK: - A4: Höchstgrad-Trend
+
+    struct GradeTrendPoint: Identifiable {
+        let id = UUID()
+        let monthStart: Date
+        let sortOrder: Int
+        let grade: String
+        let system: GradeSystem
+    }
+
+    static func maxGradeTrend(_ sessions: [ClimbSession], months: Int = 6,
+                              calendar: Calendar = .current) -> [GradeTrendPoint] {
+        var cal = calendar
+        cal.firstWeekday = 2
+        let now = Date()
+        return (0..<months).reversed().compactMap { offset -> GradeTrendPoint? in
+            let refDate = cal.date(byAdding: .month, value: -offset, to: now) ?? now
+            let comps = cal.dateComponents([.year, .month], from: refDate)
+            guard let monthStart = cal.date(from: comps),
+                  let monthEnd = cal.date(byAdding: .month, value: 1, to: monthStart)
+            else { return nil }
+            let tops = climbing(sessions)
+                .filter { $0.date >= monthStart && $0.date < monthEnd }
+                .flatMap(\.ascents)
+                .filter { $0.result == .top }
+            guard let best = tops.max(by: { $0.sortOrder < $1.sortOrder }) else { return nil }
+            return GradeTrendPoint(monthStart: monthStart, sortOrder: best.sortOrder,
+                                   grade: best.gradeRaw, system: best.gradeSystem)
+        }
+    }
+
+    // MARK: - A5: Trainingsbelastung & ACWR
+
+    struct WeekLoad: Identifiable {
+        let id = UUID()
+        let weekStart: Date
+        let load: Int
+        let acwr: Double?
+
+        var label: String {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "de_DE")
+            f.dateFormat = "dd.MM."
+            return f.string(from: weekStart)
+        }
+    }
+
+    static func trainingLoad(_ sessions: [ClimbSession], weeks: Int = 8,
+                             calendar: Calendar = .current) -> [WeekLoad] {
+        var cal = calendar
+        cal.firstWeekday = 2
+        let now = Date()
+        guard let thisWeekStart = cal.dateInterval(of: .weekOfYear, for: now)?.start
+        else { return [] }
+
+        let historyWeeks = 8
+        var rawLoads: [Int] = []
+        var weekStarts: [Date] = []
+        for offset in stride(from: historyWeeks - 1, through: 0, by: -1) {
+            guard let start = cal.date(byAdding: .weekOfYear, value: -offset, to: thisWeekStart),
+                  let end = cal.date(byAdding: .weekOfYear, value: 1, to: start)
+            else { continue }
+            let inWeek = sessions.filter { $0.date >= start && $0.date < end }
+            let load = inWeek.reduce(0) { acc, s in
+                acc + (s.perceivedEffort ?? 5) * s.durationMinutes
+            }
+            rawLoads.append(load)
+            weekStarts.append(start)
+        }
+
+        let showFrom = max(0, rawLoads.count - weeks)
+        var result: [WeekLoad] = []
+        for i in showFrom..<rawLoads.count {
+            let acuteRange = max(0, i - 3)...i
+            let chronicRange = max(0, i - 7)...i
+            let acute = Double(rawLoads[acuteRange].reduce(0, +)) / Double(rawLoads[acuteRange].count)
+            let chronic = Double(rawLoads[chronicRange].reduce(0, +)) / Double(rawLoads[chronicRange].count)
+            result.append(WeekLoad(
+                weekStart: weekStarts[i],
+                load: rawLoads[i],
+                acwr: chronic > 0 ? acute / chronic : nil
+            ))
+        }
+        return result
+    }
+
+    // MARK: - W1: Start-Karten
+
+    struct InsightCard: Identifiable {
+        let id: String
+        let symbol: String
+        let title: String
+        let value: String
+        let subtitle: String
+        let color: Color
+    }
+
+    static func startCards(_ sessions: [ClimbSession]) -> [InsightCard] {
+        var cards: [InsightCard] = []
+
+        let recap = currentWeekRecap(sessions)
+        cards.append(InsightCard(
+            id: "week", symbol: "calendar.badge.clock", title: "Diese Woche",
+            value: "\(recap.tops) Top\(recap.tops == 1 ? "" : "s")",
+            subtitle: "\(recap.sessions) Session\(recap.sessions == 1 ? "" : "s") · \(recap.minutes) Min",
+            color: Theme.accent
+        ))
+
+        let streak = climbWeekStreak(sessions)
+        cards.append(InsightCard(
+            id: "streak", symbol: "flame.fill", title: "Streak",
+            value: "\(streak) Wo\(streak == 1 ? "che" : "chen")",
+            subtitle: streak >= 4 ? "Starke Kontinuität!" : streak > 0 ? "Weiter so!" : "Erste Session starten",
+            color: streak >= 4 ? Theme.gold : Theme.accent
+        ))
+
+        if sessions.count >= 4 {
+            let signal = formSignal(sessions)
+            var sym = "checkmark.seal.fill"; var title2 = "Gute Form"
+            var sub2 = "Belastung und Send-Rate passen gut"; var col2 = Theme.accent
+            switch signal {
+            case .deloadSuggested:
+                sym = "battery.0percent"; title2 = "Erholung"
+                sub2 = "RPE hoch – leichter trainieren"; col2 = Theme.danger
+            case .techniqueSuggested:
+                sym = "figure.mind.and.body"; title2 = "Technik-Fokus"
+                sub2 = "Plateau erkannt – Qualität vor Grad"; col2 = Theme.gold
+            case .formGood: break
+            }
+            cards.append(InsightCard(id: "form", symbol: sym, title: title2, value: "", subtitle: sub2, color: col2))
+        }
+
+        let weakness = trainingWeakness(sessions)
+        if let limiter = weakness.topLimiter {
+            cards.append(InsightCard(
+                id: "weakness", symbol: "dumbbell.fill", title: "Schwäche",
+                value: limiter.label,
+                subtitle: weakness.monthlyTrainingCount > 0
+                    ? "\(weakness.monthlyTrainingCount)× trainiert diesen Monat"
+                    : "Noch nicht gezielt trainiert",
+                color: Theme.accent2
+            ))
+        }
+
+        return cards
+    }
+
+    // MARK: - A3: Session-Timeline
+
+    struct TimelinePoint: Identifiable {
+        let id = UUID()
+        let index: Int
+        let cumulativeSendRate: Double
+        let isTop: Bool
+    }
+
+    static func sessionTimeline(_ session: ClimbSession) -> [TimelinePoint] {
+        let sorted = session.ascents.sorted { $0.createdAt < $1.createdAt }
+        guard !sorted.isEmpty else { return [] }
+        var tops = 0
+        return sorted.enumerated().map { i, a in
+            if a.result == .top { tops += 1 }
+            return TimelinePoint(index: i + 1,
+                                 cumulativeSendRate: Double(tops) / Double(i + 1),
+                                 isTop: a.result == .top)
+        }
+    }
+
     // MARK: Erfolge (nur 2 App-Erfolge behalten; Rest in climbAchievements)
 
     static func achievements(for sessions: [ClimbSession]) -> [Achievement] {

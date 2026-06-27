@@ -59,6 +59,8 @@ struct TodayView: View {
 
                         pinnedProjectsCard
 
+                        StartInsightCarousel(sessions: sessions)
+
                         trainingWeaknessCard
 
                         FormSignalView(signal: formSignal)
