@@ -41,6 +41,7 @@ final class ClimbSession {
     var temperatureC: Double?
 
     @Relationship(deleteRule: .cascade, inverse: \Ascent.session) var ascents: [Ascent] = []
+    @Relationship(deleteRule: .cascade, inverse: \TrainingSet.session) var trainingSets: [TrainingSet] = []
 
     var createdAt: Date
     var updatedAt: Date

@@ -6,6 +6,7 @@ import SwiftData
 // V3 → V4: additive Änderungen (Shoe.conditionRaw, Ascent.shoeCondition).
 // V4 → V5: additive Änderungen (ClimbSession.conditionsRaw/temperatureC A8;
 //           Shoe.isBuiltInDefault/defaultForTypesRaw SH-A/SH-B).
+// V5 → V6: additive Änderungen (neue Tabelle TrainingSet + Relation ClimbSession.trainingSets T1).
 
 enum SchemaV1: VersionedSchema {
     static var versionIdentifier = Schema.Version(1, 0, 0)
@@ -42,11 +43,18 @@ enum SchemaV5: VersionedSchema {
     }
 }
 
+enum SchemaV6: VersionedSchema {
+    static var versionIdentifier = Schema.Version(6, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, Shoe.self, TrainingSet.self]
+    }
+}
+
 enum AppMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self]
+        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self]
     }
-    static var stages: [MigrationStage] { [v1ToV2, v2ToV3, v3ToV4, v4ToV5] }
+    static var stages: [MigrationStage] { [v1ToV2, v2ToV3, v3ToV4, v4ToV5, v5ToV6] }
     static let v1ToV2 = MigrationStage.lightweight(
         fromVersion: SchemaV1.self,
         toVersion: SchemaV2.self
@@ -62,5 +70,9 @@ enum AppMigrationPlan: SchemaMigrationPlan {
     static let v4ToV5 = MigrationStage.lightweight(
         fromVersion: SchemaV4.self,
         toVersion: SchemaV5.self
+    )
+    static let v5ToV6 = MigrationStage.lightweight(
+        fromVersion: SchemaV5.self,
+        toVersion: SchemaV6.self
     )
 }

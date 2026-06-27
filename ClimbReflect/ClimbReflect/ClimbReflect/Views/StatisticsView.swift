@@ -30,6 +30,7 @@ struct StatisticsView: View {
                             ProgressChartView(points: weekly)
                             EfficiencyTrendView(sessions: sessions)
                             GradeProgressView(sessions: sessions)
+                            FingerStrengthTrendView(sessions: sessions)
                             RPETrendView(sessions: sessions)
                             LoadManagementView(sessions: sessions)
                             GradePyramidView(sessions: sessions)

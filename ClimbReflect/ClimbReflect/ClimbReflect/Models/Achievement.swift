@@ -783,6 +783,38 @@ enum StatsEngine {
         }.sorted { $0.conditions.rawValue < $1.conditions.rawValue }
     }
 
+    // MARK: - T3: Fingerkraft-Trend (Hangboard)
+
+    struct StrengthPoint: Identifiable {
+        let id = UUID()
+        let date: Date
+        let edgeMM: Int
+        let totalWeightKg: Double   // Körpergewicht + Zusatzgewicht (bodyMass + addedWeightKg)
+        let note: String?
+    }
+
+    static func fingerStrengthTrend(_ sessions: [ClimbSession],
+                                    bodyMass: Double? = nil) -> [StrengthPoint] {
+        sessions
+            .filter { $0.sessionType == .training }
+            .flatMap { s in
+                s.trainingSets
+                    .filter { $0.kind == .hangboardMaxHang && $0.edgeMM != nil }
+                    .compactMap { t -> StrengthPoint? in
+                        guard let edge = t.edgeMM else { return nil }
+                        let added = t.addedWeightKg ?? 0
+                        let bw = bodyMass ?? 70
+                        return StrengthPoint(
+                            date: t.date,
+                            edgeMM: edge,
+                            totalWeightKg: bw + added,
+                            note: t.note
+                        )
+                    }
+            }
+            .sorted { $0.date < $1.date }
+    }
+
     // MARK: Erfolge (nur 2 App-Erfolge behalten; Rest in climbAchievements)
 
     static func achievements(for sessions: [ClimbSession]) -> [Achievement] {

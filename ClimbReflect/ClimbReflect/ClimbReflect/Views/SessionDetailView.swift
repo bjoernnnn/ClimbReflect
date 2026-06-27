@@ -8,6 +8,7 @@ struct SessionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
     @State private var showAddAscent = false
+    @State private var showAddTrainingSet = false
     @State private var showLocationEditor = false
     @State private var editedShoe: Ascent? = nil
 
@@ -34,6 +35,9 @@ struct SessionDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     overviewSection
+                    if session.sessionType == .training {
+                        trainingSetsCard
+                    }
                     ascentsSection
                     reflectionCard
                 }
@@ -481,6 +485,98 @@ struct SessionDetailView: View {
             }
         }
         .card()
+    }
+
+    // MARK: - T2: Trainings-Sets
+
+    private var trainingSetsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("Training", systemImage: "dumbbell.fill")
+                    .font(.headline)
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Button {
+                    showAddTrainingSet = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+
+            let sorted = session.trainingSets.sorted { $0.date < $1.date }
+            if sorted.isEmpty {
+                Text("Noch keine Übungen erfasst.\nTippe auf + um Sets hinzuzufügen.")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(sorted) { t in
+                        trainingSetRow(t)
+                        if t.id != sorted.last?.id {
+                            Divider().background(Theme.surfaceStroke)
+                        }
+                    }
+                }
+            }
+        }
+        .card()
+        .sheet(isPresented: $showAddTrainingSet) {
+            AddTrainingSetView(session: session)
+        }
+    }
+
+    private func trainingSetRow(_ t: TrainingSet) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: t.kind.symbol)
+                .font(.system(size: 16))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 22)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(t.kind.rawValue)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                HStack(spacing: 8) {
+                    if let mm = t.edgeMM {
+                        Text("\(mm) mm").font(.caption2).foregroundStyle(Theme.textTertiary)
+                    }
+                    if let dur = t.durationSeconds {
+                        Text("\(Int(dur)) s").font(.caption2).foregroundStyle(Theme.textTertiary)
+                    }
+                    if let r = t.reps {
+                        Text("\(r)×").font(.caption2).foregroundStyle(Theme.textTertiary)
+                    }
+                    if let note = t.note, !note.isEmpty {
+                        Text(note).font(.caption2).foregroundStyle(Theme.textTertiary).lineLimit(1)
+                    }
+                }
+            }
+
+            Spacer()
+
+            if let kg = t.addedWeightKg, kg != 0 {
+                Text(kg > 0 ? "+\(formatKg(kg)) kg" : "\(formatKg(kg)) kg")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(kg > 0 ? Theme.gold : Theme.accent2)
+            }
+
+            Button(role: .destructive) {
+                context.delete(t)
+            } label: {
+                Image(systemName: "trash").font(.caption).foregroundStyle(Theme.danger.opacity(0.7))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func formatKg(_ kg: Double) -> String {
+        kg.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(kg))" : String(format: "%.2g", kg)
     }
 
     // MARK: - Tagebuch / Reflexion

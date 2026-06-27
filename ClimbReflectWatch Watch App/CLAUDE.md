@@ -286,6 +286,12 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   `ascent.shoe = nil`, `shoeName`-Cache bleibt erhalten. `deleteRule: .nullify` – Schuh
   löschen entfernt keine Begehungen aus der Statistik.
 
+**S29 – Training wird nur auf dem iPhone erfasst.**
+  `TrainingSet`-Sets (Hangboard, Repeaters, Klimmzüge etc.) werden ausschließlich in
+  `SessionDetailView` auf dem iPhone eingegeben. Watch ist **kein** Eingabekanal für Training.
+  Die Watch-Session-Integration (T5) ist explizit **ABSTIMMEN** – nicht implementieren ohne
+  Rücksprache. `TrainingSet` ist eine Beziehung zu `ClimbSession` mit `deleteRule: .cascade`.
+
 **S26 – iPhone Live Activity lässt sich nur im Vordergrund starten** (`Activity.request`).
   Watch startet Session → iPhone wacht im Hintergrund auf → `request()` schlägt fehl (still).
   Fix: `lastStatus` puffern, bei `scenePhase == .active` `retryIfNeeded()` aufrufen → startet
