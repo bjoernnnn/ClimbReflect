@@ -178,6 +178,17 @@ struct SettingsView: View {
                     }
                     .listRowBackground(Theme.surface)
 
+                    // MARK: Schuhe (SH-2)
+                    Section {
+                        NavigationLink(destination: ShoesView()) {
+                            Label("Schuhe verwalten", systemImage: "shoeprints.fill")
+                                .foregroundStyle(Theme.textPrimary)
+                        }
+                    } header: {
+                        Text("Ausrüstung").foregroundStyle(Theme.textTertiary)
+                    }
+                    .listRowBackground(Theme.surface)
+
                     // MARK: Diagnose
                     Section {
                         NavigationLink(destination: WatchDiagnosticsView()) {

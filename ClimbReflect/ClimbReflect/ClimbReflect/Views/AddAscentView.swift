@@ -22,6 +22,10 @@ struct AddAscentView: View {
     @State private var selectedProject: Project? = nil
     @State private var newProjectName: String = ""
     @State private var showNewProject: Bool = false
+    @State private var selectedShoe: Shoe? = nil
+
+    @Query(sort: \Shoe.startYear, order: .reverse) private var allShoes: [Shoe]
+    private var activeShoes: [Shoe] { allShoes.filter { !$0.isRetired } }
     @State private var setName: String = ""
     @State private var selectedPhoto: PhotosPickerItem? = nil
     @State private var photoData: Data? = nil
@@ -154,6 +158,24 @@ struct AddAscentView: View {
                     }
                     .listRowBackground(Theme.surface)
 
+                    // MARK: Schuh (SH-3)
+                    if !activeShoes.isEmpty {
+                        Section {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    shoeChip(nil, label: "Keiner")
+                                    ForEach(activeShoes) { s in
+                                        shoeChip(s, label: s.name)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        } header: {
+                            Text("Schuh (optional)").foregroundStyle(Theme.textTertiary)
+                        }
+                        .listRowBackground(Theme.surface)
+                    }
+
                     // MARK: Foto/Clip (P3.11)
                     Section {
                         PhotosPicker(selection: $selectedPhoto,
@@ -256,6 +278,22 @@ struct AddAscentView: View {
     }
 
     @ViewBuilder
+    private func shoeChip(_ shoe: Shoe?, label: String) -> some View {
+        let selected = selectedShoe?.id == shoe?.id && (shoe != nil || selectedShoe == nil)
+        Button {
+            selectedShoe = shoe
+        } label: {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(selected ? Theme.accent2 : Theme.bgElevated))
+                .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
     private func projectChip(_ project: Project?, label: String) -> some View {
         let selected = selectedProject?.id == project?.id && (project != nil || selectedProject == nil)
         Button {
@@ -337,6 +375,8 @@ struct AddAscentView: View {
             session: session
         )
         ascent.project = selectedProject
+        ascent.shoe = selectedShoe
+        ascent.shoeName = selectedShoe?.name
         ascent.setName = setName.isEmpty ? nil : setName
         ascent.photoData = photoData
         context.insert(ascent)

@@ -59,6 +59,17 @@ struct AscentRowView: View {
                         .padding(.vertical, 2)
                         .background(Capsule().fill(Theme.accent.opacity(0.12)))
                     }
+                    // SH-10: Schuh-Label
+                    if let shoeName = ascent.shoe?.name ?? ascent.shoeName {
+                        HStack(spacing: 3) {
+                            Image(systemName: "shoeprints.fill")
+                            Text(shoeName)
+                        }
+                        .foregroundStyle(Theme.accent2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Theme.accent2.opacity(0.12)))
+                    }
                 }
                 .font(.caption)
             }

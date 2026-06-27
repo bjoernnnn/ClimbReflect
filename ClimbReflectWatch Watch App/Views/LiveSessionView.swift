@@ -13,6 +13,7 @@ struct LiveSessionView: View {
     @State private var selectedAttempt: WatchAttempt? = nil
     @State private var showDiscardConfirm = false
     @State private var showProjectPicker = false
+    @State private var showShoePicker = false
 
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
@@ -79,6 +80,9 @@ struct LiveSessionView: View {
         .background(WatchTheme.bg)
         .sheet(isPresented: $showProjectPicker) {
             projectPickerSheet
+        }
+        .sheet(isPresented: $showShoePicker) {
+            shoePickerSheet
         }
         .confirmationDialog("Session beenden?", isPresented: $showEndConfirm) {
             Button("Beenden", role: .destructive) {
@@ -181,6 +185,28 @@ struct LiveSessionView: View {
                         Text(workoutManager.selectedProject?.name ?? "Projekt wählen")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(workoutManager.selectedProject != nil
+                                             ? WatchTheme.textPrimary : WatchTheme.textTert)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 5)
+                    .background(WatchTheme.elevated)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+
+            // SH-8: Schuh-Selektor
+            if !syncService.knownShoes.isEmpty {
+                Button { showShoePicker = true } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "shoeprints.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(workoutManager.selectedShoe != nil
+                                             ? WatchTheme.accent2 : WatchTheme.textTert)
+                        Text(workoutManager.selectedShoe?.name ?? "Schuh wählen")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(workoutManager.selectedShoe != nil
                                              ? WatchTheme.textPrimary : WatchTheme.textTert)
                             .lineLimit(1)
                     }
@@ -556,6 +582,51 @@ struct LiveSessionView: View {
             }
         }
         .navigationTitle("Projekt")
+        }
+    }
+
+    // MARK: - Schuh-Picker Sheet (SH-8)
+
+    private var shoePickerSheet: some View {
+        NavigationStack {
+        List {
+            Button {
+                workoutManager.selectedShoe = nil
+                showShoePicker = false
+            } label: {
+                HStack {
+                    Text("Kein Schuh")
+                        .font(.system(size: 13))
+                        .foregroundStyle(WatchTheme.textSecond)
+                    Spacer()
+                    if workoutManager.selectedShoe == nil {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11))
+                            .foregroundStyle(WatchTheme.accent)
+                    }
+                }
+            }
+            ForEach(syncService.knownShoes) { shoe in
+                Button {
+                    workoutManager.selectedShoe = shoe
+                    showShoePicker = false
+                } label: {
+                    HStack {
+                        Text(shoe.name)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(WatchTheme.textPrimary)
+                            .lineLimit(2)
+                        Spacer()
+                        if workoutManager.selectedShoe?.id == shoe.id {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 11))
+                                .foregroundStyle(WatchTheme.accent)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Schuh")
         }
     }
 
