@@ -24,17 +24,24 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         }
     }
 
-    // W5.2: Aktive+angepinnte Projekte an Watch pushen
+    // W5.2: Aktive+angepinnte Projekte + Schuhe an Watch pushen
     func pushProjectsToWatch(modelContext: ModelContext) {
         guard WCSession.default.activationState == .activated,
               WCSession.default.isWatchAppInstalled else { return }
         let projects = (try? modelContext.fetch(FetchDescriptor<Project>())) ?? []
         let active = projects.filter { $0.isActive }
-        let list: [[String: String]] = active.map { ["id": $0.id.uuidString, "name": $0.name] }
-        let names: [String] = active.map(\.name)
+        let projectList: [[String: String]] = active.map { ["id": $0.id.uuidString, "name": $0.name] }
+        let projectNames: [String] = active.map(\.name)
+
+        // SH-6: Aktive (nicht retired) Schuhe mitsenden
+        let shoes = (try? modelContext.fetch(FetchDescriptor<Shoe>())) ?? []
+        let activeShoes = shoes.filter { !$0.isRetired }
+        let shoeList: [[String: String]] = activeShoes.map { ["id": $0.id.uuidString, "name": $0.name] }
+
         let context: [String: Any] = [
-            "projectList": list,
-            Self.projectsKey: names
+            "projectList": projectList,
+            Self.projectsKey: projectNames,
+            "shoeList": shoeList
         ]
         try? WCSession.default.updateApplicationContext(context)
     }
@@ -174,6 +181,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         ctx.insert(climbSession)
 
         let allProjects = (try? ctx.fetch(FetchDescriptor<Project>())) ?? []
+        let allShoes = (try? ctx.fetch(FetchDescriptor<Shoe>())) ?? []   // SH-9
 
         for ascentDTO in dto.ascents {
             let ascent = Ascent(
@@ -205,6 +213,18 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
                     ctx.insert(project)
                     ascent.project = project
                 }
+            }
+
+            // SH-9: Schuh-Relation aufbauen — kein Auto-Anlegen (iPhone ist Source of Truth)
+            ascent.shoeName = ascentDTO.shoeName
+            if let sid = ascentDTO.shoeID {
+                ascent.shoe = allShoes.first(where: { $0.id == sid })
+            } else if let name = ascentDTO.shoeName {
+                let trimmed = name.trimmingCharacters(in: .whitespaces).lowercased()
+                ascent.shoe = allShoes.first(where: {
+                    $0.name.trimmingCharacters(in: .whitespaces).lowercased() == trimmed
+                })
+                // Bei unbekanntem Namen: shoe bleibt nil, shoeName-Cache erhalten
             }
 
             ctx.insert(ascent)

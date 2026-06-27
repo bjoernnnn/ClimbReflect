@@ -34,6 +34,9 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var selectedProject: ProjectInfo? = nil {  // P5.7 / P2-8
         didSet { persistSelectedProject() }
     }
+    @Published var selectedShoe: ShoeInfo? = nil {        // SH-7
+        didSet { persistSelectedShoe() }
+    }
 
     var isTraining: Bool { sessionType == .training }
 
@@ -63,12 +66,15 @@ final class WorkoutManager: NSObject, ObservableObject {
     // P2-8: selectedProject über App-Neustart erhalten
     private static let selectedProjectIDKey  = "selectedProjectID"
     private static let selectedProjectNameKey = "selectedProjectName"
+    // SH-7: selectedShoe über App-Neustart erhalten
+    private static let selectedShoeIDKey   = "selectedShoeID"
+    private static let selectedShoeNameKey = "selectedShoeName"
 
     // MARK: - P0-2: Crash-sichere Persistierung
 
     private func savePendingSnapshot() {
         guard let startDate = workoutStartDate else { return }
-        let snapshot = PendingSession(
+        var snapshot = PendingSession(
             id: UUID(),
             startDate: startDate,
             sessionTypeRaw: sessionType.rawValue,
@@ -82,6 +88,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil,
             lastHeartRate: heartRate > 0 ? heartRate : nil
         )
+        snapshot.shoeID = selectedShoe?.id
+        snapshot.shoeName = selectedShoe?.name
         PendingSessionStore.save(snapshot)
     }
 
@@ -123,6 +131,9 @@ final class WorkoutManager: NSObject, ObservableObject {
             self.accumulatedPaused = p.accumulatedPaused
             if let id = p.projectID, let name = p.projectName {
                 self.selectedProject = ProjectInfo(id: id, name: name)
+            }
+            if let id = p.shoeID, let name = p.shoeName {
+                self.selectedShoe = ShoeInfo(id: id, name: name)
             }
             self.attempts = p.ascents.map { WatchAttempt(fromDTO: $0, sessionType: self.sessionType) }
             // B3: hrSum/hrCount/activeEnergyKcal werden in startStreamingHR/Energy aus der
@@ -194,6 +205,10 @@ final class WorkoutManager: NSObject, ObservableObject {
            let name = ud.string(forKey: Self.selectedProjectNameKey) {
             _selectedProject = Published(wrappedValue: ProjectInfo(id: id, name: name))
         }
+        if let id   = ud.string(forKey: Self.selectedShoeIDKey),
+           let name = ud.string(forKey: Self.selectedShoeNameKey) {
+            _selectedShoe = Published(wrappedValue: ShoeInfo(id: id, name: name))
+        }
         let launchCount = ud.integer(forKey: "launchCount") + 1
         ud.set(launchCount, forKey: "launchCount")
         DiagnosticLog.shared.log("app launch #\(launchCount) \(AppVersion.short) mem=\(MemoryFootprint.residentMB())MB")
@@ -207,6 +222,17 @@ final class WorkoutManager: NSObject, ObservableObject {
         } else {
             ud.removeObject(forKey: Self.selectedProjectIDKey)
             ud.removeObject(forKey: Self.selectedProjectNameKey)
+        }
+    }
+
+    private func persistSelectedShoe() {
+        let ud = UserDefaults.standard
+        if let s = selectedShoe {
+            ud.set(s.id,   forKey: Self.selectedShoeIDKey)
+            ud.set(s.name, forKey: Self.selectedShoeNameKey)
+        } else {
+            ud.removeObject(forKey: Self.selectedShoeIDKey)
+            ud.removeObject(forKey: Self.selectedShoeNameKey)
         }
     }
 
@@ -328,7 +354,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             durationSeconds: duration,
             heartRateAtBanking: heartRate > 0 ? heartRate : nil,
             sessionType: sessionType,
-            projectInfo: selectedProject
+            projectInfo: selectedProject,
+            shoeInfo: selectedShoe
         )
         attempts.append(attempt)
         savePendingSnapshot()
@@ -387,7 +414,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             durationSeconds: duration,
             heartRateAtBanking: heartRate > 0 ? heartRate : nil,
             sessionType: sessionType,
-            projectInfo: selectedProject
+            projectInfo: selectedProject,
+            shoeInfo: selectedShoe
         )
         attempts.append(attempt)
         savePendingSnapshot()
@@ -492,6 +520,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         lastAttemptDurationSeconds = nil
         trainingTarget = nil
         selectedProject = nil
+        selectedShoe = nil
         hrSum = 0
         hrCount = 0
         accumulatedPaused = 0

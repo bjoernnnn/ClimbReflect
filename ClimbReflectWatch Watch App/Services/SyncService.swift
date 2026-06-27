@@ -9,11 +9,18 @@ struct ProjectInfo: Identifiable, Hashable {
     let name: String
 }
 
+// SH-6: Schuh-Info für Watch-Selektor (analog ProjectInfo)
+struct ShoeInfo: Identifiable, Hashable {
+    let id: String   // UUID-String
+    let name: String
+}
+
 final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     static let shared = SyncService()
 
     @Published var lastTransferStatus: String = ""
     @Published var knownProjects: [ProjectInfo] = []   // W5.2: vom iPhone empfangen
+    @Published var knownShoes: [ShoeInfo] = []          // SH-6: vom iPhone empfangen
 
     // W5.3: Lokale Queue für Transfers die offline gehen
     private var pendingDTOs: [WatchSessionDTO] = []
@@ -82,13 +89,15 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
 
     static let projectsKey = "knownProjects"
     static let projectListKey = "projectList"
+    static let shoeListKey = "shoeList"
 
     func session(_ session: WCSession,
                  didReceiveApplicationContext applicationContext: [String: Any]) {
-        DispatchQueue.main.async { self.applyProjectContext(applicationContext) }
+        DispatchQueue.main.async { self.applyContext(applicationContext) }
     }
 
-    private func applyProjectContext(_ context: [String: Any]) {
+    private func applyContext(_ context: [String: Any]) {
+        // Projekte
         if let list = context[SyncService.projectListKey] as? [[String: String]] {
             knownProjects = list.compactMap { dict -> ProjectInfo? in
                 guard let id = dict["id"], let name = dict["name"] else { return nil }
@@ -96,6 +105,13 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
             }
         } else if let names = context[SyncService.projectsKey] as? [String] {
             knownProjects = names.map { ProjectInfo(id: $0, name: $0) }
+        }
+        // SH-6: Schuhe
+        if let list = context[SyncService.shoeListKey] as? [[String: String]] {
+            knownShoes = list.compactMap { dict -> ShoeInfo? in
+                guard let id = dict["id"], let name = dict["name"] else { return nil }
+                return ShoeInfo(id: id, name: name)
+            }
         }
     }
 
@@ -124,8 +140,7 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
         if activationState == .activated {
             DispatchQueue.main.async {
                 self.flushPending()
-                // Projekte aus dem zuletzt empfangenen applicationContext laden
-                self.applyProjectContext(session.receivedApplicationContext)
+                self.applyContext(session.receivedApplicationContext)
             }
         }
     }
