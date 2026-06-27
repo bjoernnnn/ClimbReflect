@@ -21,10 +21,9 @@ struct WeeklyPoint: Identifiable {
     let sessions: Int
 
     var label: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "dd.MM."
-        return f.string(from: weekStart)
+        let cal = Calendar.current
+        let kw = cal.component(.weekOfYear, from: weekStart)
+        return "KW \(kw)"
     }
 }
 

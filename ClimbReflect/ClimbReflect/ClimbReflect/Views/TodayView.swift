@@ -1,8 +1,5 @@
 import SwiftUI
 import SwiftData
-#if canImport(HealthKit)
-import HealthKit
-#endif
 
 struct TodayView: View {
     @Environment(\.modelContext) private var context
@@ -10,18 +7,8 @@ struct TodayView: View {
     @Query(sort: \Project.name) private var allProjects: [Project]
     @ObservedObject private var watchReceiver = WatchSessionReceiver.shared
 
-    @State private var importMessage: String?
-    @State private var isImporting = false
     @State private var showAddSession = false
     @State private var showSettings = false
-
-    private var healthKitAvailable: Bool {
-        #if canImport(HealthKit)
-        return HKHealthStore.isHealthDataAvailable()
-        #else
-        return false
-        #endif
-    }
 
     private var formSignal: StatsEngine.FormSignal { StatsEngine.formSignal(sessions) }
 
@@ -59,8 +46,6 @@ struct TodayView: View {
 
                         pinnedProjectsCard
 
-                        StartInsightCarousel(sessions: sessions)
-
                         trainingWeaknessCard
 
                         FormSignalView(signal: formSignal)
@@ -75,39 +60,21 @@ struct TodayView: View {
             .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    HStack(spacing: 16) {
-                        Button { showAddSession = true } label: {
-                            Image(systemName: "plus")
-                        }
-                        Button { showSettings = true } label: {
-                            Image(systemName: "gearshape")
-                        }
+                    Button { showAddSession = true } label: {
+                        Image(systemName: "plus")
                     }
                     .tint(Theme.accent)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    if healthKitAvailable {
-                        Button {
-                            Task { await importFromRedpoint() }
-                        } label: {
-                            Image(systemName: isImporting ? "arrow.triangle.2.circlepath" : "heart.text.square")
-                        }
-                        .accessibilityLabel("Aus Apple Health importieren")
-                        .tint(Theme.accent)
-                        .disabled(isImporting)
+                    Button { showSettings = true } label: {
+                        Image(systemName: "gearshape")
                     }
+                    .tint(Theme.accent)
                 }
             }
             .sheet(isPresented: $showAddSession) { ManualSessionView() }
             .sheet(isPresented: $showSettings) { SettingsView() }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .alert("Apple Health / Redpoint",
-                   isPresented: .constant(importMessage != nil),
-                   presenting: importMessage) { _ in
-                Button("OK") { importMessage = nil }
-            } message: { msg in
-                Text(msg)
-            }
         }
     }
 
@@ -294,18 +261,4 @@ struct TodayView: View {
         }
     }
 
-    // MARK: - Import
-
-    private func importFromRedpoint() async {
-        isImporting = true
-        defer { isImporting = false }
-        do {
-            let imported = try await RedpointHealthService.shared.importNewSessions(into: context)
-            importMessage = imported > 0
-                ? "\(imported) neue Session(s) aus Redpoint importiert."
-                : "Keine neuen Kletter-Workouts in Apple Health gefunden.\n\nFalls du Redpoint nutzt, überprüfe ob ClimbReflect Zugriff auf Health hat: Einstellungen → Datenschutz → Health → ClimbReflect."
-        } catch {
-            importMessage = "Import nicht möglich: \(error.localizedDescription)\n\nLäuft die App auf einem echten iPhone mit erlaubtem Health-Zugriff?"
-        }
-    }
 }

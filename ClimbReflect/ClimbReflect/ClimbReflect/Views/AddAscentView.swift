@@ -289,12 +289,18 @@ struct AddAscentView: View {
         Button {
             selectedShoe = shoe
         } label: {
-            Text(label)
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Capsule().fill(selected ? Theme.accent2 : Theme.bgElevated))
-                .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
+            HStack(spacing: 4) {
+                if selected {
+                    Image(systemName: "checkmark")
+                        .font(.caption2.weight(.bold))
+                }
+                Text(label)
+                    .font(.caption.weight(.semibold))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(selected ? Theme.accent2 : Theme.bgElevated))
+            .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
         }
         .buttonStyle(.plain)
     }
