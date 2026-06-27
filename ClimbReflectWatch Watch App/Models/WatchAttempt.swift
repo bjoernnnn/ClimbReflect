@@ -16,6 +16,7 @@ struct WatchAttempt: Identifiable {
     var date: Date
     var sessionType: WatchSessionType
     var projectInfo: ProjectInfo?     // Snapshot des aktiven Projekts zum Zeitpunkt des Bankens
+    var shoeInfo: ShoeInfo?           // Snapshot des aktiven Schuhs zum Zeitpunkt des Bankens
 
     init(gradeSystem: WatchGradeSystem,
          grade: String? = nil,
@@ -27,7 +28,8 @@ struct WatchAttempt: Identifiable {
          heartRateAtBanking: Double? = nil,
          note: String? = nil,
          sessionType: WatchSessionType = .boulder,
-         projectInfo: ProjectInfo? = nil) {
+         projectInfo: ProjectInfo? = nil,
+         shoeInfo: ShoeInfo? = nil) {
         self.id = UUID()
         self.gradeSystem = gradeSystem
         self.grade = grade
@@ -41,6 +43,7 @@ struct WatchAttempt: Identifiable {
         self.date = .now
         self.sessionType = sessionType
         self.projectInfo = projectInfo
+        self.shoeInfo = shoeInfo
     }
 
     init(fromDTO dto: WatchSessionDTO.AscentDTO, sessionType: WatchSessionType) {
@@ -62,6 +65,12 @@ struct WatchAttempt: Identifiable {
         } else {
             self.projectInfo = nil
         }
+        if let name = dto.shoeName {
+            let id = dto.shoeID?.uuidString ?? name
+            self.shoeInfo = ShoeInfo(id: id, name: name)
+        } else {
+            self.shoeInfo = nil
+        }
     }
 
     var isComplete: Bool { grade != nil && result != nil }
@@ -79,7 +88,9 @@ struct WatchAttempt: Identifiable {
             date: date,
             sessionTypeRaw: sessionType.rawValue,
             projectName: projectInfo?.name,
-            projectID: projectInfo.flatMap { UUID(uuidString: $0.id) }
+            projectID: projectInfo.flatMap { UUID(uuidString: $0.id) },
+            shoeName: shoeInfo?.name,
+            shoeID: shoeInfo.flatMap { UUID(uuidString: $0.id) }
         )
     }
 }

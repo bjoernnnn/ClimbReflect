@@ -26,6 +26,10 @@ final class Ascent {
     // Versuchdauer aus dem Action-Button-Flow (optional, nur Watch)
     var durationSeconds: Double?
 
+    // Schuh-Zugehörigkeit: shoeName als Cache, shoe als echte Relation (SH-1)
+    var shoeName: String?
+    var shoe: Shoe?
+
     // Gym-/Set-Kontext (P3.13)
     var setName: String?               // z. B. "Gelb rechts", "Sektor B"
 
