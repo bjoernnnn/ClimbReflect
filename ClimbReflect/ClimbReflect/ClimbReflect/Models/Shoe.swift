@@ -1,6 +1,24 @@
 import Foundation
 import SwiftData
 
+enum ShoeCondition: String, Codable, CaseIterable, Identifiable {
+    case neu         = "Neu"
+    case eingetragen = "Eingetragen"
+    case benutzt     = "Benutzt"
+    case resoled     = "Resoled"
+
+    var id: String { rawValue }
+
+    var symbol: String {
+        switch self {
+        case .neu:         return "sparkles"
+        case .eingetragen: return "checkmark.seal.fill"
+        case .benutzt:     return "clock.arrow.circlepath"
+        case .resoled:     return "arrow.2.circlepath"
+        }
+    }
+}
+
 @Model
 final class Shoe {
     @Attribute(.unique) var id: UUID
@@ -8,9 +26,15 @@ final class Shoe {
     var startMonth: Int        // 1…12
     var startYear: Int
     var isRetired: Bool = false
+    var conditionRaw: String = ShoeCondition.neu.rawValue
     var createdAt: Date
 
     @Relationship(deleteRule: .nullify, inverse: \Ascent.shoe) var ascents: [Ascent] = []
+
+    var condition: ShoeCondition {
+        get { ShoeCondition(rawValue: conditionRaw) ?? .neu }
+        set { conditionRaw = newValue.rawValue }
+    }
 
     var startDate: Date {
         Calendar.current.date(from: DateComponents(year: startYear, month: startMonth, day: 1)) ?? createdAt
@@ -21,6 +45,7 @@ final class Shoe {
         self.name = name
         self.startMonth = startMonth
         self.startYear = startYear
+        self.conditionRaw = ShoeCondition.neu.rawValue
         self.createdAt = .now
     }
 }

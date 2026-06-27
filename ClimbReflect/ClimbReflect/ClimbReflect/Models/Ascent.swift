@@ -29,6 +29,7 @@ final class Ascent {
     // Schuh-Zugehörigkeit: shoeName als Cache, shoe als echte Relation (SH-1)
     var shoeName: String?
     var shoe: Shoe?
+    var shoeCondition: String?  // Snapshot von Shoe.conditionRaw zum Zeitpunkt des Bankens
 
     // Gym-/Set-Kontext (P3.13)
     var setName: String?               // z. B. "Gelb rechts", "Sektor B"
