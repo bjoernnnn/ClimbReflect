@@ -12,8 +12,7 @@ struct LiveSessionView: View {
     @State private var showEndConfirm = false
     @State private var selectedAttempt: WatchAttempt? = nil
     @State private var showDiscardConfirm = false
-    @State private var showProjectPicker = false
-    @State private var showShoePicker = false
+    @State private var showContextPicker = false
 
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
@@ -45,8 +44,8 @@ struct LiveSessionView: View {
         .onChange(of: currentTab) { _, tab in
             DiagnosticLog.shared.logVerbose("tab=\(tab) mem=\(MemoryFootprint.residentMB())MB")
         }
-        .onChange(of: showProjectPicker) { _, open in
-            DiagnosticLog.shared.logVerbose("projectPicker \(open ? "open" : "close") mem=\(MemoryFootprint.residentMB())MB")
+        .onChange(of: showContextPicker) { _, open in
+            DiagnosticLog.shared.logVerbose("contextPicker \(open ? "open" : "close") mem=\(MemoryFootprint.residentMB())MB")
         }
         .onAppear {
             // E2: iPhone-Befehle verarbeiten
@@ -78,11 +77,8 @@ struct LiveSessionView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
         .background(WatchTheme.bg)
-        .sheet(isPresented: $showProjectPicker) {
-            projectPickerSheet
-        }
-        .sheet(isPresented: $showShoePicker) {
-            shoePickerSheet
+        .sheet(isPresented: $showContextPicker) {
+            contextPickerSheet
         }
         .confirmationDialog("Session beenden?", isPresented: $showEndConfirm) {
             Button("Beenden", role: .destructive) {
@@ -175,45 +171,45 @@ struct LiveSessionView: View {
 
             // B1: pendingBanner entfernt (kein Auto-Detektor mehr)
 
-            if !syncService.knownProjects.isEmpty {
-                Button { showProjectPicker = true } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "target")
-                            .font(.system(size: 10))
-                            .foregroundStyle(workoutManager.selectedProject != nil
-                                             ? WatchTheme.gold : WatchTheme.textTert)
-                        Text(workoutManager.selectedProject?.name ?? "Projekt wählen")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(workoutManager.selectedProject != nil
-                                             ? WatchTheme.textPrimary : WatchTheme.textTert)
-                            .lineLimit(1)
+            // Kombinierter Kontext-Button: Projekt + Schuh in einem
+            if !syncService.knownProjects.isEmpty || !syncService.knownShoes.isEmpty {
+                Button { showContextPicker = true } label: {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "target")
+                                .font(.system(size: 10))
+                                .foregroundStyle(workoutManager.selectedProject != nil
+                                                 ? WatchTheme.gold : WatchTheme.textTert)
+                            Text(workoutManager.selectedProject?.name ?? "Projekt")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(workoutManager.selectedProject != nil
+                                                 ? WatchTheme.textPrimary : WatchTheme.textTert)
+                                .lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        if !syncService.knownShoes.isEmpty {
+                            Divider()
+                                .background(WatchTheme.textTert.opacity(0.25))
+                                .padding(.vertical, 3)
+                            HStack(spacing: 5) {
+                                Image(systemName: "shoeprints.fill")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(workoutManager.selectedShoe != nil
+                                                     ? WatchTheme.accent2 : WatchTheme.textTert)
+                                Text(workoutManager.selectedShoe?.name ?? "Schuh")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(workoutManager.selectedShoe != nil
+                                                     ? WatchTheme.textPrimary : WatchTheme.textTert)
+                                    .lineLimit(1)
+                                Spacer(minLength: 0)
+                            }
+                        }
                     }
-                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(WatchTheme.elevated)
-                    .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-
-            // SH-8: Schuh-Selektor
-            if !syncService.knownShoes.isEmpty {
-                Button { showShoePicker = true } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "shoeprints.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(workoutManager.selectedShoe != nil
-                                             ? WatchTheme.accent2 : WatchTheme.textTert)
-                        Text(workoutManager.selectedShoe?.name ?? "Schuh wählen")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(workoutManager.selectedShoe != nil
-                                             ? WatchTheme.textPrimary : WatchTheme.textTert)
-                            .lineLimit(1)
-                    }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 5)
                     .background(WatchTheme.elevated)
-                    .clipShape(Capsule())
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 .buttonStyle(.plain)
             }
@@ -540,93 +536,80 @@ struct LiveSessionView: View {
         return "vor \(mins) min"
     }
 
-    // MARK: - Projekt-Picker Sheet (P5.7)
+    // MARK: - Kombinierter Kontext-Picker (Projekt + Schuh)
 
-    private var projectPickerSheet: some View {
+    private var contextPickerSheet: some View {
         NavigationStack {
-        List {
-            Button {
-                workoutManager.selectedProject = nil
-                showProjectPicker = false
-            } label: {
-                HStack {
-                    Text("Kein Projekt")
-                        .font(.system(size: 13))
-                        .foregroundStyle(WatchTheme.textSecond)
-                    Spacer()
-                    if workoutManager.selectedProject == nil {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 11))
-                            .foregroundStyle(WatchTheme.accent)
+            List {
+                if !syncService.knownProjects.isEmpty {
+                    Section("Projekt") {
+                        Button {
+                            workoutManager.selectedProject = nil
+                        } label: {
+                            HStack {
+                                Text("Kein Projekt")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(WatchTheme.textSecond)
+                                Spacer()
+                                if workoutManager.selectedProject == nil {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(WatchTheme.gold)
+                                }
+                            }
+                        }
+                        ForEach(syncService.knownProjects) { project in
+                            Button {
+                                workoutManager.selectedProject = project
+                            } label: {
+                                HStack {
+                                    Text(project.name)
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(WatchTheme.textPrimary)
+                                        .lineLimit(2)
+                                    Spacer()
+                                    if workoutManager.selectedProject?.id == project.id {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(WatchTheme.gold)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-            }
-            ForEach(syncService.knownProjects) { project in
-                Button {
-                    workoutManager.selectedProject = project
-                    showProjectPicker = false
-                } label: {
-                    HStack {
-                        Text(project.name)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(WatchTheme.textPrimary)
-                            .lineLimit(2)
-                        Spacer()
-                        if workoutManager.selectedProject?.id == project.id {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 11))
-                                .foregroundStyle(WatchTheme.accent)
+                if !syncService.knownShoes.isEmpty {
+                    Section("Schuh") {
+                        ForEach(syncService.knownShoes) { shoe in
+                            Button {
+                                workoutManager.selectedShoe = shoe
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(shoe.name)
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(WatchTheme.textPrimary)
+                                            .lineLimit(1)
+                                        if let cond = shoe.condition {
+                                            Text(cond)
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(WatchTheme.textTert)
+                                        }
+                                    }
+                                    Spacer()
+                                    if workoutManager.selectedShoe?.id == shoe.id {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(WatchTheme.accent2)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
-        .navigationTitle("Projekt")
-        }
-    }
-
-    // MARK: - Schuh-Picker Sheet (SH-8)
-
-    private var shoePickerSheet: some View {
-        NavigationStack {
-        List {
-            Button {
-                workoutManager.selectedShoe = nil
-                showShoePicker = false
-            } label: {
-                HStack {
-                    Text("Kein Schuh")
-                        .font(.system(size: 13))
-                        .foregroundStyle(WatchTheme.textSecond)
-                    Spacer()
-                    if workoutManager.selectedShoe == nil {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 11))
-                            .foregroundStyle(WatchTheme.accent)
-                    }
-                }
-            }
-            ForEach(syncService.knownShoes) { shoe in
-                Button {
-                    workoutManager.selectedShoe = shoe
-                    showShoePicker = false
-                } label: {
-                    HStack {
-                        Text(shoe.name)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(WatchTheme.textPrimary)
-                            .lineLimit(2)
-                        Spacer()
-                        if workoutManager.selectedShoe?.id == shoe.id {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 11))
-                                .foregroundStyle(WatchTheme.accent)
-                        }
-                    }
-                }
-            }
-        }
-        .navigationTitle("Schuh")
+            .navigationTitle("Kontext")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
