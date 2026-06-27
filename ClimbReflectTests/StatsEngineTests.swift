@@ -211,4 +211,53 @@ final class StatsEngineTests: XCTestCase {
         let achievements = StatsEngine.achievements(for: sessions)
         XCTAssertTrue(achievements.allSatisfy { $0.progress <= 1.0 })
     }
+
+    // MARK: - insights(for:) – SI-1
+
+    private func makeSessionWithAscents(durationMinutes: Int = 90,
+                                        rpe: Int? = nil,
+                                        ascents: [(result: AscentResult, durationSec: Double?)] = []) -> ClimbSession {
+        let s = makeSession(durationMinutes: durationMinutes, rpe: rpe)
+        for a in ascents {
+            let ascent = Ascent(gradeSystem: .fontainebleau, grade: "6A", result: a.result)
+            ascent.durationSeconds = a.durationSec
+            ascent.session = s
+            s.ascents.append(ascent)
+        }
+        return s
+    }
+
+    func testInsights_noAscents_hasNoAttemptTimes() {
+        let s = makeSessionWithAscents()
+        let i = StatsEngine.insights(for: s)
+        XCTAssertFalse(i.hasAttemptTimes)
+        XCTAssertNil(i.avgAttemptSeconds)
+        XCTAssertEqual(i.activeSeconds, 0)
+    }
+
+    func testInsights_sumExceedsTotal_isClamped() {
+        // total = 60 min = 3600s; two 40-min timed attempts → sum 4800 s > 3600
+        let s = makeSessionWithAscents(durationMinutes: 60, ascents: [
+            (.top, 2400),
+            (.attempt, 2400),
+        ])
+        let i = StatsEngine.insights(for: s)
+        XCTAssertTrue(i.hasAttemptTimes)
+        XCTAssertEqual(i.activeSeconds, 3600, accuracy: 1)
+    }
+
+    func testInsights_rpe7_60min_load420() {
+        let s = makeSessionWithAscents(durationMinutes: 60, rpe: 7)
+        let i = StatsEngine.insights(for: s)
+        XCTAssertEqual(i.load, 420)
+    }
+
+    func testInsights_3tops_90min_sendsPerHour2() {
+        let s = makeSessionWithAscents(durationMinutes: 90, ascents: [
+            (.top, 600), (.top, 600), (.top, 600),
+        ])
+        let i = StatsEngine.insights(for: s)
+        XCTAssertNotNil(i.sendsPerHour)
+        XCTAssertEqual(i.sendsPerHour!, 2.0, accuracy: 0.01)
+    }
 }

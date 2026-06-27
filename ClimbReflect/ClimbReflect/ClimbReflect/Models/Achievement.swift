@@ -448,6 +448,60 @@ enum StatsEngine {
         ]
     }
 
+    // MARK: - Session-Insights (SI-1)
+
+    struct SessionInsights {
+        let totalSeconds: Double
+        let activeSeconds: Double
+        var pauseSeconds: Double { max(0, totalSeconds - activeSeconds) }
+        var activeShare: Double { totalSeconds > 0 ? activeSeconds / totalSeconds : 0 }
+        let hasAttemptTimes: Bool
+        let avgAttemptSeconds: Double?
+        let longestAttemptSeconds: Double?
+        let sendsPerHour: Double?
+        let load: Int?
+        let successRate: Double?
+        let attemptsPerSend: Double?
+        let hardestTopGrade: String?
+    }
+
+    static func insights(for session: ClimbSession) -> SessionInsights {
+        let ascents = session.ascents
+        let timed = ascents.compactMap(\.durationSeconds).filter { $0 > 0 }
+        let activeRaw = timed.reduce(0, +)
+        let active = min(activeRaw, session.durationSeconds)
+        let hasAttemptTimes = !timed.isEmpty
+
+        let tops = ascents.filter { $0.result == .top }
+        let total = session.durationSeconds
+        let sendsPerHour: Double? = total > 0 && !tops.isEmpty
+            ? Double(tops.count) / (total / 3600)
+            : nil
+
+        let load = session.perceivedEffort.map { Int(Double($0) * total / 60) }
+
+        let successRate: Double? = ascents.isEmpty ? nil
+            : Double(tops.count) / Double(ascents.count)
+
+        let attemptsPerSend: Double? = tops.isEmpty ? nil
+            : Double(tops.reduce(0) { $0 + $1.attempts }) / Double(tops.count)
+
+        let hardestTopGrade = tops.max(by: { $0.sortOrder < $1.sortOrder })?.gradeRaw
+
+        return SessionInsights(
+            totalSeconds: total,
+            activeSeconds: active,
+            hasAttemptTimes: hasAttemptTimes,
+            avgAttemptSeconds: hasAttemptTimes ? activeRaw / Double(timed.count) : nil,
+            longestAttemptSeconds: timed.max(),
+            sendsPerHour: sendsPerHour,
+            load: load,
+            successRate: successRate,
+            attemptsPerSend: attemptsPerSend,
+            hardestTopGrade: hardestTopGrade
+        )
+    }
+
     // MARK: Erfolge (nur 2 App-Erfolge behalten; Rest in climbAchievements)
 
     static func achievements(for sessions: [ClimbSession]) -> [Achievement] {
