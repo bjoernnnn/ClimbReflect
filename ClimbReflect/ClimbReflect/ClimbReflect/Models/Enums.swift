@@ -168,6 +168,24 @@ enum AscentStyle: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Outdoor-Bedingungen (A8)
+
+enum OutdoorConditions: String, Codable, CaseIterable, Identifiable {
+    case poor = "Schlecht"
+    case ok   = "Ok"
+    case good = "Gut"
+
+    var id: String { rawValue }
+
+    var symbol: String {
+        switch self {
+        case .poor: return "cloud.rain.fill"
+        case .ok:   return "cloud.sun.fill"
+        case .good: return "sun.max.fill"
+        }
+    }
+}
+
 // MARK: - Wand-Winkel, Grifftyp, Kletter-Stil (P3.7)
 
 enum WallAngle: String, Codable, CaseIterable, Identifiable {

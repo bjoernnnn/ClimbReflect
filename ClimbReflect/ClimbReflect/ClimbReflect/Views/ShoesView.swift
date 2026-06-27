@@ -45,10 +45,10 @@ struct ShoesView: View {
             }
         }
         .sheet(isPresented: $showAddShoe) {
-            ShoeFormView(shoe: nil, onSave: save)
+            ShoeFormView(shoe: nil, allShoes: shoes, onSave: save)
         }
         .sheet(item: $editingShoe) { shoe in
-            ShoeFormView(shoe: shoe, onSave: save)
+            ShoeFormView(shoe: shoe, allShoes: shoes, onSave: save)
         }
         .preferredColorScheme(.dark)
         .onAppear { ensureDefaultShoe() }
@@ -66,23 +66,32 @@ struct ShoesView: View {
             startYear: cal.component(.year, from: now)
         )
         shoe.condition = .eingetragen
+        shoe.isBuiltInDefault = true
         context.insert(shoe)
         try? context.save()
         WatchSessionReceiver.shared.pushProjectsToWatch()
     }
 
     private func save(shoe: Shoe?, name: String, month: Int, year: Int,
-                      condition: ShoeCondition, retired: Bool) {
+                      condition: ShoeCondition, retired: Bool, defaultForTypes: [SessionType]) {
         if let shoe {
             shoe.name = name
             shoe.startMonth = month
             shoe.startYear = year
             shoe.condition = condition
             shoe.isRetired = retired
+            shoe.defaultForTypesRaw = defaultForTypes.map(\.rawValue)
         } else {
             let s = Shoe(name: name, startMonth: month, startYear: year)
             s.condition = condition
+            s.defaultForTypesRaw = defaultForTypes.map(\.rawValue)
             context.insert(s)
+        }
+        // SH-B2: Typ kann nur einem Schuh zugehören — anderen entziehen
+        let target = shoe ?? (try? context.fetch(FetchDescriptor<Shoe>()))?.last
+        for other in shoes where other.id != target?.id {
+            let cleaned = other.defaultForTypes.filter { !defaultForTypes.contains($0) }
+            other.defaultForTypesRaw = cleaned.map(\.rawValue)
         }
         try? context.save()
         WatchSessionReceiver.shared.pushProjectsToWatch()
@@ -151,7 +160,8 @@ private struct ShoeRowView: View {
 
 struct ShoeFormView: View {
     var shoe: Shoe?
-    var onSave: (Shoe?, String, Int, Int, ShoeCondition, Bool) -> Void
+    var allShoes: [Shoe] = []
+    var onSave: (Shoe?, String, Int, Int, ShoeCondition, Bool, [SessionType]) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
@@ -159,6 +169,9 @@ struct ShoeFormView: View {
     @State private var year: Int
     @State private var condition: ShoeCondition
     @State private var isRetired: Bool
+    @State private var defaultForTypes: [SessionType]
+
+    private let climbingTypes: [SessionType] = [.boulder, .lead, .topRope, .autoBelay]
 
     private var years: [Int] {
         let y = Calendar.current.component(.year, from: .now)
@@ -173,15 +186,17 @@ struct ShoeFormView: View {
         }
     }()
 
-    init(shoe: Shoe?, onSave: @escaping (Shoe?, String, Int, Int, ShoeCondition, Bool) -> Void) {
+    init(shoe: Shoe?, allShoes: [Shoe] = [], onSave: @escaping (Shoe?, String, Int, Int, ShoeCondition, Bool, [SessionType]) -> Void) {
         self.shoe = shoe
+        self.allShoes = allShoes
         self.onSave = onSave
         let now = Date()
-        _name      = State(initialValue: shoe?.name ?? "")
-        _month     = State(initialValue: shoe?.startMonth ?? Calendar.current.component(.month, from: now))
-        _year      = State(initialValue: shoe?.startYear ?? Calendar.current.component(.year, from: now))
-        _condition = State(initialValue: shoe?.condition ?? .neu)
-        _isRetired = State(initialValue: shoe?.isRetired ?? false)
+        _name           = State(initialValue: shoe?.name ?? "")
+        _month          = State(initialValue: shoe?.startMonth ?? Calendar.current.component(.month, from: now))
+        _year           = State(initialValue: shoe?.startYear ?? Calendar.current.component(.year, from: now))
+        _condition      = State(initialValue: shoe?.condition ?? .neu)
+        _isRetired      = State(initialValue: shoe?.isRetired ?? false)
+        _defaultForTypes = State(initialValue: shoe?.defaultForTypes ?? [])
     }
 
     var body: some View {
@@ -239,6 +254,55 @@ struct ShoeFormView: View {
                     }
                     .listRowBackground(Theme.surface)
 
+                    // SH-B: Standard-Schuh je Kletterart
+                    Section {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8)], spacing: 8) {
+                            ForEach(climbingTypes) { type in
+                                let selected = defaultForTypes.contains(type)
+                                let takenByOther = !selected && allShoes.contains {
+                                    $0.id != shoe?.id && $0.defaultForTypes.contains(type)
+                                }
+                                Button {
+                                    if selected {
+                                        defaultForTypes.removeAll { $0 == type }
+                                    } else {
+                                        defaultForTypes.append(type)
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: type.symbol).font(.system(size: 11))
+                                        Text(type.label).font(.caption.weight(.semibold))
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 7)
+                                    .background(
+                                        Capsule().fill(
+                                            selected ? Theme.accent :
+                                            takenByOther ? Theme.bgElevated.opacity(0.5) : Theme.bgElevated
+                                        )
+                                    )
+                                    .foregroundStyle(
+                                        selected ? Theme.bg :
+                                        takenByOther ? Theme.textTertiary : Theme.textSecondary
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        if defaultForTypes.isEmpty {
+                            Text("Kein Standard – wird nicht automatisch vorausgewählt.")
+                                .font(.caption)
+                                .foregroundStyle(Theme.textTertiary)
+                        }
+                    } header: {
+                        Text("Standard für").foregroundStyle(Theme.textTertiary)
+                    } footer: {
+                        Text("Dieser Schuh wird beim Starten einer Session dieses Typs automatisch vorausgewählt.")
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                    .listRowBackground(Theme.surface)
+
                     if shoe != nil {
                         Section {
                             Toggle("Inaktiv (retired)", isOn: $isRetired)
@@ -262,7 +326,7 @@ struct ShoeFormView: View {
                     Button("Speichern") {
                         let trimmed = name.trimmingCharacters(in: .whitespaces)
                         guard !trimmed.isEmpty else { return }
-                        onSave(shoe, trimmed, month, year, condition, isRetired)
+                        onSave(shoe, trimmed, month, year, condition, isRetired, defaultForTypes)
                         dismiss()
                     }
                     .fontWeight(.semibold)

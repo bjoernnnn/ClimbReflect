@@ -36,6 +36,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             startYear:  cal.component(.year,  from: now)
         )
         shoe.condition = .eingetragen
+        shoe.isBuiltInDefault = true
         ctx.insert(shoe)
         try? ctx.save()
     }
@@ -243,7 +244,10 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
                 ascent.shoe = allShoes.first(where: {
                     $0.name.trimmingCharacters(in: .whitespaces).lowercased() == trimmed
                 })
-                // Bei unbekanntem Namen: shoe bleibt nil, shoeName-Cache erhalten
+            }
+            // SH-A3: Fallback auf eingebauten Standard-Schuh wenn keine Zuordnung
+            if ascent.shoe == nil {
+                ascent.shoe = allShoes.first(where: { $0.isBuiltInDefault }) ?? allShoes.first
             }
 
             ctx.insert(ascent)

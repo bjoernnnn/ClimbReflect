@@ -10,6 +10,8 @@ struct ManualSessionView: View {
     @State private var sessionType = SessionType.boulder
     @State private var gymName = ""
     @State private var outdoor = false
+    @State private var outdoorConditions: OutdoorConditions? = nil
+    @State private var temperatureC: Double? = nil
     @State private var createdSession: ClimbSession?
     @State private var navigateToDetail = false
 
@@ -108,6 +110,39 @@ struct ManualSessionView: View {
                 Text("Wo?").foregroundStyle(Theme.textTertiary)
             }
             .listRowBackground(Theme.surface)
+
+            if outdoor {
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(OutdoorConditions.allCases) { c in
+                                let sel = outdoorConditions == c
+                                Button { outdoorConditions = sel ? nil : c } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: c.symbol).font(.system(size: 12))
+                                        Text(c.rawValue).font(.caption.weight(.semibold))
+                                    }
+                                    .padding(.horizontal, 12).padding(.vertical, 6)
+                                    .background(Capsule().fill(sel ? Theme.accent : Theme.bgElevated))
+                                    .foregroundStyle(sel ? Theme.bg : Theme.textSecondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    HStack {
+                        Image(systemName: "thermometer.medium").foregroundStyle(Theme.textTertiary)
+                        TextField("Temperatur (optional)", value: $temperatureC, format: .number)
+                            .foregroundStyle(Theme.textPrimary)
+                            .keyboardType(.decimalPad)
+                        Text("°C").foregroundStyle(Theme.textTertiary)
+                    }
+                } header: {
+                    Text("Bedingungen").foregroundStyle(Theme.textTertiary)
+                }
+                .listRowBackground(Theme.surface)
+            }
         }
         .scrollContentBackground(.hidden)
     }
@@ -121,6 +156,8 @@ struct ManualSessionView: View {
             gymName: gymName.isEmpty ? nil : gymName,
             outdoor: outdoor
         )
+        session.conditionsRaw = outdoorConditions?.rawValue
+        session.temperatureC = temperatureC
         context.insert(session)
         try? context.save()
         NotificationService.shared.scheduleReflectionReminder(for: session)

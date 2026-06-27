@@ -731,6 +731,58 @@ enum StatsEngine {
         }
     }
 
+    // MARK: - A7.2: Fokus vs. Send-Rate
+
+    struct FocusPerf: Identifiable {
+        let id: Int
+        let focusRating: Int
+        let avgSendRate: Double
+        let sessionCount: Int
+    }
+
+    static func focusVsPerformance(_ sessions: [ClimbSession]) -> [FocusPerf] {
+        var groups: [Int: (sends: Int, total: Int, count: Int)] = [:]
+        for s in climbing(sessions) {
+            guard let r = s.focusRating, !s.ascents.isEmpty else { continue }
+            let tops = s.ascents.filter { $0.result == .top }.count
+            var g = groups[r, default: (0, 0, 0)]
+            g.sends += tops; g.total += s.ascents.count; g.count += 1
+            groups[r] = g
+        }
+        return groups.map { r, g in
+            FocusPerf(id: r, focusRating: r,
+                      avgSendRate: g.total > 0 ? Double(g.sends) / Double(g.total) : 0,
+                      sessionCount: g.count)
+        }.sorted { $0.focusRating < $1.focusRating }
+    }
+
+    // MARK: - A8: Outdoor-Bedingungen
+
+    struct ConditionRate: Identifiable {
+        let id: String
+        let conditions: OutdoorConditions
+        let sendRate: Double
+        let sessionCount: Int
+    }
+
+    static func outdoorConditionRates(_ sessions: [ClimbSession]) -> [ConditionRate] {
+        let outdoor = climbing(sessions).filter { $0.outdoor && $0.conditions != nil && !$0.ascents.isEmpty }
+        guard !outdoor.isEmpty else { return [] }
+        var groups: [OutdoorConditions: (sends: Int, total: Int, count: Int)] = [:]
+        for s in outdoor {
+            guard let c = s.conditions else { continue }
+            let tops = s.ascents.filter { $0.result == .top }.count
+            var g = groups[c, default: (0, 0, 0)]
+            g.sends += tops; g.total += s.ascents.count; g.count += 1
+            groups[c] = g
+        }
+        return groups.map { c, g in
+            ConditionRate(id: c.rawValue, conditions: c,
+                          sendRate: g.total > 0 ? Double(g.sends) / Double(g.total) : 0,
+                          sessionCount: g.count)
+        }.sorted { $0.conditions.rawValue < $1.conditions.rawValue }
+    }
+
     // MARK: Erfolge (nur 2 App-Erfolge behalten; Rest in climbAchievements)
 
     static func achievements(for sessions: [ClimbSession]) -> [Achievement] {

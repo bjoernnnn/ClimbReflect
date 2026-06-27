@@ -265,7 +265,44 @@ struct SessionDetailView: View {
                     .tint(Theme.accent)
                     .foregroundStyle(Theme.textPrimary)
 
-                    if !session.outdoor {
+                    if session.outdoor {
+                        // A8: Outdoor-Bedingungen
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Bedingungen")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Theme.textSecondary)
+                            HStack(spacing: 8) {
+                                ForEach(OutdoorConditions.allCases) { c in
+                                    let sel = session.conditions == c
+                                    Button {
+                                        session.conditionsRaw = sel ? nil : c.rawValue
+                                        session.updatedAt = .now
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: c.symbol).font(.system(size: 12))
+                                            Text(c.rawValue).font(.caption.weight(.semibold))
+                                        }
+                                        .padding(.horizontal, 12).padding(.vertical, 6)
+                                        .background(Capsule().fill(sel ? Theme.accent : Theme.bgElevated))
+                                        .foregroundStyle(sel ? Theme.bg : Theme.textSecondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            HStack(spacing: 8) {
+                                Image(systemName: "thermometer.medium").foregroundStyle(Theme.textTertiary)
+                                TextField("Temperatur (°C)", value: Binding(
+                                    get: { session.temperatureC },
+                                    set: { session.temperatureC = $0; session.updatedAt = .now }
+                                ), format: .number)
+                                .foregroundStyle(Theme.textPrimary)
+                                .keyboardType(.decimalPad)
+                                Text("°C").foregroundStyle(Theme.textTertiary)
+                            }
+                            .padding(12)
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
+                        }
+                    } else if !session.outdoor {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Halle")
                                 .font(.subheadline.weight(.semibold))

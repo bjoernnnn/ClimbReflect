@@ -27,6 +27,8 @@ final class Shoe {
     var startYear: Int
     var isRetired: Bool = false
     var conditionRaw: String = ShoeCondition.neu.rawValue
+    var isBuiltInDefault: Bool = false      // SH-A: nicht löschbar, immer einer vorhanden
+    var defaultForTypesRaw: [String] = []   // SH-B: SessionType.rawValues für Auto-Vorauswahl
     var createdAt: Date
 
     @Relationship(deleteRule: .nullify, inverse: \Ascent.shoe) var ascents: [Ascent] = []
@@ -34,6 +36,10 @@ final class Shoe {
     var condition: ShoeCondition {
         get { ShoeCondition(rawValue: conditionRaw) ?? .neu }
         set { conditionRaw = newValue.rawValue }
+    }
+
+    var defaultForTypes: [SessionType] {
+        defaultForTypesRaw.compactMap(SessionType.init(rawValue:))
     }
 
     var startDate: Date {

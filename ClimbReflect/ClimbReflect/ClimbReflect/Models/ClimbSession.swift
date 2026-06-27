@@ -34,7 +34,11 @@ final class ClimbSession {
     // Technik-Fokus (P3.6) – Mehrfachauswahl
     var techniqueFocusRaw: String?         // legacy (single), nicht mehr beschrieben
     var techniqueFocusesRaw: [String] = [] // aktuell: Array der TechniqueFocus.rawValues
-    var focusRating: Int?                  // 1–5 Selbstbewertung (reserviert)
+    var focusRating: Int?                  // 1–5 Selbstbewertung (A7)
+
+    // Outdoor-Bedingungen (A8)
+    var conditionsRaw: String?
+    var temperatureC: Double?
 
     @Relationship(deleteRule: .cascade, inverse: \Ascent.session) var ascents: [Ascent] = []
 
@@ -99,4 +103,5 @@ extension ClimbSession {
         return techniqueFocus.map { [$0] } ?? []
     }
     var isClimbing: Bool { sessionType != .training }
+    var conditions: OutdoorConditions? { conditionsRaw.flatMap(OutdoorConditions.init(rawValue:)) }
 }

@@ -34,8 +34,10 @@ struct StatisticsView: View {
                             LoadManagementView(sessions: sessions)
                             GradePyramidView(sessions: sessions)
                             TerrainHeatmapView(sessions: sessions)
+                            FocusPerformanceView(sessions: sessions)
                             LimiterFrequencyView(sessions: sessions)
                             AntistyleRadarView(sessions: sessions)
+                            OutdoorConditionsView(sessions: sessions)
                             SessionTypeChartView(sessions: sessions)
                             WeeklyRecapView(sessions: sessions)
                         }

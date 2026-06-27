@@ -273,8 +273,12 @@ struct AddAscentView: View {
                 selectedGrade = gradeSystem.grades[min(8, gradeSystem.grades.count - 1)]
             }
             selectedProject = preselectedProject
-            if selectedShoe == nil, let first = activeShoes.first {
-                selectedShoe = first
+            if selectedShoe == nil {
+                // SH-B3: Standard-Schuh für diesen Session-Typ vorauswählen
+                let sessionType = session.sessionType
+                selectedShoe = activeShoes.first(where: { $0.defaultForTypes.contains(sessionType) })
+                    ?? activeShoes.first(where: { $0.isBuiltInDefault })
+                    ?? activeShoes.first
             }
         }
     }
