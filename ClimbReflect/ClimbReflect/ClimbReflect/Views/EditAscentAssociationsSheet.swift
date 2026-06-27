@@ -38,7 +38,6 @@ struct EditAscentAssociationsSheet: View {
                         Section {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    shoeChip(nil, label: "Kein Schuh")
                                     ForEach(activeShoes) { s in
                                         shoeChip(s, label: s.name)
                                     }

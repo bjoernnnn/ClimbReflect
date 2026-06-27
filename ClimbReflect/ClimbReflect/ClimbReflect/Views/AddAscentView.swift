@@ -163,7 +163,6 @@ struct AddAscentView: View {
                         Section {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    shoeChip(nil, label: "Keiner")
                                     ForEach(activeShoes) { s in
                                         shoeChip(s, label: s.name)
                                     }
@@ -171,7 +170,7 @@ struct AddAscentView: View {
                                 .padding(.vertical, 4)
                             }
                         } header: {
-                            Text("Schuh (optional)").foregroundStyle(Theme.textTertiary)
+                            Text("Schuh").foregroundStyle(Theme.textTertiary)
                         }
                         .listRowBackground(Theme.surface)
                     }
@@ -274,6 +273,9 @@ struct AddAscentView: View {
                 selectedGrade = gradeSystem.grades[min(8, gradeSystem.grades.count - 1)]
             }
             selectedProject = preselectedProject
+            if selectedShoe == nil, let first = activeShoes.first {
+                selectedShoe = first
+            }
         }
     }
 
@@ -377,6 +379,7 @@ struct AddAscentView: View {
         ascent.project = selectedProject
         ascent.shoe = selectedShoe
         ascent.shoeName = selectedShoe?.name
+        ascent.shoeCondition = selectedShoe?.conditionRaw
         ascent.setName = setName.isEmpty ? nil : setName
         ascent.photoData = photoData
         context.insert(ascent)
