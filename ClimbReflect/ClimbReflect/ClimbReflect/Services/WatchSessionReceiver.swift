@@ -18,10 +18,26 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
 
     func configure(modelContext: ModelContext) {
         self.modelContext = modelContext
+        seedDefaultShoeIfNeeded(ctx: modelContext)
         if WCSession.isSupported() {
             WCSession.default.delegate = self
             WCSession.default.activate()
         }
+    }
+
+    private func seedDefaultShoeIfNeeded(ctx: ModelContext) {
+        let count = (try? ctx.fetchCount(FetchDescriptor<Shoe>())) ?? 0
+        guard count == 0 else { return }
+        let now = Date()
+        let cal = Calendar.current
+        let shoe = Shoe(
+            name: "Eigener Schuh",
+            startMonth: cal.component(.month, from: now),
+            startYear:  cal.component(.year,  from: now)
+        )
+        shoe.condition = .eingetragen
+        ctx.insert(shoe)
+        try? ctx.save()
     }
 
     // W5.2: Aktive+angepinnte Projekte + Schuhe an Watch pushen
@@ -33,10 +49,12 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         let projectList: [[String: String]] = active.map { ["id": $0.id.uuidString, "name": $0.name] }
         let projectNames: [String] = active.map(\.name)
 
-        // SH-6: Aktive (nicht retired) Schuhe mitsenden
+        // SH-6: Aktive (nicht retired) Schuhe mitsenden inkl. Zustand
         let shoes = (try? modelContext.fetch(FetchDescriptor<Shoe>())) ?? []
         let activeShoes = shoes.filter { !$0.isRetired }
-        let shoeList: [[String: String]] = activeShoes.map { ["id": $0.id.uuidString, "name": $0.name] }
+        let shoeList: [[String: String]] = activeShoes.map {
+            ["id": $0.id.uuidString, "name": $0.name, "condition": $0.conditionRaw]
+        }
 
         let context: [String: Any] = [
             "projectList": projectList,
@@ -217,6 +235,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
 
             // SH-9: Schuh-Relation aufbauen — kein Auto-Anlegen (iPhone ist Source of Truth)
             ascent.shoeName = ascentDTO.shoeName
+            ascent.shoeCondition = ascentDTO.shoeCondition
             if let sid = ascentDTO.shoeID {
                 ascent.shoe = allShoes.first(where: { $0.id == sid })
             } else if let name = ascentDTO.shoeName {

@@ -67,8 +67,9 @@ final class WorkoutManager: NSObject, ObservableObject {
     private static let selectedProjectIDKey  = "selectedProjectID"
     private static let selectedProjectNameKey = "selectedProjectName"
     // SH-7: selectedShoe über App-Neustart erhalten
-    private static let selectedShoeIDKey   = "selectedShoeID"
-    private static let selectedShoeNameKey = "selectedShoeName"
+    private static let selectedShoeIDKey        = "selectedShoeID"
+    private static let selectedShoeNameKey      = "selectedShoeName"
+    private static let selectedShoeConditionKey = "selectedShoeCondition"
 
     // MARK: - P0-2: Crash-sichere Persistierung
 
@@ -90,6 +91,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         )
         snapshot.shoeID = selectedShoe?.id
         snapshot.shoeName = selectedShoe?.name
+        snapshot.shoeCondition = selectedShoe?.condition
         PendingSessionStore.save(snapshot)
     }
 
@@ -133,7 +135,7 @@ final class WorkoutManager: NSObject, ObservableObject {
                 self.selectedProject = ProjectInfo(id: id, name: name)
             }
             if let id = p.shoeID, let name = p.shoeName {
-                self.selectedShoe = ShoeInfo(id: id, name: name)
+                self.selectedShoe = ShoeInfo(id: id, name: name, condition: p.shoeCondition)
             }
             self.attempts = p.ascents.map { WatchAttempt(fromDTO: $0, sessionType: self.sessionType) }
             // B3: hrSum/hrCount/activeEnergyKcal werden in startStreamingHR/Energy aus der
@@ -207,7 +209,10 @@ final class WorkoutManager: NSObject, ObservableObject {
         }
         if let id   = ud.string(forKey: Self.selectedShoeIDKey),
            let name = ud.string(forKey: Self.selectedShoeNameKey) {
-            _selectedShoe = Published(wrappedValue: ShoeInfo(id: id, name: name))
+            _selectedShoe = Published(wrappedValue: ShoeInfo(
+                id: id, name: name,
+                condition: ud.string(forKey: Self.selectedShoeConditionKey)
+            ))
         }
         let launchCount = ud.integer(forKey: "launchCount") + 1
         ud.set(launchCount, forKey: "launchCount")
@@ -228,11 +233,14 @@ final class WorkoutManager: NSObject, ObservableObject {
     private func persistSelectedShoe() {
         let ud = UserDefaults.standard
         if let s = selectedShoe {
-            ud.set(s.id,   forKey: Self.selectedShoeIDKey)
-            ud.set(s.name, forKey: Self.selectedShoeNameKey)
+            ud.set(s.id,        forKey: Self.selectedShoeIDKey)
+            ud.set(s.name,      forKey: Self.selectedShoeNameKey)
+            if let c = s.condition { ud.set(c, forKey: Self.selectedShoeConditionKey) }
+            else { ud.removeObject(forKey: Self.selectedShoeConditionKey) }
         } else {
             ud.removeObject(forKey: Self.selectedShoeIDKey)
             ud.removeObject(forKey: Self.selectedShoeNameKey)
+            ud.removeObject(forKey: Self.selectedShoeConditionKey)
         }
     }
 

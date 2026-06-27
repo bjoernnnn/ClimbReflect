@@ -13,6 +13,7 @@ struct ProjectInfo: Identifiable, Hashable {
 struct ShoeInfo: Identifiable, Hashable {
     let id: String   // UUID-String
     let name: String
+    let condition: String?  // ShoeCondition.rawValue, Snapshot zum Zeitpunkt des Empfangs
 }
 
 final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
@@ -110,7 +111,7 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
         if let list = context[SyncService.shoeListKey] as? [[String: String]] {
             knownShoes = list.compactMap { dict -> ShoeInfo? in
                 guard let id = dict["id"], let name = dict["name"] else { return nil }
-                return ShoeInfo(id: id, name: name)
+                return ShoeInfo(id: id, name: name, condition: dict["condition"])
             }
         }
     }

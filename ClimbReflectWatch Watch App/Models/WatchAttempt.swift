@@ -67,7 +67,7 @@ struct WatchAttempt: Identifiable {
         }
         if let name = dto.shoeName {
             let id = dto.shoeID?.uuidString ?? name
-            self.shoeInfo = ShoeInfo(id: id, name: name)
+            self.shoeInfo = ShoeInfo(id: id, name: name, condition: dto.shoeCondition)
         } else {
             self.shoeInfo = nil
         }
@@ -90,7 +90,8 @@ struct WatchAttempt: Identifiable {
             projectName: projectInfo?.name,
             projectID: projectInfo.flatMap { UUID(uuidString: $0.id) },
             shoeName: shoeInfo?.name,
-            shoeID: shoeInfo.flatMap { UUID(uuidString: $0.id) }
+            shoeID: shoeInfo.flatMap { UUID(uuidString: $0.id) },
+            shoeCondition: shoeInfo?.condition
         )
     }
 }

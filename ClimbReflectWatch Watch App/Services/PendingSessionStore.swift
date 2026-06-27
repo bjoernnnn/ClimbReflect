@@ -14,6 +14,7 @@ struct PendingSession: Codable {
     // SH-7: Schuh-Snapshot (optional → alte Snapshots dekodieren weiter)
     var shoeID: String?
     var shoeName: String?
+    var shoeCondition: String?
     let ascents: [WatchSessionDTO.AscentDTO]
     let accumulatedPaused: TimeInterval
 
@@ -31,7 +32,7 @@ struct PendingSession: Codable {
 
     var shoeInfo: ShoeInfo? {
         guard let id = shoeID, let name = shoeName else { return nil }
-        return ShoeInfo(id: id, name: name)
+        return ShoeInfo(id: id, name: name, condition: shoeCondition)
     }
 }
 

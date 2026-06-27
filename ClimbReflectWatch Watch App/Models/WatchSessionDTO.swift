@@ -19,6 +19,7 @@ struct WatchSessionDTO: Codable, Sendable {
         // SH-5: Schuh-Cache (optional → alte DTOs dekodieren weiter)
         let shoeName: String?
         let shoeID: UUID?
+        let shoeCondition: String?  // ShoeCondition.rawValue Snapshot
     }
 
     let id: UUID
