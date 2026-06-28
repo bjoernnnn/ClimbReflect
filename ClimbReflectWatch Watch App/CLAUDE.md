@@ -306,9 +306,13 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   Auslöser zusätzlich per `.handGestureShortcut(.primaryAction)` (Doppeltipp). Verbose-Logging
   über `DiagnosticLog.isVerbose`-Schalter (Standard: aus) kontrollierbar.
 
-**S23 – Action Button (Watch Ultra) ist für Dritt-Apps nur via App Intents ansprechbar**
-  (Start-/Shortcut-Modell), **kein** Live-Toggle in der laufenden App. In-App-Ersatz:
-  On-Screen-Button + `.handGestureShortcut(.primaryAction)` (Doppeltipp).
+**S23 – Action Button ist Hardware-Zwilling der Versuche-Badge via `StartWorkoutIntent`-Chaining.**
+  Voraussetzung: Nutzer wählt ClimbReflect einmalig unter Watch Einstellungen → Action Button → Fitness.
+  Architektur: `StartClimbWorkoutIntent` (StartWorkoutIntent-konform) → chains zu `ToggleAttemptIntent`
+  → re-chains sich selbst. Toggle-Logik zentral in `WorkoutManager.handleActionButton()` — Badge und
+  Button teilen exakt eine Quelle. `openAppWhenRun = true` öffnet App beim `awaitingResult`-Übergang
+  damit das Ergebnis-Overlay sichtbar wird. Chain erlischt automatisch wenn HKWorkoutSession endet;
+  nächster Druck ruft wieder `StartClimbWorkoutIntent`.
 
 ---
 

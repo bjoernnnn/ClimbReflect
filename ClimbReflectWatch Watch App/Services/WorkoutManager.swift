@@ -14,6 +14,9 @@ enum AttemptState: Equatable {
 @MainActor
 final class WorkoutManager: NSObject, ObservableObject {
 
+    // AB-4: Singleton für Intent-Zugriff ohne App-Context
+    static let shared = WorkoutManager()
+
     // MARK: - Published State
 
     @Published var sessionType: WatchSessionType = .boulder

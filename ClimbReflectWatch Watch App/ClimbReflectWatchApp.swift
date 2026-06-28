@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct ClimbReflectWatchApp: App {
-    @StateObject private var workoutManager = WorkoutManager()
+    @StateObject private var workoutManager = WorkoutManager.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
