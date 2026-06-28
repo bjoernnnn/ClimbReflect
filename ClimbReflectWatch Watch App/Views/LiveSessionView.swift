@@ -48,6 +48,10 @@ struct LiveSessionView: View {
             DiagnosticLog.shared.logVerbose("contextPicker \(open ? "open" : "close") mem=\(MemoryFootprint.residentMB())MB")
         }
         .onAppear {
+            // Fix race condition: intent may have set awaitingResult before this view rendered
+            if case .awaitingResult = workoutManager.attemptState, !workoutManager.isTraining {
+                currentTab = 2
+            }
             // E2: iPhone-Befehle verarbeiten
             SyncService.shared.onCommand = { [workoutManager] cmd in
                 switch cmd {
@@ -239,14 +243,19 @@ struct LiveSessionView: View {
         Button { workoutManager.handleActionButton() } label: {
             if case .active(let startTime) = workoutManager.attemptState {
                 TimelineView(.periodic(from: startTime, by: 1)) { _ in
-                    Text(formatDuration(Date().timeIntervalSince(startTime)))
-                        .font(.system(size: 22, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.orange)
-                        .minimumScaleFactor(0.7)
-                        .lineLimit(1)
+                    VStack(spacing: 1) {
+                        Text("Versuch")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.orange.opacity(0.75))
+                        Text(formatDuration(Date().timeIntervalSince(startTime)))
+                            .font(.system(size: 22, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.orange)
+                            .minimumScaleFactor(0.7)
+                            .lineLimit(1)
+                    }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .padding(.vertical, 10)
                 .padding(.horizontal, 8)
                 .background(Color.orange.opacity(0.18))
                 .clipShape(RoundedRectangle(cornerRadius: 10))

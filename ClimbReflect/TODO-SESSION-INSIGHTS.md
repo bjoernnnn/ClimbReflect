@@ -264,11 +264,43 @@ Schuh") kommt später (Datengrundlage entsteht hier).
   echte Mehrdeutigkeiten als „~"/Bereich kennzeichnen.
 - *Fertig-wenn:* Anzeige-Skala umschalten ist im Round-Trip verlustfrei.
 
-### O-3 — Geräte-Verifikation (Checkliste, kein Code)
-- Action Button am Watch Ultra zuweisen → Druck startet Session.
-- Live Activity: Watch-Session starten → iPhone entsperren → Lock-Screen-Timer erscheint/aktualisiert.
-  Sonst `LiveActivityController`-Log + Embedding/`ClimbActivityAttributes` prüfen.
-- *Fertig-wenn:* Beide bestätigt oder Restproblem als neuer Task notiert.
+### O-3 — Action Button: Versuch-Tracking funktioniert noch nicht
+**Stand (2026-06-28):** Beim Drücken des physischen Action Buttons erscheint nur der System-Orange-
+Screen (watchOS-Animation), aber kein Versuch-Timer startet, und der „Versuche"-Badge ändert sich nicht.
+Die Einstellung in Watch Einstellungen → Action Button wurde nach Neuinstallation zurückgesetzt und
+muss neu gesetzt werden.
+
+**Was wurde bereits implementiert/versucht:**
+- `StartSessionIntent` ruft jetzt `handleActionButton()` wenn `isRunning`, kettet auf `ToggleAttemptIntent`
+- `ToggleAttemptIntent` ruft `handleActionButton()` **ohne** `isRunning`-Check (Fix für Jetsam-Kill-Fall:
+  App neu gestartet von Intent → `isRunning` noch false vor Recovery)
+- `LiveSessionView.onAppear` prüft ob `attemptState == .awaitingResult` und setzt `currentTab = 2`
+  (Fix für Race Condition: Intent ändert State bevor View rendert → `onChange` feuert nicht)
+- `attemptToggleBadge` zeigt jetzt „Versuch" + Timer im aktiven Zustand
+- Beide Intents loggen jetzt via `DiagnosticLog`
+
+**Offene Hypothesen (noch nicht bewiesen):**
+1. **Falsche Intent-Konfiguration:** Action Button könnte auf System-Workout-App zeigen, nicht auf
+   ClimbReflect. → Nutzer muss **neu konfigurieren**: Watch Einstellungen → Action Button →
+   Entweder „Shortcut" → ClimbReflect → „Session starten" **ODER** „Fitness/Workout" → ClimbReflect → Klettern.
+2. **Jetsam-Kill-Race:** App wird von watchOS gekillt (Speicher) → Intent feuert → neuer Prozess →
+   `isRunning = false` → alter Code überspringt `handleActionButton()`. Neuer Code ohne Guard sollte das fixen.
+3. **Chain bricht nach `openAppWhenRun = true`:** Möglicherweise honoriert watchOS die
+   `.result(actionButtonIntent:)` Chain nicht korrekt wenn App in Vordergrund kommt.
+
+**Nächster Debug-Schritt:**
+- Nach rebuild + Neukonfiguration des Action Buttons:
+  1. Session starten
+  2. Action Button drücken
+  3. In App: Einstellungen → Diagnose öffnen
+  4. Dort sollte stehen: `"StartSessionIntent: isRunning=true ..."` oder `"ToggleAttemptIntent: isRunning=true ..."`
+  5. Falls KEIN Log → Intent feuert nicht → Konfiguration prüfen
+  6. Falls Log mit `isRunning=false` → Jetsam-Kill → Fix greift, aber Recovery-Timing prüfen
+
+**Live Activity:** Watch-Session starten → iPhone entsperren → Lock-Screen-Timer erscheint/aktualisiert.
+Sonst `LiveActivityController`-Log + Embedding/`ClimbActivityAttributes` prüfen.
+- *Fertig-wenn:* DiagnosticLog bestätigt Intent-Aufruf MIT `isRunning=true`; Timer-Badge zeigt „Versuch" +
+  Timer; zweiter Druck navigiert zu AttemptLogView (Tab 2).
 
 ### O-4 — Kleinkram (optional)
 HealthKit-Fehlertext (Permission vs. „keine Workouts" + Button zu Einstellungen);

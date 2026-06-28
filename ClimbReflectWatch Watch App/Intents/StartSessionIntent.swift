@@ -10,7 +10,7 @@ import AppIntents
 
 struct StartSessionIntent: AppIntent {
     static var title: LocalizedStringResource = "Klettersession starten"
-    static var description = IntentDescription("Startet eine ClimbReflect-Session.")
+    static var description = IntentDescription("Startet eine ClimbReflect-Session oder trackt einen Versuch.")
     static var openAppWhenRun: Bool = true
 
     @Parameter(title: "Sportart")
@@ -18,8 +18,17 @@ struct StartSessionIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        PendingStart.set(sport?.sessionTypeRaw)
-        return .result()
+        let manager = WorkoutManager.shared
+        DiagnosticLog.shared.log("StartSessionIntent: isRunning=\(manager.isRunning) state=\(String(describing: manager.attemptState))")
+        if manager.isRunning {
+            // Session läuft bereits → Versuch tracken
+            manager.handleActionButton()
+        } else {
+            // Noch keine Session → starten
+            PendingStart.set(sport?.sessionTypeRaw)
+        }
+        // Immer auf ToggleAttemptIntent wechseln (folgedrücke toggeln Versuch)
+        return .result(actionButtonIntent: ToggleAttemptIntent())
     }
 }
 
