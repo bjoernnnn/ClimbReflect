@@ -47,18 +47,6 @@ enum SportIntentEnum: String, AppEnum {
     var sessionTypeRaw: String { rawValue }
 }
 
-// B3: Shortcut-Provider damit der Intent in Kurzbefehle + Action-Button-Liste erscheint
-struct ClimbShortcuts: AppShortcutsProvider {
-    static var appShortcuts: [AppShortcut] {
-        AppShortcut(
-            intent: StartSessionIntent(),
-            phrases: ["Starte \(.applicationName)"],
-            shortTitle: "Session starten",
-            systemImageName: "figure.climbing"
-        )
-    }
-}
-
 // MARK: - AB-3: StartClimbWorkoutIntent (StartWorkoutIntent-konform)
 // Ermöglicht: Watch Einstellungen → Action Button → Fitness → ClimbReflect.
 // openAppWhenRun wird durch die Protocol-Extension immer auf true gesetzt.
@@ -94,11 +82,19 @@ struct StartClimbWorkoutIntent: StartWorkoutIntent {
         [.init(style: .boulder), .init(style: .lead)]
     }
 
+    // AB-A: Explizit true setzen – nötig damit der awaitingResult-Druck den
+    // Klassifikations-Screen in den Vordergrund holt.
+    static var openAppWhenRun: Bool = true
+
     @MainActor
     func perform() async throws -> some IntentResult {
         let manager = WorkoutManager.shared
+        DiagnosticLog.shared.log("StartClimbWorkoutIntent: style=\(workoutStyle.rawValue) isRunning=\(manager.isRunning) state=\(String(describing: manager.attemptState))")
         if manager.isRunning {
             manager.handleActionButton()
+        } else {
+            // Keine Session läuft: Session über PendingStart starten (Default A – Idle-Fallback)
+            PendingStart.set(workoutStyle == .boulder ? "boulder" : "lead")
         }
         return .result(actionButtonIntent: ToggleAttemptIntent())
     }

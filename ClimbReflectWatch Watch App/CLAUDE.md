@@ -307,12 +307,21 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   über `DiagnosticLog.isVerbose`-Schalter (Standard: aus) kontrollierbar.
 
 **S23 – Action Button ist Hardware-Zwilling der Versuche-Badge via `StartWorkoutIntent`-Chaining.**
-  Voraussetzung: Nutzer wählt ClimbReflect einmalig unter Watch Einstellungen → Action Button → Fitness.
-  Architektur: `StartClimbWorkoutIntent` (StartWorkoutIntent-konform) → chains zu `ToggleAttemptIntent`
-  → re-chains sich selbst. Toggle-Logik zentral in `WorkoutManager.handleActionButton()` — Badge und
-  Button teilen exakt eine Quelle. `openAppWhenRun = true` öffnet App beim `awaitingResult`-Übergang
-  damit das Ergebnis-Overlay sichtbar wird. Chain erlischt automatisch wenn HKWorkoutSession endet;
-  nächster Druck ruft wieder `StartClimbWorkoutIntent`.
+  **Voraussetzungen (alle vier nötig):** (a) `workout-processing` in `WKBackgroundModes` ✓,
+  (b) `@Parameter var workoutStyle` ✓, (c) **aktive** HK-Session (nicht zwingend Button-gestartet —
+  on-screen-Start reicht), (d) ClimbReflect als **Workout-App** (nicht App-Shortcut!) in Action-Button-
+  Settings: Watch Einstellungen → Action Button → Training → **Vorstieg** (= `StartClimbWorkoutIntent`).
+  Ab **watchOS 26.5** ist der App-Shortcuts-Pfad nicht mehr chainbar; nur Workout-Aktivität toggelt.
+  **Architektur:** `StartClimbWorkoutIntent.perform()` loggt + ruft `handleActionButton()` (wenn
+  `isRunning`), sonst `PendingStart.set()` für Idle-Druck → chains zu `ToggleAttemptIntent`, das sich
+  selbst re-chaint. Toggle-Logik ausschließlich in `WorkoutManager.handleActionButton()` — Badge und
+  Button teilen die Quelle. `handleActionButton()` hat `guard isRunning` an erster Stelle (kein
+  Ghost-Versuch bei Jetsam-Kill vor Recovery). `openAppWhenRun = true` öffnet App beim zweiten Druck
+  (awaitingResult) damit Tab 2 / Klassifikation sichtbar wird. `ClimbShortcuts` wurde entfernt — der
+  App-Shortcuts-Pfad ist auf der Uhr nutzlos und verursacht Fehlkonfigurationen.
+  **Jetsam-Recovery:** Chain fällt nach Kill auf `StartClimbWorkoutIntent` zurück → erster Druck nach
+  Recovery ruft `handleActionButton()` mit `isRunning=true` und re-etabliert den Chain. Session-Ende
+  beendet die HKWorkoutSession → System setzt Action-Button automatisch auf Start-Zustand zurück.
 
 ---
 

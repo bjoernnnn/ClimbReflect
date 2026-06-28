@@ -264,7 +264,7 @@ Schuh") kommt später (Datengrundlage entsteht hier).
   echte Mehrdeutigkeiten als „~"/Bereich kennzeichnen.
 - *Fertig-wenn:* Anzeige-Skala umschalten ist im Round-Trip verlustfrei.
 
-### O-3 — Action Button: Versuch-Tracking funktioniert noch nicht
+### ✅ O-3 — Action Button: gelöst (siehe `ClimbReflectWatch Watch App/TODO-ACTIONBUTTON-ASCENT.md`)
 **Stand (2026-06-28):** Beim Drücken des physischen Action Buttons erscheint nur der System-Orange-
 Screen (watchOS-Animation), aber kein Versuch-Timer startet, und der „Versuche"-Badge ändert sich nicht.
 Die Einstellung in Watch Einstellungen → Action Button wurde nach Neuinstallation zurückgesetzt und

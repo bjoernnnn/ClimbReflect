@@ -327,6 +327,10 @@ final class WorkoutManager: NSObject, ObservableObject {
     // MARK: - D1: Action Button State Machine
 
     func handleActionButton() {
+        guard isRunning else {
+            DiagnosticLog.shared.log("handleActionButton ignoriert: keine aktive Session")
+            return
+        }
         if isTraining {
             // Im Training: Pause/Resume
             if isPaused { resumeWorkout() } else { pauseWorkout() }
