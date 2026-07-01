@@ -50,11 +50,16 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         let projectList: [[String: String]] = active.map { ["id": $0.id.uuidString, "name": $0.name] }
         let projectNames: [String] = active.map(\.name)
 
-        // SH-6: Aktive (nicht retired) Schuhe mitsenden inkl. Zustand
+        // SH-6: Aktive (nicht retired) Schuhe mitsenden inkl. Zustand + Standard-Typen (SH-11)
         let shoes = (try? modelContext.fetch(FetchDescriptor<Shoe>())) ?? []
         let activeShoes = shoes.filter { !$0.isRetired }
-        let shoeList: [[String: String]] = activeShoes.map {
-            ["id": $0.id.uuidString, "name": $0.name, "condition": $0.conditionRaw]
+        let shoeList: [[String: Any]] = activeShoes.map {
+            [
+                "id": $0.id.uuidString,
+                "name": $0.name,
+                "condition": $0.conditionRaw,
+                "defaultForTypes": $0.defaultForTypesRaw
+            ]
         }
 
         let context: [String: Any] = [
