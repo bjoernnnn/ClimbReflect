@@ -3,11 +3,20 @@ import AppIntents
 // AB-3: Siri-Entry-Point („Starte ClimbReflect") – NICHT der Action-Button-Pfad
 // (der läuft über StartClimbWorkoutIntent unten). AB-G: startet die Session direkt
 // im Intent-Kontext statt über ein PendingStart-Flag.
+//
+// AB-K: ALLE Intent-Typen und AppEnums sind explizit `nonisolated`.
+// Das Projekt baut mit SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor – damit wären
+// init()/Parameter-Dekodierung/statische Properties implizit MainActor-isoliert.
+// Die AppIntents-Runtime instanziiert und dekodiert Intents aber ABSEITS des
+// Main-Threads → der dynamische Isolations-Check crasht den Prozess, BEVOR
+// perform() (und damit unser Log) erreicht wird. Sichtbares Fehlerbild:
+// Kurzbefehl „schlägt fehl", Action Button zeigt nur den orangen Screen.
+// perform() bleibt @MainActor (WorkoutManager/DiagnosticLog sind MainActor).
 
-struct StartSessionIntent: AppIntent {
-    static var title: LocalizedStringResource = "Klettersession starten"
-    static var description = IntentDescription("Startet eine ClimbReflect-Session oder trackt einen Versuch.")
-    static var openAppWhenRun: Bool = true
+nonisolated struct StartSessionIntent: AppIntent {
+    static let title: LocalizedStringResource = "Klettersession starten"
+    static let description = IntentDescription("Startet eine ClimbReflect-Session oder trackt einen Versuch.")
+    static let openAppWhenRun: Bool = true
 
     @Parameter(title: "Sportart")
     var sport: SportIntentEnum?
@@ -30,11 +39,11 @@ struct StartSessionIntent: AppIntent {
     }
 }
 
-enum SportIntentEnum: String, AppEnum {
+nonisolated enum SportIntentEnum: String, AppEnum {
     case boulder, lead, topRope, autoBelay, training
 
-    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Sportart"
-    static var caseDisplayRepresentations: [SportIntentEnum: DisplayRepresentation] = [
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Sportart"
+    static let caseDisplayRepresentations: [SportIntentEnum: DisplayRepresentation] = [
         .boulder:   "Bouldern",
         .lead:      "Vorstieg",
         .topRope:   "Toprope",
@@ -49,16 +58,16 @@ enum SportIntentEnum: String, AppEnum {
 // Ermöglicht: Watch Einstellungen → Action Button → Fitness → ClimbReflect.
 // openAppWhenRun wird durch die Protocol-Extension immer auf true gesetzt.
 
-enum ClimbWorkoutStyle: String, AppEnum {
+nonisolated enum ClimbWorkoutStyle: String, AppEnum {
     case boulder, lead
-    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Klettern"
-    static var caseDisplayRepresentations: [ClimbWorkoutStyle: DisplayRepresentation] = [
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Klettern"
+    static let caseDisplayRepresentations: [ClimbWorkoutStyle: DisplayRepresentation] = [
         .boulder: "Bouldern",
         .lead:    "Vorstieg",
     ]
 }
 
-struct StartClimbWorkoutIntent: StartWorkoutIntent {
+nonisolated struct StartClimbWorkoutIntent: StartWorkoutIntent {
     static let title: LocalizedStringResource = "Klettern"
 
     @Parameter(title: "Disziplin")
@@ -91,7 +100,7 @@ struct StartClimbWorkoutIntent: StartWorkoutIntent {
 
     // AB-A: Explizit true setzen – nötig damit der awaitingResult-Druck den
     // Klassifikations-Screen in den Vordergrund holt.
-    static var openAppWhenRun: Bool = true
+    static let openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -116,7 +125,7 @@ struct StartClimbWorkoutIntent: StartWorkoutIntent {
 // ACHTUNG (S23): In den Action-Button-Settings weiterhin den WORKOUT-Pfad
 // (Training → Vorstieg/Bouldern) wählen, NICHT den App-Shortcut.
 
-struct ClimbShortcuts: AppShortcutsProvider {
+nonisolated struct ClimbShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: StartClimbWorkoutIntent(style: .lead),
@@ -134,8 +143,8 @@ struct ClimbShortcuts: AppShortcutsProvider {
 // Das Referenzprojekt registriert Pause/Resume mit – Teil der vollständigen
 // Workout-App-Integration; System kann sie z. B. aus Workout-Controls aufrufen.
 
-struct PauseClimbWorkoutIntent: PauseWorkoutIntent {
-    static var title: LocalizedStringResource = "Pause"
+nonisolated struct PauseClimbWorkoutIntent: PauseWorkoutIntent {
+    static let title: LocalizedStringResource = "Pause"
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -146,8 +155,8 @@ struct PauseClimbWorkoutIntent: PauseWorkoutIntent {
     }
 }
 
-struct ResumeClimbWorkoutIntent: ResumeWorkoutIntent {
-    static var title: LocalizedStringResource = "Fortsetzen"
+nonisolated struct ResumeClimbWorkoutIntent: ResumeWorkoutIntent {
+    static let title: LocalizedStringResource = "Fortsetzen"
 
     @MainActor
     func perform() async throws -> some IntentResult {

@@ -5,7 +5,9 @@ import AppIntents
 // handleActionButton() hat guard isRunning – kein Geister-Versuch nach Jetsam-Kill.
 // openAppWhenRun = true: App öffnet beim awaitingResult-Übergang → Ergebnis-Overlay sichtbar.
 
-struct ToggleAttemptIntent: AppIntent {
+// AB-K: nonisolated – siehe StartSessionIntent.swift (AppIntents-Runtime
+// instanziiert Intents off-main; MainActor-Default-Isolation crasht dort).
+nonisolated struct ToggleAttemptIntent: AppIntent {
     static let title: LocalizedStringResource = "Versuch tracken"
     static let openAppWhenRun: Bool = true
 
