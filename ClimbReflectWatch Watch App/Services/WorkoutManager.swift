@@ -138,7 +138,7 @@ final class WorkoutManager: NSObject, ObservableObject {
                 self.selectedProject = ProjectInfo(id: id, name: name)
             }
             if let id = p.shoeID, let name = p.shoeName {
-                self.selectedShoe = ShoeInfo(id: id, name: name, condition: p.shoeCondition)
+                self.selectedShoe = ShoeInfo(id: id, name: name, condition: p.shoeCondition, defaultForTypes: [])
             }
             self.attempts = p.ascents.map { WatchAttempt(fromDTO: $0, sessionType: self.sessionType) }
             // B3: hrSum/hrCount/activeEnergyKcal werden in startStreamingHR/Energy aus der
@@ -214,7 +214,8 @@ final class WorkoutManager: NSObject, ObservableObject {
            let name = ud.string(forKey: Self.selectedShoeNameKey) {
             _selectedShoe = Published(wrappedValue: ShoeInfo(
                 id: id, name: name,
-                condition: ud.string(forKey: Self.selectedShoeConditionKey)
+                condition: ud.string(forKey: Self.selectedShoeConditionKey),
+                defaultForTypes: []
             ))
         }
         let launchCount = ud.integer(forKey: "launchCount") + 1

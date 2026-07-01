@@ -13,7 +13,8 @@ struct ProjectInfo: Identifiable, Hashable {
 struct ShoeInfo: Identifiable, Hashable {
     let id: String   // UUID-String
     let name: String
-    let condition: String?  // ShoeCondition.rawValue, Snapshot zum Zeitpunkt des Empfangs
+    let condition: String?       // ShoeCondition.rawValue, Snapshot zum Zeitpunkt des Empfangs
+    let defaultForTypes: [String]   // SH-12: SessionType.rawValues, für Auto-Vorauswahl
 }
 
 final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
@@ -107,11 +108,16 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
         } else if let names = context[SyncService.projectsKey] as? [String] {
             knownProjects = names.map { ProjectInfo(id: $0, name: $0) }
         }
-        // SH-6: Schuhe
-        if let list = context[SyncService.shoeListKey] as? [[String: String]] {
+        // SH-6/SH-12: Schuhe inkl. Standard-Zuordnung
+        if let list = context[SyncService.shoeListKey] as? [[String: Any]] {
             knownShoes = list.compactMap { dict -> ShoeInfo? in
-                guard let id = dict["id"], let name = dict["name"] else { return nil }
-                return ShoeInfo(id: id, name: name, condition: dict["condition"])
+                guard let id = dict["id"] as? String, let name = dict["name"] as? String else { return nil }
+                return ShoeInfo(
+                    id: id,
+                    name: name,
+                    condition: dict["condition"] as? String,
+                    defaultForTypes: dict["defaultForTypes"] as? [String] ?? []
+                )
             }
         }
     }

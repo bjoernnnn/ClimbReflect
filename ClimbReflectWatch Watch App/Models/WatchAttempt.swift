@@ -67,7 +67,7 @@ struct WatchAttempt: Identifiable {
         }
         if let name = dto.shoeName {
             let id = dto.shoeID?.uuidString ?? name
-            self.shoeInfo = ShoeInfo(id: id, name: name, condition: dto.shoeCondition)
+            self.shoeInfo = ShoeInfo(id: id, name: name, condition: dto.shoeCondition, defaultForTypes: [])
         } else {
             self.shoeInfo = nil
         }

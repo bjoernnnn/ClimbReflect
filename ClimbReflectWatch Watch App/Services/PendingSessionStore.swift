@@ -32,7 +32,7 @@ struct PendingSession: Codable {
 
     var shoeInfo: ShoeInfo? {
         guard let id = shoeID, let name = shoeName else { return nil }
-        return ShoeInfo(id: id, name: name, condition: shoeCondition)
+        return ShoeInfo(id: id, name: name, condition: shoeCondition, defaultForTypes: [])
     }
 }
 
