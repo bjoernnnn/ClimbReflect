@@ -166,12 +166,14 @@ struct LiveSessionView: View {
             vitalsRow
                 .opacity(isLuminanceReduced ? 0.6 : 1.0)
 
+            // fixedSize + maxHeight: beide Badges immer gleich hoch (auch im Timer-Modus)
             HStack(spacing: 8) {
                 attemptToggleBadge
                 statBadge(value: "\(topCount)",
                           label: "Tops", icon: "checkmark.circle.fill",
                           color: WatchTheme.accent)
             }
+            .fixedSize(horizontal: false, vertical: true)
 
             // B1: pendingBanner entfernt (kein Auto-Detektor mehr)
 
@@ -254,7 +256,7 @@ struct LiveSessionView: View {
                             .lineLimit(1)
                     }
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.vertical, 10)
                 .padding(.horizontal, 8)
                 .background(Color.orange.opacity(0.18))
@@ -634,7 +636,7 @@ struct LiveSessionView: View {
                     .foregroundStyle(WatchTheme.textSecond)
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 10)
         .padding(.horizontal, 10)
         .background(WatchTheme.surface)

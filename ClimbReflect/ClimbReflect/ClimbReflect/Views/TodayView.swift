@@ -176,10 +176,12 @@ struct TodayView: View {
     }
 
     private var heroTrophyRow: some View {
+        // fixedSize: beide Karten strecken sich auf die Höhe der höheren
         HStack(spacing: 12) {
             heroCard(title: "Bouldern", hero: heroBoulder)
             heroCard(title: "Klettern", hero: heroRoute)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func heroCard(title: String, hero: (grade: String, system: GradeSystem)?) -> some View {
@@ -207,7 +209,7 @@ struct TodayView: View {
                     .foregroundStyle(Theme.textTertiary)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 16)

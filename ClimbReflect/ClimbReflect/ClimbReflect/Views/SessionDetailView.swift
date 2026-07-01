@@ -414,12 +414,17 @@ struct SessionDetailView: View {
             Image(systemName: symbol)
                 .foregroundStyle(color)
                 .font(.system(size: 15))
+            // lineLimit(1) + Skalierung: kein Umbruch → alle Kacheln einer Reihe gleich hoch
             Text(value)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(Theme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
