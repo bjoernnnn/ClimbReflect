@@ -71,6 +71,10 @@ ClimbReflect/
      erneuter Druck beendet ihn und öffnet die Klassifikation (Tab 2).
 4. Diagnose: Watch → Einstellungen → „Diagnose" – jeder Druck erzeugt eine
    `StartClimbWorkoutIntent:`- bzw. `ToggleAttemptIntent:`-Zeile.
+5. **Bekannter watchOS-26-Bug:** Auf der Ultra bleibt der Action Button teils wirkungslos
+   (Farbscreen erscheint, Aktion wird nie ausgeführt, keine Intent-Zeile in der Diagnose).
+   Workaround: **Watch neu starten**; hilft das nicht, App von der Watch löschen, Watch neu
+   starten, App neu installieren und die Action-Button-Aktion neu auswählen.
 
 ## Daten zurücksetzen
 

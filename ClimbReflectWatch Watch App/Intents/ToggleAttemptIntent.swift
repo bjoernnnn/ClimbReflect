@@ -12,7 +12,8 @@ struct ToggleAttemptIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         let manager = WorkoutManager.shared
-        DiagnosticLog.shared.log("ToggleAttemptIntent: isRunning=\(manager.isRunning) state=\(String(describing: manager.attemptState))")
+        // flushImmediately: Beweis auf Disk, auch wenn der Prozess direkt danach stirbt
+        DiagnosticLog.shared.log("ToggleAttemptIntent: isRunning=\(manager.isRunning) state=\(String(describing: manager.attemptState))", flushImmediately: true)
         manager.handleActionButton()
         return .result(actionButtonIntent: ToggleAttemptIntent())
     }

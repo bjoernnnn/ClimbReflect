@@ -15,7 +15,8 @@ struct StartSessionIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         let manager = WorkoutManager.shared
-        DiagnosticLog.shared.log("StartSessionIntent: isRunning=\(manager.isRunning) state=\(String(describing: manager.attemptState))")
+        // flushImmediately: Beweis auf Disk, auch wenn der Prozess direkt danach stirbt
+        DiagnosticLog.shared.log("StartSessionIntent: isRunning=\(manager.isRunning) state=\(String(describing: manager.attemptState))", flushImmediately: true)
         if manager.isRunning {
             // Session läuft bereits → Versuch tracken
             manager.handleActionButton()
@@ -84,7 +85,8 @@ struct StartClimbWorkoutIntent: StartWorkoutIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         let manager = WorkoutManager.shared
-        DiagnosticLog.shared.log("StartClimbWorkoutIntent: style=\(workoutStyle.rawValue) isRunning=\(manager.isRunning) state=\(String(describing: manager.attemptState))")
+        // flushImmediately: Beweis auf Disk, auch wenn der Prozess direkt danach stirbt
+        DiagnosticLog.shared.log("StartClimbWorkoutIntent: style=\(workoutStyle.rawValue) isRunning=\(manager.isRunning) state=\(String(describing: manager.attemptState))", flushImmediately: true)
         if manager.isRunning {
             manager.handleActionButton()
         } else {
