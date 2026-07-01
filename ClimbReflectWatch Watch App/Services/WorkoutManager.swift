@@ -101,7 +101,18 @@ final class WorkoutManager: NSObject, ObservableObject {
     /// Einheitlicher Einstieg beim App-Start (nach requestAuthorization).
     /// Versucht zuerst eine noch aktive HK-Session wiederherzustellen;
     /// fällt andernfalls auf den Snapshot-Rettungs-Pfad zurück.
+    /// AB-G: Single-flight – App-.task und Action-Button-Intent können beide (nebenläufig)
+    /// aufrufen; die Recovery läuft trotzdem höchstens einmal pro Prozess.
+    private var recoveryTask: Task<Void, Never>?
+
     func recoverIfNeeded() async {
+        if recoveryTask == nil {
+            recoveryTask = Task { await self.recoverOnce() }
+        }
+        await recoveryTask?.value
+    }
+
+    private func recoverOnce() async {
         // P1-3: Nur beim echten Kaltstart ausführen
         guard !isRunning, session == nil else { return }
         // P1-2: Alte Fehler aus einer vorherigen Session zurücksetzen
@@ -335,6 +346,20 @@ final class WorkoutManager: NSObject, ObservableObject {
     }
 
     // MARK: - D1: Action Button State Machine
+
+    /// AB-G: Idle-Druck auf den Action Button startet die Session direkt im Intent-Kontext.
+    /// Ersetzt den PendingStart-Umweg: dessen Flag wurde nur im `.task` beim Kaltstart
+    /// konsumiert – lebte der Prozess bereits im Hintergrund, verpuffte der Druck.
+    /// Reihenfolge: erst Recovery (Jetsam-Kill, S21), nur wenn danach keine Session läuft
+    /// wirklich neu starten.
+    func startFromActionButton(type: WatchSessionType) async {
+        await recoverIfNeeded()
+        guard !isRunning else {
+            DiagnosticLog.shared.log("startFromActionButton: Session recovered – kein Neustart")
+            return
+        }
+        await startWorkout(type: type)
+    }
 
     func handleActionButton() {
         guard isRunning else {

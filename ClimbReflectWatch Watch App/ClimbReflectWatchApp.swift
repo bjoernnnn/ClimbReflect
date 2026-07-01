@@ -18,11 +18,9 @@ struct ClimbReflectWatchApp: App {
                 .environmentObject(workoutManager)
                 .task {
                     await workoutManager.requestAuthorization()
+                    // AB-G: Idle-Start läuft jetzt direkt im Intent (startFromActionButton);
+                    // recoverIfNeeded ist single-flight, doppelter Aufruf ist harmlos.
                     await workoutManager.recoverIfNeeded()
-                    // B2: Session starten falls Action Button gesetzt hat
-                    if !workoutManager.isRunning, let type = PendingStart.consume() {
-                        await workoutManager.startWorkout(type: type)
-                    }
                 }
         }
         .onChange(of: scenePhase) { _, phase in

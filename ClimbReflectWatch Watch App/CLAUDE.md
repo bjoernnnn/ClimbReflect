@@ -313,8 +313,11 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   Settings: Watch Einstellungen → Action Button → Training → **Vorstieg** (= `StartClimbWorkoutIntent`).
   Ab **watchOS 26.5** ist der App-Shortcuts-Pfad nicht mehr chainbar; nur Workout-Aktivität toggelt.
   **Architektur:** `StartClimbWorkoutIntent.perform()` loggt + ruft `handleActionButton()` (wenn
-  `isRunning`), sonst `PendingStart.set()` für Idle-Druck → chains zu `ToggleAttemptIntent`, das sich
-  selbst re-chaint. Toggle-Logik ausschließlich in `WorkoutManager.handleActionButton()` — Badge und
+  `isRunning`), sonst `startFromActionButton()` für den Idle-Druck (AB-G: startet die Session
+  **direkt im Intent** – das frühere `PendingStart`-Flag wurde nur im `.task` beim Kaltstart
+  konsumiert und verpuffte, wenn der Prozess schon im Hintergrund lebte) → chains zu
+  `ToggleAttemptIntent`, das sich selbst re-chaint. `recoverIfNeeded()` ist single-flight
+  (App-`.task` und Intent dürfen parallel aufrufen). Toggle-Logik ausschließlich in `WorkoutManager.handleActionButton()` — Badge und
   Button teilen die Quelle. `handleActionButton()` hat `guard isRunning` an erster Stelle (kein
   Ghost-Versuch bei Jetsam-Kill vor Recovery). `openAppWhenRun = true` öffnet App beim zweiten Druck
   (awaitingResult) damit Tab 2 / Klassifikation sichtbar wird. `ClimbShortcuts` wurde entfernt — der

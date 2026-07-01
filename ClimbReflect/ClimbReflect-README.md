@@ -58,6 +58,20 @@ ClimbReflect/
 └─ Services/RedpointHealthService.swift   HealthKit/Redpoint-Import
 ```
 
+## Action Button einrichten (Apple Watch Ultra)
+
+1. Watch **Einstellungen → Action-Knopf** (oder iPhone → Watch-App → Action-Knopf).
+2. Als Aktion unter **„Training"** direkt **„Vorstieg"** bzw. **„Bouldern"** von ClimbReflect
+   wählen (= `StartClimbWorkoutIntent`). **Nicht** einen App-Shortcut wie „Training starten" –
+   App-Shortcuts können auf der Uhr nicht ins Versuchs-Toggle chainen (ab watchOS 26.5 gar nicht).
+3. Verhalten:
+   - **Keine Session aktiv:** Druck startet direkt eine Session (Vorstieg/Bouldern je nach Auswahl).
+   - **Session läuft** (egal ob Bouldern, Toprope, Vorstieg oder Autobelay, auch on-screen
+     gestartet): Druck startet den Versuch (oranger Timer auf der „Versuche"-Badge),
+     erneuter Druck beendet ihn und öffnet die Klassifikation (Tab 2).
+4. Diagnose: Watch → Einstellungen → „Diagnose" – jeder Druck erzeugt eine
+   `StartClimbWorkoutIntent:`- bzw. `ToggleAttemptIntent:`-Zeile.
+
 ## Daten zurücksetzen
 
 App vom Simulator/Gerät löschen und neu starten – dann wird wieder frisch geseedet.

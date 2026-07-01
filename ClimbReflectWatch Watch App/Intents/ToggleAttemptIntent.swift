@@ -2,11 +2,9 @@ import AppIntents
 
 // AB-4: Re-chainender Intent – Hardware-Zwilling der Versuche-Badge.
 // Jeder Druck ruft WorkoutManager.handleActionButton() und verkettet sich selbst.
-// Kein isRunning-Check hier: handleActionButton() ist idempotent und setzt AttemptState
-// auch dann korrekt, wenn die App nach Jetsam-Kill neu startet (isRunning noch false).
+// handleActionButton() hat guard isRunning – kein Geister-Versuch nach Jetsam-Kill.
 // openAppWhenRun = true: App öffnet beim awaitingResult-Übergang → Ergebnis-Overlay sichtbar.
 
-@available(watchOS 10.0, *)
 struct ToggleAttemptIntent: AppIntent {
     static let title: LocalizedStringResource = "Versuch tracken"
     static let openAppWhenRun: Bool = true
