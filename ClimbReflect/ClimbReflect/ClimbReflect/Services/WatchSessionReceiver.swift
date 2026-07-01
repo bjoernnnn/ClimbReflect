@@ -9,6 +9,7 @@ import WatchConnectivity
 final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject {
     static let shared = WatchSessionReceiver()
     static let projectsKey = "knownProjects"
+    static let shoeProjectSyncKey = "shoeProjectSync"   // SH-14: transferUserInfo-Fallback-Key
 
     @Published var liveStatus: WatchLiveStatus?
     @Published var diagnosticLogText: String = ""
@@ -67,7 +68,17 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             Self.projectsKey: projectNames,
             "shoeList": shoeList
         ]
-        try? WCSession.default.updateApplicationContext(context)
+        var updateFailed = false
+        do {
+            try WCSession.default.updateApplicationContext(context)
+        } catch {
+            updateFailed = true
+        }
+        // SH-14: updateApplicationContext ist best-effort/coalescing – bei Fehlschlag oder
+        // nicht erreichbarer Uhr zusätzlich per transferUserInfo senden (zuverlässig, persistiert).
+        if updateFailed || !WCSession.default.isReachable {
+            WCSession.default.transferUserInfo([Self.shoeProjectSyncKey: context])
+        }
     }
 
     func pushProjectsToWatch() {

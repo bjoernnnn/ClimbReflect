@@ -92,6 +92,7 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     static let projectsKey = "knownProjects"
     static let projectListKey = "projectList"
     static let shoeListKey = "shoeList"
+    static let shoeProjectSyncKey = "shoeProjectSync"   // SH-14: transferUserInfo-Fallback-Key
 
     func session(_ session: WCSession,
                  didReceiveApplicationContext applicationContext: [String: Any]) {
@@ -136,6 +137,11 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
                  didReceiveUserInfo userInfo: [String: Any] = [:]) {
         if let command = userInfo["watchCommand"] as? String {
             DispatchQueue.main.async { self.onCommand?(command) }
+        }
+        // SH-14: Robustheits-Fallback für Projekt-/Schuh-Liste, falls updateApplicationContext
+        // nicht ankam (Uhr nicht erreichbar/Fehler)
+        if let context = userInfo[SyncService.shoeProjectSyncKey] as? [String: Any] {
+            DispatchQueue.main.async { self.applyContext(context) }
         }
     }
 
