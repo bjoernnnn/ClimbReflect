@@ -4,7 +4,8 @@ import SwiftData
 struct StatisticsView: View {
     @Query(sort: \ClimbSession.date, order: .reverse) private var sessions: [ClimbSession]
 
-    private var weekly: [WeeklyPoint] { StatsEngine.weeklyMinutes(sessions) }
+    // Nur Klettersessions – die Karte ist mit "Klettermin. pro Woche" beschriftet
+    private var weekly: [WeeklyPoint] { StatsEngine.weeklyMinutes(sessions.filter(\.isClimbing)) }
 
     var body: some View {
         NavigationStack {

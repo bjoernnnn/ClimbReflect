@@ -82,10 +82,13 @@ enum StatsEngine {
     }
 
     /// Aufeinanderfolgende Wochen (ab dieser Woche rückwärts) mit ≥1 Session.
+    /// Die laufende Woche zählt mit, bricht den Streak aber nicht ab, solange sie
+    /// noch leer ist (montags stünde sonst jeder Streak sofort auf 0).
     static func weekStreak(_ sessions: [ClimbSession], calendar: Calendar = .current) -> Int {
-        let weeks = weeklyMinutes(sessions, weeks: 26, calendar: calendar)
+        var weeks = Array(weeklyMinutes(sessions, weeks: 26, calendar: calendar).reversed())
+        if weeks.first?.sessions == 0 { weeks.removeFirst() }
         var streak = 0
-        for point in weeks.reversed() {
+        for point in weeks {
             if point.sessions > 0 { streak += 1 } else { break }
         }
         return streak
@@ -157,14 +160,18 @@ enum StatsEngine {
 
     static func gradePyramid(_ sessions: [ClimbSession],
                              system: GradeSystem) -> [PyramidEntry] {
+        // Alle Begehungen derselben DISZIPLIN einbeziehen und ins Zielsystem
+        // konvertieren – vorher fielen z. B. in V-Scale erfasste Boulder komplett
+        // aus der Fb-Pyramide heraus.
         let allAscents = climbing(sessions).flatMap(\.ascents).filter {
-            $0.gradeSystem == system
+            $0.gradeSystem.isBoulder == system.isBoulder
         }
         guard !allAscents.isEmpty else { return [] }
 
         var groups: [String: (tops: Int, attempts: Int)] = [:]
         for a in allAscents {
-            let key = a.gradeRaw
+            guard let key = GradeConverter.convert(grade: a.gradeRaw, from: a.gradeSystem, to: system)
+            else { continue }  // Grad liegt nicht in der Umrechnungs-Leiter
             var entry = groups[key, default: (0, 0)]
             if a.result == .top { entry.tops += 1 } else { entry.attempts += 1 }
             groups[key] = entry
@@ -230,13 +237,16 @@ enum StatsEngine {
 
         if rpe >= 8.0 && sendRate < 0.35 { return .deloadSuggested }
 
-        let allSorted = climbSessions.sorted { $0.date < $1.date }
-        let half = allSorted.count / 2
+        // Plateau: die letzten 12 Sessions in zwei Hälften vergleichen (nicht die
+        // gesamte Historie – sonst gälte "Plateau", solange ein Alt-PB unerreicht ist).
+        // canonicalOrder statt sortOrder: über Grad-Skalen hinweg vergleichbar.
+        let windowed = climbSessions.sorted { $0.date < $1.date }.suffix(12)
+        let half = windowed.count / 2
         if half >= 2 {
-            let older = allSorted.prefix(half).flatMap(\.ascents)
-            let newer = allSorted.suffix(half).flatMap(\.ascents)
-            let olderMax = older.filter { $0.result == .top }.map(\.sortOrder).max() ?? 0
-            let newerMax = newer.filter { $0.result == .top }.map(\.sortOrder).max() ?? 0
+            let older = windowed.prefix(half).flatMap(\.ascents)
+            let newer = windowed.suffix(half).flatMap(\.ascents)
+            let olderMax = older.filter { $0.result == .top }.map(\.canonicalOrder).max() ?? 0
+            let newerMax = newer.filter { $0.result == .top }.map(\.canonicalOrder).max() ?? 0
             if newerMax <= olderMax && rpe >= 7.5 { return .techniqueSuggested }
         }
         return .formGood
@@ -326,12 +336,13 @@ enum StatsEngine {
 
         let allAscents = thisWeek.flatMap(\.ascents)
         let tops = allAscents.filter { $0.result == .top }
-        let topsSorted = tops.sorted { $0.sortOrder > $1.sortOrder }
+        // canonicalOrder: Grad-Skalen (Fb/V bzw. French/UIAA) vergleichbar machen
+        let topsSorted = tops.sorted { $0.canonicalOrder > $1.canonicalOrder }
         let highest = topsSorted.first
 
         let prevTops = prevSessions.flatMap(\.ascents).filter { $0.result == .top }
-        let prevMaxOrder = prevTops.map(\.sortOrder).max() ?? -1
-        let newPB = (highest?.sortOrder ?? -1) > prevMaxOrder
+        let prevMaxOrder = prevTops.map(\.canonicalOrder).max() ?? -1
+        let newPB = (highest?.canonicalOrder ?? -1) > prevMaxOrder
 
         let rpes = thisWeekAll.compactMap(\.perceivedEffort).map(Double.init)
         let avgRPE = rpes.isEmpty ? nil : rpes.reduce(0, +) / Double(rpes.count)
@@ -367,19 +378,21 @@ enum StatsEngine {
         let tops = allAscents.filter { $0.result == .top }
         let flashes = tops.filter { $0.style == .flash }
 
-        // Neuer Höchstgrad
-        let maxGrade = tops.max { $0.sortOrder < $1.sortOrder }
+        // Neuer Höchstgrad (canonicalOrder: skalenübergreifend vergleichbar)
+        let maxGrade = tops.max { $0.canonicalOrder < $1.canonicalOrder }
 
         // 3 Flashes in einer Session
         let bestFlashSession = climbSessions
             .map { ($0, $0.ascents.filter { $0.style == .flash }.count) }
             .max { $0.1 < $1.1 }
 
-        // Projekt gesendet (> 5 Versuche)
+        // Projekt gesendet (> 5 Versuche) – echte Relation zuerst, Name nur als
+        // Migrations-Fallback (projectName ist nach der Projekt-Migration oft nil)
+        func projectKey(_ a: Ascent) -> String? { a.project?.name ?? a.projectName }
         let projectSent = tops.first { a in
-            guard let name = a.projectName else { return false }
+            guard let name = projectKey(a) else { return false }
             let totalAttempts = allAscents
-                .filter { $0.projectName == name }
+                .filter { projectKey($0) == name }
                 .reduce(0) { $0 + $1.attempts }
             return totalAttempts >= 5
         }
@@ -416,9 +429,8 @@ enum StatsEngine {
             ClimbAchievement(
                 id: "project_done",
                 title: "Hartnäckig",
-                subtitle: projectSent != nil
-                    ? "Projekt \(projectSent!.projectName!) gesendet!"
-                    : "Projekt mit 5+ Versuchen senden",
+                subtitle: projectSent.flatMap(projectKey).map { "Projekt \($0) gesendet!" }
+                    ?? "Projekt mit 5+ Versuchen senden",
                 symbol: "target",
                 isUnlocked: projectSent != nil,
                 color: Theme.accent,
@@ -485,7 +497,7 @@ enum StatsEngine {
         let attemptsPerSend: Double? = tops.isEmpty ? nil
             : Double(tops.reduce(0) { $0 + $1.attempts }) / Double(tops.count)
 
-        let hardestTopGrade = tops.max(by: { $0.sortOrder < $1.sortOrder })?.gradeRaw
+        let hardestTopGrade = tops.max(by: { $0.canonicalOrder < $1.canonicalOrder })?.gradeRaw
 
         return SessionInsights(
             totalSeconds: total,
@@ -572,7 +584,12 @@ enum StatsEngine {
         let system: GradeSystem
     }
 
+    /// Höchstgrad pro Monat, auf EINE Disziplin beschränkt (boulder: true = Fb/V-Scale,
+    /// false = French/UIAA). Boulder- und Seilgrade in einer Linie zu mischen wäre
+    /// falsch – ihre Indizes sind nicht vergleichbar. Y-Wert ist der kanonische
+    /// Disziplin-Index (skalenübergreifend monoton).
     static func maxGradeTrend(_ sessions: [ClimbSession], months: Int = 6,
+                              boulder: Bool = true,
                               calendar: Calendar = .current) -> [GradeTrendPoint] {
         var cal = calendar
         cal.firstWeekday = 2
@@ -586,9 +603,9 @@ enum StatsEngine {
             let tops = climbing(sessions)
                 .filter { $0.date >= monthStart && $0.date < monthEnd }
                 .flatMap(\.ascents)
-                .filter { $0.result == .top }
-            guard let best = tops.max(by: { $0.sortOrder < $1.sortOrder }) else { return nil }
-            return GradeTrendPoint(monthStart: monthStart, sortOrder: best.sortOrder,
+                .filter { $0.result == .top && $0.gradeSystem.isBoulder == boulder }
+            guard let best = tops.max(by: { $0.canonicalOrder < $1.canonicalOrder }) else { return nil }
+            return GradeTrendPoint(monthStart: monthStart, sortOrder: best.canonicalOrder,
                                    grade: best.gradeRaw, system: best.gradeSystem)
         }
     }
@@ -625,8 +642,11 @@ enum StatsEngine {
                   let end = cal.date(byAdding: .weekOfYear, value: 1, to: start)
             else { continue }
             let inWeek = sessions.filter { $0.date >= start && $0.date < end }
+            // sRPE nur aus Sessions MIT erfasstem RPE – kein Default-RPE
+            // unterschieben (S27: gemessen, nie geschätzt).
             let load = inWeek.reduce(0) { acc, s in
-                acc + (s.perceivedEffort ?? 5) * s.durationMinutes
+                guard let rpe = s.perceivedEffort else { return acc }
+                return acc + rpe * s.durationMinutes
             }
             rawLoads.append(load)
             weekStarts.append(start)
@@ -635,14 +655,16 @@ enum StatsEngine {
         let showFrom = max(0, rawLoads.count - weeks)
         var result: [WeekLoad] = []
         for i in showFrom..<rawLoads.count {
-            let acuteRange = max(0, i - 3)...i
-            let chronicRange = max(0, i - 7)...i
-            let acute = Double(rawLoads[acuteRange].reduce(0, +)) / Double(rawLoads[acuteRange].count)
+            // ACWR nach Konvention: Akutlast = aktuelle Woche,
+            // chronische Last = Ø der letzten 4 Wochen (inkl. aktueller).
+            // Erst ab 4 Wochen Historie aussagekräftig.
+            let chronicRange = max(0, i - 3)...i
+            let acute = Double(rawLoads[i])
             let chronic = Double(rawLoads[chronicRange].reduce(0, +)) / Double(rawLoads[chronicRange].count)
             result.append(WeekLoad(
                 weekStart: weekStarts[i],
                 load: rawLoads[i],
-                acwr: chronic > 0 ? acute / chronic : nil
+                acwr: (i >= 3 && chronic > 0) ? acute / chronic : nil
             ))
         }
         return result
@@ -788,12 +810,14 @@ enum StatsEngine {
         let id = UUID()
         let date: Date
         let edgeMM: Int
-        let totalWeightKg: Double   // Körpergewicht + Zusatzgewicht (bodyMass + addedWeightKg)
+        let addedWeightKg: Double   // Zusatzgewicht (negativ = entlastet)
         let note: String?
     }
 
-    static func fingerStrengthTrend(_ sessions: [ClimbSession],
-                                    bodyMass: Double? = nil) -> [StrengthPoint] {
+    /// Zusatzgewicht statt fabriziertem Gesamtgewicht: ein Körpergewicht wird
+    /// nirgends erfasst – ein Default (70 kg) wäre eine stille Schätzung (S27)
+    /// und macht die kg-Achse falsch. Der Trend ist relativ ohnehin identisch.
+    static func fingerStrengthTrend(_ sessions: [ClimbSession]) -> [StrengthPoint] {
         sessions
             .filter { $0.sessionType == .training }
             .flatMap { s in
@@ -801,12 +825,10 @@ enum StatsEngine {
                     .filter { $0.kind == .hangboardMaxHang && $0.edgeMM != nil }
                     .compactMap { t -> StrengthPoint? in
                         guard let edge = t.edgeMM else { return nil }
-                        let added = t.addedWeightKg ?? 0
-                        let bw = bodyMass ?? 70
                         return StrengthPoint(
                             date: t.date,
                             edgeMM: edge,
-                            totalWeightKg: bw + added,
+                            addedWeightKg: t.addedWeightKg ?? 0,
                             note: t.note
                         )
                     }

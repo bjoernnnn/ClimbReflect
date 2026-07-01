@@ -326,6 +326,16 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   Recovery ruft `handleActionButton()` mit `isRunning=true` und re-etabliert den Chain. Session-Ende
   beendet die HKWorkoutSession → System setzt Action-Button automatisch auf Start-Zustand zurück.
 
+**S30 – Grade nie über den rohen `sortOrder` skalenübergreifend vergleichen.**
+  `GradeSystem.sortOrder(of:)` ist ein Index in die *eigene* Picker-Leiter – Fb vs. V-Scale
+  bzw. French vs. UIAA sind damit nicht vergleichbar (6B+ „schlug" V5). Für Vergleiche/Maxima
+  über Skalen hinweg: `Ascent.canonicalOrder` (Index in der gemeinsamen Disziplin-Leiter des
+  `GradeConverter`, Fallback eigene Skala). Boulder- und Seilgrade bleiben grundsätzlich
+  getrennt (Charts: `DisciplinePicker`). `gradePyramid`/`maxGradeTrend` arbeiten pro Disziplin
+  und konvertieren ins Anzeige-System. ACWR: Akutlast = aktuelle Woche, chronisch = 4-Wochen-Ø;
+  sRPE ohne erfasstes RPE zählt 0 (S27: nie schätzen – gilt auch für Körpergewicht beim
+  Fingerkraft-Trend → Chart zeigt Zusatzgewicht).
+
 ---
 
 *Dieses Dokument bei jeder größeren Entscheidung/jedem Fix aktualisieren, damit der rote Faden

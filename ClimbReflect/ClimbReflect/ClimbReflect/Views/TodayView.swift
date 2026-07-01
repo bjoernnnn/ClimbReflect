@@ -12,17 +12,18 @@ struct TodayView: View {
 
     private var formSignal: StatsEngine.FormSignal { StatsEngine.formSignal(sessions) }
 
+    // canonicalOrder: Höchstgrad auch bei gemischten Skalen (Fb/V bzw. French/UIAA) korrekt
     private var heroBoulder: (grade: String, system: GradeSystem)? {
         let tops = sessions.filter { $0.sessionType == .boulder }
             .flatMap(\.ascents).filter { $0.result == .top }
-        guard let best = tops.max(by: { $0.sortOrder < $1.sortOrder }) else { return nil }
+        guard let best = tops.max(by: { $0.canonicalOrder < $1.canonicalOrder }) else { return nil }
         return (best.gradeRaw, best.gradeSystem)
     }
 
     private var heroRoute: (grade: String, system: GradeSystem)? {
         let tops = sessions.filter { [.lead, .topRope, .autoBelay].contains($0.sessionType) }
             .flatMap(\.ascents).filter { $0.result == .top }
-        guard let best = tops.max(by: { $0.sortOrder < $1.sortOrder }) else { return nil }
+        guard let best = tops.max(by: { $0.canonicalOrder < $1.canonicalOrder }) else { return nil }
         return (best.gradeRaw, best.gradeSystem)
     }
 
@@ -100,7 +101,9 @@ struct TodayView: View {
         HStack(spacing: 12) {
             StatTile(value: "\(sessions.filter(\.isClimbing).count)", label: "Sessions", symbol: "figure.climbing")
             StatTile(value: "\(StatsEngine.climbWeekStreak(sessions))", label: "Streak", symbol: "flame.fill")
-            StatTile(value: "\(StatsEngine.sessionsThisWeek(sessions))", label: "Diese Woche", symbol: "calendar")
+            // Klettersessions wie die Nachbar-Kacheln ("Sessions"/"Streak") – sonst
+            // zählt "Diese Woche" Trainings mit und widerspricht der Zeile
+            StatTile(value: "\(StatsEngine.sessionsThisWeek(sessions.filter(\.isClimbing)))", label: "Diese Woche", symbol: "calendar")
         }
     }
 

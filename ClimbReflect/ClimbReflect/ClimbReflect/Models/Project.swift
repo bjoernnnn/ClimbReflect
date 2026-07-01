@@ -33,7 +33,7 @@ final class Project {
     }
     var bestTopGrade: String? {
         ascents.filter { $0.result == .top }
-            .max { $0.sortOrder < $1.sortOrder }?.gradeRaw
+            .max { $0.canonicalOrder < $1.canonicalOrder }?.gradeRaw
     }
     var sentOn: Date? {
         ascents.filter { $0.result == .top }.map(\.date).min()

@@ -19,7 +19,7 @@ enum GradeConverter {
         "VB", "V0", "V0+", "V1", "V2",
         "V3", "V3", "V4", "V4", "V5", "V5",
         "V6", "V7", "V8", "V8", "V9", "V10",
-        "V11", "V12", "V13", "V13", "V14", "V15", "V17"
+        "V11", "V12", "V13", "V14", "V15", "V16", "V17"
     ]
 
     // MARK: - Routen-Leiter (gemeinsamer Index 0…)
@@ -71,6 +71,20 @@ enum GradeConverter {
             : (UserDefaults.standard.string(forKey: "routeScale") ?? GradeSystem.french.rawValue)
         guard let target = GradeSystem(rawValue: targetRaw) else { return grade }
         return convert(grade: grade, from: system, to: target) ?? grade
+    }
+
+    /// Kanonischer Schwierigkeits-Index innerhalb der Disziplin (gemeinsame Leiter).
+    /// Nur damit sind Grade über Skalen hinweg vergleichbar – der rohe
+    /// `GradeSystem.sortOrder` ist ein Index in die *eigene* Picker-Leiter und
+    /// zwischen Fb/V-Scale bzw. French/UIAA NICHT vergleichbar.
+    /// nil, wenn der Grad nicht in der Umrechnungs-Leiter liegt (z. B. UIAA "III").
+    static func canonicalIndex(grade: String, system: GradeSystem) -> Int? {
+        switch system {
+        case .fontainebleau: boulderFb.firstIndex(of: grade)
+        case .vScale:        boulderV.firstIndex(of: grade)
+        case .french:        routeFrench.firstIndex(of: grade)
+        case .uiaa:          routeUIAA.firstIndex(of: grade)
+        }
     }
 
     // MARK: - Intern

@@ -24,7 +24,7 @@ struct FingerStrengthTrendView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Fingerkraft-Trend")
                     .font(.headline).foregroundStyle(Theme.textPrimary)
-                Text("Hangboard Max-Hang nach Leistengröße")
+                Text("Zusatzgewicht beim Max-Hang nach Leistengröße")
                     .font(.caption).foregroundStyle(Theme.textSecondary)
             }
 
@@ -38,7 +38,7 @@ struct FingerStrengthTrendView: View {
                     ForEach(data) { p in
                         LineMark(
                             x: .value("Datum", p.date),
-                            y: .value("Kg", p.totalWeightKg),
+                            y: .value("Kg", p.addedWeightKg),
                             series: .value("Leiste", "\(p.edgeMM) mm")
                         )
                         .foregroundStyle(color(for: p.edgeMM))
@@ -46,7 +46,7 @@ struct FingerStrengthTrendView: View {
 
                         PointMark(
                             x: .value("Datum", p.date),
-                            y: .value("Kg", p.totalWeightKg)
+                            y: .value("Kg", p.addedWeightKg)
                         )
                         .foregroundStyle(color(for: p.edgeMM))
                         .symbolSize(30)
@@ -81,7 +81,7 @@ struct FingerStrengthTrendView: View {
                     }
                 }
 
-                Text("Gesamtgewicht = Körpergewicht + Zusatzgewicht · je Leistengröße eine Linie")
+                Text("Zusatzgewicht beim Max-Hang (negativ = entlastet) · je Leistengröße eine Linie")
                     .font(.caption2).foregroundStyle(Theme.textTertiary)
             }
         }

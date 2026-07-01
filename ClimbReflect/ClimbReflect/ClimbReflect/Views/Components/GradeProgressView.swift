@@ -5,10 +5,19 @@ struct GradeProgressView: View {
     let sessions: [ClimbSession]
 
     @AppStorage("boulderScale") private var boulderScale: String = GradeSystem.fontainebleau.rawValue
+    @AppStorage("routeScale") private var routeScale: String = GradeSystem.french.rawValue
     @State private var period: ChartPeriod = .threeMonths
+    @State private var showRoutes = false
 
-    private var system: GradeSystem { GradeSystem(rawValue: boulderScale) ?? .fontainebleau }
-    private var trendPoints: [StatsEngine.GradeTrendPoint] { StatsEngine.maxGradeTrend(sessions, months: 6) }
+    // Eine Disziplin pro Ansicht – Boulder- und Seilgrade sind nicht vergleichbar
+    private var system: GradeSystem {
+        showRoutes
+            ? (GradeSystem(rawValue: routeScale) ?? .french)
+            : (GradeSystem(rawValue: boulderScale) ?? .fontainebleau)
+    }
+    private var trendPoints: [StatsEngine.GradeTrendPoint] {
+        StatsEngine.maxGradeTrend(sessions, months: 6, boulder: !showRoutes)
+    }
 
     private var consolidation: [StatsEngine.PyramidEntry] {
         StatsEngine.gradePyramid(period.filter(sessions), system: system)
@@ -28,7 +37,7 @@ struct GradeProgressView: View {
                         .font(.caption).foregroundStyle(Theme.textSecondary)
                 }
                 Spacer()
-                ChartPeriodPicker(selection: $period)
+                DisciplinePicker(showRoutes: $showRoutes)
             }
 
             if trendPoints.isEmpty && consolidation.isEmpty {
@@ -61,7 +70,7 @@ struct GradeProgressView: View {
                     .foregroundStyle(Theme.gold)
                     .symbolSize(40)
                     .annotation(position: .top) {
-                        Text(p.grade)
+                        Text(GradeConverter.display(grade: p.grade, storedIn: p.system))
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(Theme.textSecondary)
                     }

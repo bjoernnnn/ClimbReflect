@@ -70,6 +70,9 @@ enum GradeSystem: String, Codable, CaseIterable, Identifiable {
     func sortOrder(of grade: String) -> Int {
         grades.firstIndex(of: grade) ?? 0
     }
+
+    /// Disziplin der Skala: Fb/V-Scale = Boulder, French/UIAA = Seil.
+    var isBoulder: Bool { self == .fontainebleau || self == .vScale }
 }
 
 // MARK: - Begehungsergebnis

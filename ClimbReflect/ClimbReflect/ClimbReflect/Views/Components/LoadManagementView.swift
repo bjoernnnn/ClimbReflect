@@ -70,7 +70,7 @@ struct LoadManagementView: View {
                         y: .value("Last", point.load))
                     .foregroundStyle(
                         (point.acwr ?? 1) > 1.5 ? Theme.danger.opacity(0.75) :
-                        (point.acwr ?? 1) > 1.2 ? Theme.gold.opacity(0.75) :
+                        (point.acwr ?? 1) > 1.3 ? Theme.gold.opacity(0.75) :
                         Theme.accent.opacity(0.75)
                     )
                     .cornerRadius(3)
@@ -113,11 +113,11 @@ struct LoadManagementView: View {
                     ForEach(acwrPoints, id: \.0) { date, acwr in
                         LineMark(x: .value("Woche", date, unit: .weekOfYear),
                                  y: .value("ACWR", acwr))
-                            .foregroundStyle(acwr > 1.5 ? Theme.danger : acwr > 1.2 ? Theme.gold : Theme.accent)
+                            .foregroundStyle(acwr > 1.5 ? Theme.danger : acwr > 1.3 ? Theme.gold : Theme.accent)
                             .lineStyle(StrokeStyle(lineWidth: 2))
                         PointMark(x: .value("Woche", date, unit: .weekOfYear),
                                   y: .value("ACWR", acwr))
-                            .foregroundStyle(acwr > 1.5 ? Theme.danger : acwr > 1.2 ? Theme.gold : Theme.accent)
+                            .foregroundStyle(acwr > 1.5 ? Theme.danger : acwr > 1.3 ? Theme.gold : Theme.accent)
                             .symbolSize(30)
                     }
                 }
@@ -140,9 +140,10 @@ struct LoadManagementView: View {
     }
 
     private var acwrLegend: some View {
+        // Schwellen identisch zu den RuleMarks (0.8/1.3/1.5) und der Balkenfärbung
         HStack(spacing: 12) {
-            legendItem(color: Theme.accent, label: "< 1.2 Optimal")
-            legendItem(color: Theme.gold, label: "1.2–1.5 Hoch")
+            legendItem(color: Theme.accent, label: "0.8–1.3 Optimal")
+            legendItem(color: Theme.gold, label: "1.3–1.5 Hoch")
             legendItem(color: Theme.danger, label: "> 1.5 Risiko")
         }
     }

@@ -78,4 +78,9 @@ extension Ascent {
     var holdType: HoldType? { holdTypeRaw.flatMap(HoldType.init(rawValue:)) }
     var climbStyle: ClimbStyle? { climbStyleRaw.flatMap(ClimbStyle.init(rawValue:)) }
     var sortOrder: Int { gradeSystem.sortOrder(of: gradeRaw) }
+    /// Skalenübergreifend vergleichbare Schwierigkeit (gemeinsame Leiter pro Disziplin).
+    /// Für Grade außerhalb der Umrechnungs-Leiter Fallback auf den eigenen Skala-Index.
+    var canonicalOrder: Int {
+        GradeConverter.canonicalIndex(grade: gradeRaw, system: gradeSystem) ?? sortOrder
+    }
 }

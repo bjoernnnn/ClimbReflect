@@ -161,7 +161,7 @@ final class StatsEngineTests: XCTestCase {
         XCTAssertEqual(dist.first?.count, 2)
     }
 
-    // MARK: - achievements
+    // MARK: - achievements (aktuell: nur "first" und "streak")
 
     func testAchievements_noSessions_allLocked() {
         let achievements = StatsEngine.achievements(for: [])
@@ -174,42 +174,73 @@ final class StatsEngineTests: XCTestCase {
         XCTAssertTrue(first?.isUnlocked == true)
     }
 
-    func testAchievements_fiveSessions_unlocksWarmgeklettert() {
-        let sessions = (0..<5).map { makeSession(daysAgo: $0) }
+    func testAchievements_fourWeekStreak_unlocksStreak() {
+        let sessions = [0, 7, 14, 21].map { makeSession(daysAgo: $0) }
         let achievements = StatsEngine.achievements(for: sessions)
-        let five = achievements.first { $0.id == "five" }
-        XCTAssertTrue(five?.isUnlocked == true)
-    }
-
-    func testAchievements_fourSessions_doesNotUnlockWarmgeklettert() {
-        let sessions = (0..<4).map { makeSession(daysAgo: $0) }
-        let achievements = StatsEngine.achievements(for: sessions)
-        let five = achievements.first { $0.id == "five" }
-        XCTAssertFalse(five?.isUnlocked == true)
-    }
-
-    func testAchievements_120MinSession_unlocksMarathon() {
-        let session = makeSession(durationMinutes: 120)
-        let achievements = StatsEngine.achievements(for: [session])
-        let marathon = achievements.first { $0.id == "marathon" }
-        XCTAssertTrue(marathon?.isUnlocked == true)
-    }
-
-    func testAchievements_threeDistinctTypes_unlocksVielseitig() {
-        let sessions = [
-            makeSession(type: .boulder),
-            makeSession(type: .lead),
-            makeSession(type: .topRope),
-        ]
-        let achievements = StatsEngine.achievements(for: sessions)
-        let versatile = achievements.first { $0.id == "versatile" }
-        XCTAssertTrue(versatile?.isUnlocked == true)
+        let streak = achievements.first { $0.id == "streak" }
+        XCTAssertTrue(streak?.isUnlocked == true)
     }
 
     func testAchievements_progressIsClampedToOne() {
         let sessions = (0..<30).map { makeSession(daysAgo: $0) }
         let achievements = StatsEngine.achievements(for: sessions)
         XCTAssertTrue(achievements.allSatisfy { $0.progress <= 1.0 })
+    }
+
+    // MARK: - Kanonische Grad-Ordnung (skalenübergreifend)
+
+    func testCanonicalOrder_vScaleVsFontainebleau_comparable() {
+        // V5 ≈ 6C/6C+ ist schwerer als 6B+ – roher sortOrder (6 vs. 8) sagt das Gegenteil
+        let v5   = Ascent(gradeSystem: .vScale, grade: "V5", result: .top)
+        let f6bp = Ascent(gradeSystem: .fontainebleau, grade: "6B+", result: .top)
+        XCTAssertGreaterThan(v5.canonicalOrder, f6bp.canonicalOrder)
+    }
+
+    func testCanonicalOrder_uiaaVsFrench_comparable() {
+        // UIAA VII ≈ 6a+/6b ist schwerer als French 5c
+        let uiaa7 = Ascent(gradeSystem: .uiaa, grade: "VII", result: .top)
+        let f5c   = Ascent(gradeSystem: .french, grade: "5c", result: .top)
+        XCTAssertGreaterThan(uiaa7.canonicalOrder, f5c.canonicalOrder)
+    }
+
+    func testGradeConverter_v16_convertsTo8Cplus() {
+        XCTAssertEqual(GradeConverter.convert(grade: "V16", from: .vScale, to: .fontainebleau), "8C+")
+    }
+
+    // MARK: - gradePyramid (Disziplin statt exakter Skala)
+
+    func testGradePyramid_includesConvertedVScaleAscents() {
+        let s = makeSession(type: .boulder)
+        let a = Ascent(gradeSystem: .vScale, grade: "V6", result: .top)  // ≈ 7A
+        a.session = s
+        s.ascents.append(a)
+        let entries = StatsEngine.gradePyramid([s], system: .fontainebleau)
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.grade, "7A")
+        XCTAssertEqual(entries.first?.tops, 1)
+    }
+
+    func testGradePyramid_excludesRouteAscentsFromBoulderPyramid() {
+        let s = makeSession(type: .lead)
+        let a = Ascent(gradeSystem: .french, grade: "6a", result: .top)
+        a.session = s
+        s.ascents.append(a)
+        XCTAssertTrue(StatsEngine.gradePyramid([s], system: .fontainebleau).isEmpty)
+        XCTAssertEqual(StatsEngine.gradePyramid([s], system: .french).count, 1)
+    }
+
+    // MARK: - trainingLoad (kein RPE-Default, ACWR = Woche / 4-Wochen-Ø)
+
+    func testTrainingLoad_sessionWithoutRPE_contributesZero() {
+        let sessions = [makeSession(daysAgo: 0, durationMinutes: 60, rpe: nil)]
+        let points = StatsEngine.trainingLoad(sessions)
+        XCTAssertTrue(points.allSatisfy { $0.load == 0 })
+    }
+
+    func testTrainingLoad_currentWeek_isRPETimesMinutes() {
+        let sessions = [makeSession(daysAgo: 0, durationMinutes: 60, rpe: 7)]
+        let points = StatsEngine.trainingLoad(sessions)
+        XCTAssertEqual(points.last?.load, 420)
     }
 
     // MARK: - insights(for:) – SI-1

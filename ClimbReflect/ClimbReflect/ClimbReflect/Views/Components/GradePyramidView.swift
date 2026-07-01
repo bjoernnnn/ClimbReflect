@@ -6,10 +6,15 @@ struct GradePyramidView: View {
     @AppStorage("boulderScale") private var boulderScale: String = GradeSystem.fontainebleau.rawValue
     @AppStorage("routeScale") private var routeScale: String = GradeSystem.french.rawValue
     @State private var period: ChartPeriod = .fourWeeks
+    @State private var showRoutes = false
     @State private var showInfo = false
 
+    // Disziplin wählbar – vorher wurden Seil-Begehungen nie angezeigt,
+    // weil immer nur die Boulder-Skala abgefragt wurde.
     private var selectedSystem: GradeSystem {
-        GradeSystem(rawValue: boulderScale) ?? .fontainebleau
+        showRoutes
+            ? (GradeSystem(rawValue: routeScale) ?? .french)
+            : (GradeSystem(rawValue: boulderScale) ?? .fontainebleau)
     }
 
     private var entries: [StatsEngine.PyramidEntry] {
@@ -32,6 +37,7 @@ struct GradePyramidView: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 6) {
                     ChartPeriodPicker(selection: $period)
+                    DisciplinePicker(showRoutes: $showRoutes)
                     Button {
                         showInfo = true
                     } label: {
