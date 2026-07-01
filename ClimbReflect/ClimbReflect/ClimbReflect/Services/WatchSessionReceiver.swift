@@ -104,6 +104,12 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         WCSession.default.activate()
     }
 
+    // SH-15: Watch-App wurde (neu) installiert oder Pairing-Status änderte sich →
+    // Projekt-/Schuh-Liste erneut pushen (nach Reinstall ist der Watch-Kontext leer).
+    nonisolated func sessionWatchStateDidChange(_ session: WCSession) {
+        Task { @MainActor [self] in self.pushProjectsToWatch() }
+    }
+
     nonisolated func session(_ session: WCSession,
                              didReceiveApplicationContext applicationContext: [String: Any]) {
         Task { @MainActor [self] in
@@ -134,6 +140,11 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
                              didReceiveUserInfo userInfo: [String: Any] = [:]) {
         if let diagData = userInfo["diagnosticLog"] as? Data {
             Task { @MainActor [self] in self.storeDiagnostics(diagData) }
+            return
+        }
+        // SH-15: Watch fordert Re-Push der Projekt-/Schuh-Liste an (z. B. nach Reinstall)
+        if userInfo["requestShoeProjectSync"] != nil {
+            Task { @MainActor [self] in self.pushProjectsToWatch() }
             return
         }
         // Literal statt WatchSessionDTO.transferKey — nonisolated Kontext darf keine

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppIntents
 
 @main
 struct ClimbReflectWatchApp: App {
@@ -17,6 +18,9 @@ struct ClimbReflectWatchApp: App {
             ContentView()
                 .environmentObject(workoutManager)
                 .task {
+                    // AB-H: Workout-Registry des Systems auffrischen – ein veralteter
+                    // LinkServices-Cache kann Action-Button-Drücke ins Leere laufen lassen.
+                    StartClimbWorkoutIntent.invalidateSuggestedWorkouts()
                     await workoutManager.requestAuthorization()
                     // AB-G: Idle-Start läuft jetzt direkt im Intent (startFromActionButton);
                     // recoverIfNeeded ist single-flight, doppelter Aufruf ist harmlos.

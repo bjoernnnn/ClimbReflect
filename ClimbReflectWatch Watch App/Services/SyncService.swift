@@ -4,13 +4,13 @@ import WatchConnectivity
 
 // W5.1/5.2/5.3: WatchConnectivity bidirektional — Session-Transfer Watch→iPhone, Projekte iPhone→Watch
 
-struct ProjectInfo: Identifiable, Hashable {
+struct ProjectInfo: Identifiable, Hashable, Codable {
     let id: String   // UUID-String
     let name: String
 }
 
 // SH-6: Schuh-Info für Watch-Selektor (analog ProjectInfo)
-struct ShoeInfo: Identifiable, Hashable {
+struct ShoeInfo: Identifiable, Hashable, Codable {
     let id: String   // UUID-String
     let name: String
     let condition: String?       // ShoeCondition.rawValue, Snapshot zum Zeitpunkt des Empfangs
@@ -28,9 +28,15 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     private var pendingDTOs: [WatchSessionDTO] = []
     private let pendingKey = "pendingWatchDTOs"
 
+    // SH-15: Listen lokal cachen – applicationContext geht bei App-Kill/Reinstall
+    // verloren, dann stand der Projekt-/Schuh-Button dauerhaft leer.
+    private static let projectsCacheKey = "cachedKnownProjects"
+    private static let shoesCacheKey    = "cachedKnownShoes"
+
     override init() {
         super.init()
         loadPending()
+        loadListCache()
         if WCSession.isSupported() {
             WCSession.default.delegate = self
             WCSession.default.activate()
@@ -121,6 +127,40 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
                 )
             }
         }
+        saveListCache()
+    }
+
+    // MARK: - SH-15: Listen-Cache + aktive Nachforderung
+
+    private func saveListCache() {
+        let ud = UserDefaults.standard
+        if !knownProjects.isEmpty, let data = try? JSONEncoder().encode(knownProjects) {
+            ud.set(data, forKey: Self.projectsCacheKey)
+        }
+        if !knownShoes.isEmpty, let data = try? JSONEncoder().encode(knownShoes) {
+            ud.set(data, forKey: Self.shoesCacheKey)
+        }
+    }
+
+    private func loadListCache() {
+        let ud = UserDefaults.standard
+        if let data = ud.data(forKey: Self.projectsCacheKey),
+           let cached = try? JSONDecoder().decode([ProjectInfo].self, from: data) {
+            knownProjects = cached
+        }
+        if let data = ud.data(forKey: Self.shoesCacheKey),
+           let cached = try? JSONDecoder().decode([ShoeInfo].self, from: data) {
+            knownShoes = cached
+        }
+    }
+
+    /// Nach Reinstall sind applicationContext UND Cache leer → iPhone aktiv um
+    /// einen Re-Push bitten (transferUserInfo: kommt auch an, wenn die iPhone-App
+    /// gerade nicht läuft).
+    private func requestListSyncIfEmpty() {
+        guard knownProjects.isEmpty && knownShoes.isEmpty else { return }
+        WCSession.default.transferUserInfo(["requestShoeProjectSync": true])
+        DiagnosticLog.shared.log("sync: Projekt-/Schuh-Liste leer – Re-Push angefordert")
     }
 
     func session(_ session: WCSession,
@@ -154,6 +194,7 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
             DispatchQueue.main.async {
                 self.flushPending()
                 self.applyContext(session.receivedApplicationContext)
+                self.requestListSyncIfEmpty()
             }
         }
     }
