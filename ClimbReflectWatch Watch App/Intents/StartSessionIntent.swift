@@ -108,6 +108,28 @@ struct StartClimbWorkoutIntent: StartWorkoutIntent {
     }
 }
 
+// MARK: - AB-J: Siri-/Kurzbefehle-Zugang zum SELBEN Workout-Intent
+// Diagnose- und Alternativ-Pfad: löst exakt dieselbe Kette aus wie der Action
+// Button (StartClimbWorkoutIntent → ToggleAttemptIntent-Chain), nur über
+// Siri/Kurzbefehle statt Hardware. Loggt der Kurzbefehl, aber der Button nicht,
+// ist die Button-Zustellung des Systems defekt – nicht unsere App.
+// ACHTUNG (S23): In den Action-Button-Settings weiterhin den WORKOUT-Pfad
+// (Training → Vorstieg/Bouldern) wählen, NICHT den App-Shortcut.
+
+struct ClimbShortcuts: AppShortcutsProvider {
+    static var appShortcuts: [AppShortcut] {
+        AppShortcut(
+            intent: StartClimbWorkoutIntent(style: .lead),
+            phrases: [
+                "Starte \(.applicationName)",
+                "Klettern starten mit \(.applicationName)",
+            ],
+            shortTitle: "Klettern starten",
+            systemImageName: "figure.climbing"
+        )
+    }
+}
+
 // MARK: - AB-I: Pause/Resume-Workout-Intents (Referenz-Parität)
 // Das Referenzprojekt registriert Pause/Resume mit – Teil der vollständigen
 // Workout-App-Integration; System kann sie z. B. aus Workout-Controls aufrufen.
