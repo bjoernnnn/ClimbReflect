@@ -64,6 +64,17 @@ struct StartClimbWorkoutIntent: StartWorkoutIntent {
     @Parameter(title: "Disziplin")
     var workoutStyle: ClimbWorkoutStyle
 
+    // AB-I: Expliziter Default wie im Referenzprojekt (KhaosT). Ohne Default traps
+    // der Zugriff auf einen nicht injizierten @Parameter noch VOR der ersten
+    // Log-Zeile → stiller Crash beim Action-Button-Druck (oranger Screen, kein Log).
+    init() {
+        self.workoutStyle = .lead
+    }
+
+    init(style: ClimbWorkoutStyle) {
+        self.workoutStyle = style
+    }
+
     // InstanceDisplayRepresentable
     var displayRepresentation: DisplayRepresentation {
         let label: LocalizedStringResource = workoutStyle == .boulder ? "Bouldern" : "Vorstieg"
@@ -94,5 +105,33 @@ struct StartClimbWorkoutIntent: StartWorkoutIntent {
             await manager.startFromActionButton(type: workoutStyle == .boulder ? .boulder : .lead)
         }
         return .result(actionButtonIntent: ToggleAttemptIntent())
+    }
+}
+
+// MARK: - AB-I: Pause/Resume-Workout-Intents (Referenz-Parität)
+// Das Referenzprojekt registriert Pause/Resume mit – Teil der vollständigen
+// Workout-App-Integration; System kann sie z. B. aus Workout-Controls aufrufen.
+
+struct PauseClimbWorkoutIntent: PauseWorkoutIntent {
+    static var title: LocalizedStringResource = "Pause"
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let manager = WorkoutManager.shared
+        DiagnosticLog.shared.log("PauseClimbWorkoutIntent: isRunning=\(manager.isRunning)", flushImmediately: true)
+        if manager.isRunning && !manager.isPaused { manager.pauseWorkout() }
+        return .result()
+    }
+}
+
+struct ResumeClimbWorkoutIntent: ResumeWorkoutIntent {
+    static var title: LocalizedStringResource = "Fortsetzen"
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let manager = WorkoutManager.shared
+        DiagnosticLog.shared.log("ResumeClimbWorkoutIntent: isRunning=\(manager.isRunning)", flushImmediately: true)
+        if manager.isRunning && manager.isPaused { manager.resumeWorkout() }
+        return .result()
     }
 }
