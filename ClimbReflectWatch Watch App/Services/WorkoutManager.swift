@@ -284,6 +284,15 @@ final class WorkoutManager: NSObject, ObservableObject {
         attemptState = .idle
         lastPublishedAltitudeInt = -1  // force first publish
 
+        // SH-13: Automatische Schuh-Vorauswahl anhand des Standard-für-Typ-Flags.
+        // Training (Krafttraining) hat keine Kletterschuh-Zuordnung → dort keine
+        // automatische Auswahl/Reset.
+        if type != .training {
+            selectedShoe = SyncService.shared.knownShoes.first {
+                $0.defaultForTypes.contains(type.rawValue)
+            }
+        }
+
         // Timer und UI-State sofort starten – unabhängig von HealthKit.
         let startDate = Date()
         workoutStartDate = startDate
