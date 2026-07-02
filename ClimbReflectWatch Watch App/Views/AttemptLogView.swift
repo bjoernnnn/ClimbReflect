@@ -1,17 +1,17 @@
 import SwiftUI
 
 // Versuch klassifizieren — Grad wählen + Ergebnis antippen = sofort banken
-// Grad-Skala kommt aus App-Einstellungen (kein Wechsel während der Session)
+// RP-4: Grad-Skala leitet sich aus dem Session-Typ ab (Seil → french, Boulder →
+// fontainebleau), nicht aus einer App-Einstellung.
 
 struct AttemptLogView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     let onBank: () -> Void
 
-    @AppStorage("watchGradeSystem") private var storedSystem: String = ""
     @State private var gradeIndex: Int = 0
 
     private var gradeSystem: WatchGradeSystem {
-        WatchGradeSystem(rawValue: storedSystem) ?? workoutManager.sessionType.defaultGradeSystem
+        workoutManager.sessionType.defaultGradeSystem
     }
 
     private struct Outcome: Identifiable {

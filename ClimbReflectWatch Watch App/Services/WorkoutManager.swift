@@ -398,10 +398,12 @@ final class WorkoutManager: NSObject, ObservableObject {
         let duration = lastAttemptDurationSeconds
         lastAttemptDurationSeconds = nil
         let attempt = WatchAttempt(
-            gradeSystem: WatchGradeSystem(rawValue: UserDefaults.standard.string(forKey: "watchGradeSystem") ?? "fontainebleau") ?? sessionType.defaultGradeSystem,
+            // RP-4: Grad-System aus dem Session-Typ (Seil → french, Boulder → fontainebleau),
+            // nicht mehr aus dem nie geschriebenen UserDefaults-Key "watchGradeSystem".
+            gradeSystem: sessionType.defaultGradeSystem,
             grade: nil,
             result: result,
-            style: result == .top ? nil : nil,
+            style: nil,
             altitudeGain: gain,
             durationSeconds: duration,
             heartRateAtBanking: heartRate > 0 ? heartRate : nil,
