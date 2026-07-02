@@ -1,9 +1,13 @@
 import ActivityKit
 import Foundation
+import os
 
 @MainActor
 final class LiveActivityController {
     static let shared = LiveActivityController()
+
+    // RP-18: strukturiertes Logging statt print()
+    private let log = Logger(subsystem: "de.dreselbjoern.ClimbReflect", category: "LiveActivity")
 
     private var currentActivity: Activity<ClimbActivityAttributes>?
     private var lastStatus: WatchLiveStatus?   // C2: Puffer für Vordergrund-Start
@@ -44,7 +48,7 @@ final class LiveActivityController {
     private func startActivity(state: ClimbActivityAttributes.ContentState, sessionTypeRaw: String) {
         let info = ActivityAuthorizationInfo()
         guard info.areActivitiesEnabled else {
-            print("LiveActivity: areActivitiesEnabled=false – in Einstellungen aktivieren")
+            log.notice("areActivitiesEnabled=false – in Einstellungen aktivieren")
             return
         }
         let attrs = ClimbActivityAttributes(
@@ -57,9 +61,9 @@ final class LiveActivityController {
                 content: .init(state: state, staleDate: nil),
                 pushType: nil
             )
-            print("LiveActivity gestartet: \(currentActivity?.id ?? "?")")
+            log.info("gestartet: \(self.currentActivity?.id ?? "?", privacy: .public)")
         } catch {
-            print("LiveActivity start fehlgeschlagen: \(error)")
+            log.error("start fehlgeschlagen: \(error.localizedDescription, privacy: .public)")
         }
     }
 
