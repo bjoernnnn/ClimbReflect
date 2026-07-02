@@ -130,8 +130,15 @@ struct SessionDetailView: View {
     private var insightsSection: some View {
         let insights = StatsEngine.insights(for: session)
         if session.isClimbing {
-            if insights.hasAttemptTimes {
+            if insights.hasFullTimeCoverage {
                 SessionTimeDonut(insights: insights)
+                insightsMetrics(insights: insights)
+            } else if insights.hasAttemptTimes {
+                // FB-10: nur Teil-Abdeckung → Donut verzerrt (ungetimte Ascents = Pause) → ausblenden
+                Text("Aktivzeit aus \(insights.timedAscentCount) von \(insights.ascentCount) Versuchen erfasst — Zeitaufteilung dafür ausgeblendet.")
+                    .font(.caption).foregroundStyle(Theme.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card()
                 insightsMetrics(insights: insights)
             } else if session.durationSeconds > 0 {
                 Text("Zur Zeitaufteilung gibt es für diese Session keine Daten – Aktivzeit wird nur bei Watch-Sessions mit Start/Stopp pro Versuch gemessen.")
@@ -146,7 +153,7 @@ struct SessionDetailView: View {
     @ViewBuilder
     private func insightsMetrics(insights: StatsEngine.SessionInsights) -> some View {
         let items: [(label: String, value: String, symbol: String, color: Color)?] = [
-            insights.hasAttemptTimes ? ("Aktivzeit",
+            insights.hasAttemptTimes ? ("Aktivzeit (erfasst)",
                 formatMinutes(insights.activeSeconds),
                 "figure.climbing", Theme.accent) : nil,
             insights.avgAttemptSeconds.map { ("Ø Versuch",

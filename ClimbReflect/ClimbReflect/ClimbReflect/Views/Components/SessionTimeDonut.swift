@@ -79,7 +79,9 @@ struct SessionTimeDonut: View {
         successRate: 0.6,
         attemptsPerSend: 2.5,
         hardestTopGrade: "7A",
-        hardestTopGradeSystem: .fontainebleau
+        hardestTopGradeSystem: .fontainebleau,
+        timedAscentCount: 8,
+        ascentCount: 8
     )
     return SessionTimeDonut(insights: insights)
         .padding()

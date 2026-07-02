@@ -492,6 +492,11 @@ enum StatsEngine {
         let attemptsPerSend: Double?
         let hardestTopGrade: String?
         let hardestTopGradeSystem: GradeSystem?   // RP-17: für Anzeige-Umrechnung
+        let timedAscentCount: Int                 // FB-10: Ascents mit erfasster Dauer
+        let ascentCount: Int                      // FB-10: alle Ascents
+        // FB-10: Zeitaufteilung nur bei voller Abdeckung sinnvoll (sonst zählen
+        // ungetimte Ascents implizit als Pause und verzerren den Aktiv-Anteil).
+        var hasFullTimeCoverage: Bool { ascentCount > 0 && timedAscentCount == ascentCount }
     }
 
     static func insights(for session: ClimbSession) -> SessionInsights {
@@ -532,7 +537,9 @@ enum StatsEngine {
             successRate: successRate,
             attemptsPerSend: attemptsPerSend,
             hardestTopGrade: hardestTopGrade,
-            hardestTopGradeSystem: hardestTop?.gradeSystem
+            hardestTopGradeSystem: hardestTop?.gradeSystem,
+            timedAscentCount: timed.count,   // FB-10
+            ascentCount: ascents.count
         )
     }
 
