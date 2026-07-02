@@ -27,7 +27,9 @@ struct StatisticsView: View {
                     .padding()
                 } else {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 24) {
+                        // RP-14: Lazy rendern – Chart-Karten (inkl. StatsEngine-Berechnung)
+                        // erst beim Sichtbarwerden aufbauen, skaliert mit Session-Zahl.
+                        LazyVStack(alignment: .leading, spacing: 24) {
                             ProgressChartView(points: weekly)
                             EfficiencyTrendView(sessions: sessions)
                             GradeProgressView(sessions: sessions)
