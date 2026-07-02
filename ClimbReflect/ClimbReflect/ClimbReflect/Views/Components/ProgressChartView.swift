@@ -14,7 +14,7 @@ struct ProgressChartView: View {
                     Text("Fortschritt")
                         .font(.headline)
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Klettermin. pro Woche")
+                    Text("Klettermin. pro Woche · letzte \(points.count) Wochen")
                         .font(.caption)
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -26,8 +26,9 @@ struct ProgressChartView: View {
             }
 
             Chart(points) { point in
+                // FB-7: echte Datums-Achse statt KW-String-Kategorien (kein Label-Überlauf)
                 BarMark(
-                    x: .value("Woche", point.label),
+                    x: .value("Woche", point.weekStart, unit: .weekOfYear),
                     y: .value("Minuten", point.minutes)
                 )
                 .cornerRadius(6)
@@ -45,8 +46,9 @@ struct ProgressChartView: View {
                 }
             }
             .chartXAxis {
-                AxisMarks { _ in
-                    AxisValueLabel().foregroundStyle(Theme.textTertiary)
+                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                    AxisValueLabel(format: .dateTime.day().month(.twoDigits))
+                        .foregroundStyle(Theme.textTertiary)
                 }
             }
             .frame(height: 170)
