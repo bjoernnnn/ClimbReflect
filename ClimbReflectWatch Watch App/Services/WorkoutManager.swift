@@ -531,6 +531,13 @@ final class WorkoutManager: NSObject, ObservableObject {
         clearLiveStatus()
         WKInterfaceDevice.current().play(.stop)
 
+        // RP-1: Basis-DTO SOFORT senden (vor finishSession/PendingSessionStore.clear),
+        // damit die Session inkl. aller Begehungen auch dann auf dem iPhone landet,
+        // wenn watchOS die App vor dem Fragebogen terminiert. SessionEndFlowView
+        // sendet später das angereicherte DTO – der iPhone-Upsert (Match über
+        // watchSessionID) aktualisiert dann nur RPE/Fokus auf derselben Session.
+        SyncService.shared.send(dto: dto)
+
         // End-Flow in ContentView treiben; finishSession() setzt isRunning=false
         // (pendingSummaryDTO bleibt bis der Nutzer in SessionEndFlowView „Fertig" tippt)
         pendingSummaryDTO = dto
