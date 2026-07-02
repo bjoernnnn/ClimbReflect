@@ -40,6 +40,7 @@ struct AscentRowView: View {
                         .background(Capsule().fill(Theme.gold.opacity(0.12)))
                     }
                 }
+                // FB-4: Metriken in einer Zeile, nie zeichenweise umbrechen
                 HStack(spacing: 8) {
                     if ascent.attempts > 1 || ascent.result != .top {
                         Text(ascent.result == .top
@@ -60,18 +61,25 @@ struct AscentRowView: View {
                         Label("\(Int(hr)) bpm", systemImage: "heart.fill")
                             .foregroundStyle(Theme.textTertiary)
                     }
-                    if let project = ascent.project {
-                        HStack(spacing: 3) {
-                            Image(systemName: "target")
-                            Text(project.name)
-                        }
-                        .foregroundStyle(Theme.accent)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Theme.accent.opacity(0.12)))
-                    }
                 }
                 .font(.caption)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+                // FB-4: Projekt-Chip in eigener Zeile (analog Schuh-Zeile), kein Umbruch
+                if let project = ascent.project {
+                    HStack(spacing: 3) {
+                        Image(systemName: "target")
+                        Text(project.name)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Theme.accent.opacity(0.12)))
+                }
                 // SH-10: Schuh in eigener Zeile damit langer Name nicht umbricht
                 if let shoeName = ascent.shoe?.name ?? ascent.shoeName {
                     HStack(spacing: 3) {
@@ -88,20 +96,17 @@ struct AscentRowView: View {
                 }
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            HStack(spacing: 6) {
-                // P3.11: Foto-Thumbnail falls vorhanden
-                if let data = ascent.photoData, let img = UIImage(data: data) {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 36, height: 36)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-                Text(ascent.result.label)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(ascent.result.color)
+            // FB-4: Ergebnis codiert bereits das Icon links (inkl. Farbe) → kein
+            // redundantes Trailing-Label mehr, das der Metrik-Zeile Breite wegfrisst.
+            // P3.11: Foto-Thumbnail bleibt trailing.
+            if let data = ascent.photoData, let img = UIImage(data: data) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 36, height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             }
         }
         .padding(.vertical, 4)
@@ -111,4 +116,22 @@ struct AscentRowView: View {
         let s = Int(t)
         return String(format: "%d:%02d", s / 60, s % 60)
     }
+}
+
+// FB-4: Gegentest mit Extremwerten auf iPhone-mini-Breite (320 pt)
+#Preview {
+    let ascent = Ascent(gradeSystem: .fontainebleau, grade: "6C+",
+                        result: .top, style: .flash, attempts: 3)
+    ascent.durationSeconds = 179
+    ascent.altitudeGain = 12
+    ascent.heartRateAtBanking = 168
+    ascent.project = Project(name: "Red Chili Voltage 2")
+    return VStack {
+        AscentRowView(ascent: ascent)
+        Divider()
+        AscentRowView(ascent: Ascent(gradeSystem: .fontainebleau, grade: "?", result: .attempt))
+    }
+    .frame(width: 320)
+    .padding()
+    .background(Theme.bg)
 }
