@@ -164,7 +164,7 @@ enum StatsEngine {
         // konvertieren – vorher fielen z. B. in V-Scale erfasste Boulder komplett
         // aus der Fb-Pyramide heraus.
         let allAscents = climbing(sessions).flatMap(\.ascents).filter {
-            $0.gradeSystem.isBoulder == system.isBoulder
+            $0.gradeSystem.isBoulder == system.isBoulder && $0.isGraded   // RP-5: keine "?"-Balken
         }
         guard !allAscents.isEmpty else { return [] }
 
@@ -336,11 +336,13 @@ enum StatsEngine {
 
         let allAscents = thisWeek.flatMap(\.ascents)
         let tops = allAscents.filter { $0.result == .top }
+        // RP-5: Höchstgrad/PB nur aus bewerteten Tops (ungegradete "?" ausschließen)
         // canonicalOrder: Grad-Skalen (Fb/V bzw. French/UIAA) vergleichbar machen
-        let topsSorted = tops.sorted { $0.canonicalOrder > $1.canonicalOrder }
+        let gradedTops = tops.filter { $0.isGraded }
+        let topsSorted = gradedTops.sorted { $0.canonicalOrder > $1.canonicalOrder }
         let highest = topsSorted.first
 
-        let prevTops = prevSessions.flatMap(\.ascents).filter { $0.result == .top }
+        let prevTops = prevSessions.flatMap(\.ascents).filter { $0.result == .top && $0.isGraded }
         let prevMaxOrder = prevTops.map(\.canonicalOrder).max() ?? -1
         let newPB = (highest?.canonicalOrder ?? -1) > prevMaxOrder
 
@@ -379,7 +381,8 @@ enum StatsEngine {
         let flashes = tops.filter { $0.style == .flash }
 
         // Neuer Höchstgrad (canonicalOrder: skalenübergreifend vergleichbar)
-        let maxGrade = tops.max { $0.canonicalOrder < $1.canonicalOrder }
+        // RP-5: nur bewertete Tops – "?" darf kein Höchstgrad werden
+        let maxGrade = tops.filter { $0.isGraded }.max { $0.canonicalOrder < $1.canonicalOrder }
 
         // 3 Flashes in einer Session
         let bestFlashSession = climbSessions
@@ -499,7 +502,8 @@ enum StatsEngine {
         let attemptsPerSend: Double? = tops.isEmpty ? nil
             : Double(tops.reduce(0) { $0 + $1.attempts }) / Double(tops.count)
 
-        let hardestTopGrade = tops.max(by: { $0.canonicalOrder < $1.canonicalOrder })?.gradeRaw
+        let hardestTopGrade = tops.filter { $0.isGraded }
+            .max(by: { $0.canonicalOrder < $1.canonicalOrder })?.gradeRaw  // RP-5
 
         return SessionInsights(
             totalSeconds: total,
@@ -605,7 +609,7 @@ enum StatsEngine {
             let tops = climbing(sessions)
                 .filter { $0.date >= monthStart && $0.date < monthEnd }
                 .flatMap(\.ascents)
-                .filter { $0.result == .top && $0.gradeSystem.isBoulder == boulder }
+                .filter { $0.result == .top && $0.gradeSystem.isBoulder == boulder && $0.isGraded }  // RP-5
             guard let best = tops.max(by: { $0.canonicalOrder < $1.canonicalOrder }) else { return nil }
             return GradeTrendPoint(monthStart: monthStart, sortOrder: best.canonicalOrder,
                                    grade: best.gradeRaw, system: best.gradeSystem)

@@ -71,6 +71,14 @@ final class Ascent {
 }
 
 extension Ascent {
+    /// RP-5: Sentinel für Begehungen ohne erfassten Grad (z. B. Quick-Bank auf der Uhr).
+    static let ungraded = "?"
+    /// true, wenn ein echter Grad hinterlegt ist (nicht Sentinel/leer). Grad-basierte
+    /// Auswertungen (Pyramide, PB, Max-Trend) müssen ungegradete Begehungen ausschließen.
+    var isGraded: Bool {
+        !gradeRaw.isEmpty && gradeRaw != Self.ungraded
+    }
+
     var gradeSystem: GradeSystem { GradeSystem(rawValue: gradeSystemRaw) ?? .fontainebleau }
     var result: AscentResult { AscentResult(rawValue: resultRaw) ?? .attempt }
     var style: AscentStyle? { styleRaw.flatMap(AscentStyle.init(rawValue:)) }

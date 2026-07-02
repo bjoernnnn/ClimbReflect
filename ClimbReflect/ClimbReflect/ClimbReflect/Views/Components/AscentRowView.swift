@@ -12,15 +12,22 @@ struct AscentRowView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(GradeConverter.display(grade: ascent.gradeRaw, storedIn: ascent.gradeSystem))
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(Theme.textPrimary)
-                    Text(ascent.gradeSystem.label)
-                        .font(.caption2)
-                        .foregroundStyle(Theme.textTertiary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Theme.bgElevated))
+                    if ascent.isGraded {
+                        Text(GradeConverter.display(grade: ascent.gradeRaw, storedIn: ascent.gradeSystem))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(ascent.gradeSystem.label)
+                            .font(.caption2)
+                            .foregroundStyle(Theme.textTertiary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Theme.bgElevated))
+                    } else {
+                        // RP-5: ungegradete Begehung – Grad über den Editor nachtragbar
+                        Text("Unbewertet")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.textTertiary)
+                    }
                     if let style = ascent.style {
                         HStack(spacing: 3) {
                             Image(systemName: style.symbol)
