@@ -31,7 +31,8 @@ struct StatisticsView: View {
                         // erst beim Sichtbarwerden aufbauen, skaliert mit Session-Zahl.
                         LazyVStack(alignment: .leading, spacing: 24) {
                             ProgressChartView(points: weekly)
-                            EfficiencyTrendView(sessions: sessions)
+                            // EFF: reaktivieren nach TODO-EFFIZIENZ (FB-8: Watch-Ascents haben
+                            // attempts=1 → „Ø Versuche bis Top" irreführend; View+Engine bleiben)
                             GradeProgressView(sessions: sessions)
                             FingerStrengthTrendView(sessions: sessions)
                             RPETrendView(sessions: sessions)
