@@ -18,6 +18,29 @@ final class StatsEngineTests: XCTestCase {
         )
     }
 
+    // MARK: - climbingDays (FB-5)
+
+    private var wideInterval: DateInterval {
+        DateInterval(start: Date().addingTimeInterval(-14 * 86400),
+                     end: Date().addingTimeInterval(86400))
+    }
+
+    func testClimbingDays_boulderAndRouteSameDay_countsOneDay() {
+        let boulder = makeSession(daysAgo: 0, type: .boulder)
+        let route = makeSession(daysAgo: 0, type: .lead)
+        XCTAssertEqual(StatsEngine.climbingDays([boulder, route], in: wideInterval), 1)
+    }
+
+    func testClimbingDays_trainingNotCounted() {
+        let training = makeSession(daysAgo: 0, type: .training)
+        XCTAssertEqual(StatsEngine.climbingDays([training], in: wideInterval), 0)
+    }
+
+    func testClimbingDays_twoDistinctDays_countsTwo() {
+        let sessions = [makeSession(daysAgo: 0), makeSession(daysAgo: 1)]
+        XCTAssertEqual(StatsEngine.climbingDays(sessions, in: wideInterval), 2)
+    }
+
     // MARK: - weeklyMinutes
 
     func testWeeklyMinutes_emptySessions_returnsZeroMinutesPerWeek() {

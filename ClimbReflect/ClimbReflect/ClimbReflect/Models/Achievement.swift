@@ -314,11 +314,24 @@ enum StatsEngine {
         let weekEnd: Date
         let tops: Int
         let sessions: Int
+        let days: Int          // FB-5: eindeutige Klettertage (Boulder+Seil am selben Tag = 1)
         let minutes: Int
         let avgRPE: Double?
         let highestGrade: String?
         let highestGradeSystem: GradeSystem?
         let newPB: Bool        // neuer Höchstgrad im Vergleich zu Vorwochen
+    }
+
+    /// FB-5: Anzahl eindeutiger Kalendertage mit mindestens einer Klettersession
+    /// im Intervall. Trainings-Sessions zählen NICHT als Klettertag.
+    static func climbingDays(_ sessions: [ClimbSession], in interval: DateInterval,
+                             calendar: Calendar = .current) -> Int {
+        let days = Set(
+            climbing(sessions)
+                .filter { $0.date >= interval.start && $0.date < interval.end }
+                .map { calendar.startOfDay(for: $0.date) }
+        )
+        return days.count
     }
 
     static func currentWeekRecap(_ sessions: [ClimbSession]) -> WeekRecap {
@@ -327,7 +340,7 @@ enum StatsEngine {
         let now = Date()
         guard let interval = cal.dateInterval(of: .weekOfYear, for: now) else {
             return WeekRecap(weekStart: now, weekEnd: now, tops: 0, sessions: 0,
-                             minutes: 0, avgRPE: nil, highestGrade: nil,
+                             days: 0, minutes: 0, avgRPE: nil, highestGrade: nil,
                              highestGradeSystem: nil, newPB: false)
         }
         let thisWeekAll = sessions.filter { $0.date >= interval.start && $0.date < interval.end }
@@ -354,6 +367,7 @@ enum StatsEngine {
             weekEnd: interval.end,
             tops: tops.count,
             sessions: thisWeekAll.count,
+            days: climbingDays(sessions, in: interval, calendar: cal),   // FB-5
             minutes: thisWeekAll.reduce(0) { $0 + $1.durationMinutes },
             avgRPE: avgRPE,
             highestGrade: highest?.gradeRaw,
@@ -697,7 +711,8 @@ enum StatsEngine {
         cards.append(InsightCard(
             id: "week", symbol: "calendar.badge.clock", title: "Diese Woche",
             value: "\(recap.tops) Top\(recap.tops == 1 ? "" : "s")",
-            subtitle: "\(recap.sessions) Session\(recap.sessions == 1 ? "" : "s") · \(recap.minutes) Min",
+            // FB-5: Klettertage neben Session-Zahl (Boulder+Seil am selben Tag = 1 Tag)
+            subtitle: "\(recap.sessions) Session\(recap.sessions == 1 ? "" : "s") · \(recap.days) Tag\(recap.days == 1 ? "" : "e") · \(recap.minutes) Min",
             color: Theme.accent
         ))
 

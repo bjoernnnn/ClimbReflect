@@ -82,6 +82,9 @@ struct RecapCardContent: View {
                           color: Theme.accent)
                 recapTile("Sessions", value: "\(recap.sessions)", symbol: "figure.climbing",
                           color: Theme.textSecondary)
+                // FB-5: Klettertage (Boulder+Seil am selben Tag = 1 Tag)
+                recapTile("Tage", value: "\(recap.days)", symbol: "calendar",
+                          color: Theme.textSecondary)
                 recapTile("Minuten", value: "\(recap.minutes)", symbol: "clock.fill",
                           color: Theme.textSecondary)
                 if let rpe = recap.avgRPE {
