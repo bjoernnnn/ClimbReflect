@@ -187,13 +187,15 @@ final class WorkoutManager: NSObject, ObservableObject {
                 id: pending.id,
                 workoutUUID: nil,
                 date: pending.startDate,
-                durationSeconds: -pending.accumulatedPaused + Date().timeIntervalSince(pending.startDate),
+                // RP-3: brutto (volle Spanne); Pausenzeit separat
+                durationSeconds: Date().timeIntervalSince(pending.startDate),
                 sessionTypeRaw: pending.sessionTypeRaw,
                 avgHeartRate: avg,
                 maxHeartRate: pending.maxHeartRate,
                 activeEnergyKcal: pending.activeEnergyKcal,
                 altitudeTotalGain: 0,
                 ascents: pending.ascents,
+                pausedSeconds: pending.accumulatedPaused,
                 rpe: nil, focusRaw: nil, energyRaw: nil
             )
             SyncService.shared.send(dto: dto)
@@ -508,7 +510,11 @@ final class WorkoutManager: NSObject, ObservableObject {
         let finalAvgHR = hrCount > 0 ? hrSum / Double(hrCount) : nil
         let finalMaxHR = maxHeartRate > 0 ? maxHeartRate : nil
 
+        // RP-3: durationSeconds = brutto (volle Session-Spanne). Pausenzeit separat:
+        // akkumulierte Pausen + eine ggf. beim Beenden noch laufende Pause.
         let duration = workoutStartDate.map { endDate.timeIntervalSince($0) } ?? 0
+        var paused = accumulatedPaused
+        if let p = pauseStartedAt { paused += endDate.timeIntervalSince(p) }
         let altTotal = await altimeter.totalGain
 
         let dto = WatchSessionDTO(
@@ -522,6 +528,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil,
             altitudeTotalGain: altTotal,
             ascents: attempts.map { $0.toDTO() },
+            pausedSeconds: paused,
             rpe: nil,
             focusRaw: trainingTarget?.rawValue,
             energyRaw: nil

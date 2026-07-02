@@ -9,7 +9,8 @@ final class ClimbSession {
     var workoutUUID: UUID?            // HKWorkout.uuid → Dedupe gegen Doppel-Import aus Redpoint
     var watchSessionID: UUID?         // WatchSessionDTO.id → Dedupe gegen Doppel-Zustellung
     var date: Date
-    var durationSeconds: Double
+    var durationSeconds: Double         // RP-3: brutto (volle Session-Spanne inkl. Pausen)
+    var pausedSeconds: Double = 0       // RP-3: Workout-Pausenzeit (Aktivzeit = duration − paused)
     var sessionTypeRaw: String
     var sourceRaw: String
 
@@ -102,6 +103,9 @@ extension ClimbSession {
     var source: SessionSource { SessionSource(rawValue: sourceRaw) ?? .manual }
     var limiters: [Limiter] { limiterRaw.compactMap(Limiter.init(rawValue:)) }
     var durationMinutes: Int { Int(durationSeconds / 60) }
+    // RP-3: Aktivzeit ohne Workout-Pausen – Basis der Trainingslast (sRPE/ACWR/sends).
+    var activeSeconds: Double { max(0, durationSeconds - pausedSeconds) }
+    var activeMinutes: Int { Int(activeSeconds / 60) }
     var techniqueFocus: TechniqueFocus? { techniqueFocusRaw.flatMap(TechniqueFocus.init(rawValue:)) } // legacy
     var techniqueFocuses: [TechniqueFocus] {
         let fromNew = techniqueFocusesRaw.compactMap(TechniqueFocus.init(rawValue:))

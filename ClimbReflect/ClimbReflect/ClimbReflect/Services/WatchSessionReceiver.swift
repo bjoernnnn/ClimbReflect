@@ -222,6 +222,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
 
         climbSession.watchSessionID = dto.id
         climbSession.altitudeTotalGain = dto.altitudeTotalGain
+        climbSession.pausedSeconds = dto.pausedSeconds ?? 0   // RP-3
 
         // RPE aus dem Fragebogen
         if let rpe = dto.rpe { climbSession.perceivedEffort = rpe }

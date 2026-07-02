@@ -485,11 +485,13 @@ enum StatsEngine {
 
         let tops = ascents.filter { $0.result == .top }
         let total = session.durationSeconds
-        let sendsPerHour: Double? = total > 0 && !tops.isEmpty
-            ? Double(tops.count) / (total / 3600)
+        // RP-3: Trainingslast & Erfolgsrate pro Zeit rechnen mit Aktivzeit (ohne Pausen)
+        let activeTime = session.activeSeconds
+        let sendsPerHour: Double? = activeTime > 0 && !tops.isEmpty
+            ? Double(tops.count) / (activeTime / 3600)
             : nil
 
-        let load = session.perceivedEffort.map { Int(Double($0) * total / 60) }
+        let load = session.perceivedEffort.map { Int(Double($0) * activeTime / 60) }
 
         let successRate: Double? = ascents.isEmpty ? nil
             : Double(tops.count) / Double(ascents.count)
@@ -646,7 +648,7 @@ enum StatsEngine {
             // unterschieben (S27: gemessen, nie geschätzt).
             let load = inWeek.reduce(0) { acc, s in
                 guard let rpe = s.perceivedEffort else { return acc }
-                return acc + rpe * s.durationMinutes
+                return acc + rpe * s.activeMinutes   // RP-3: Aktivzeit ohne Pausen
             }
             rawLoads.append(load)
             weekStarts.append(start)

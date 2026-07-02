@@ -35,6 +35,9 @@ struct WatchSessionDTO: Codable, Sendable {
     let altitudeTotalGain: Double
     let ascents: [AscentDTO]
 
+    // RP-3: Workout-Pausenzeit (optional → alte DTOs dekodieren als nil = 0)
+    let pausedSeconds: Double?
+
     // Fragebogen (optional — fehlende Felder werden als nil dekodiert)
     let rpe: Int?
     let focusRaw: String?
