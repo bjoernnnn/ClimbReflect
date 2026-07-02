@@ -12,7 +12,6 @@ struct WatchAttempt: Identifiable {
     var altitudeGain: Double
     var durationSeconds: Double?
     var heartRateAtBanking: Double?   // Snapshot der HF zum Zeitpunkt des Bankens
-    var note: String?
     var date: Date
     var sessionType: WatchSessionType
     var projectInfo: ProjectInfo?     // Snapshot des aktiven Projekts zum Zeitpunkt des Bankens
@@ -26,7 +25,6 @@ struct WatchAttempt: Identifiable {
          altitudeGain: Double = 0,
          durationSeconds: Double? = nil,
          heartRateAtBanking: Double? = nil,
-         note: String? = nil,
          sessionType: WatchSessionType = .boulder,
          projectInfo: ProjectInfo? = nil,
          shoeInfo: ShoeInfo? = nil) {
@@ -39,7 +37,6 @@ struct WatchAttempt: Identifiable {
         self.altitudeGain = altitudeGain
         self.durationSeconds = durationSeconds
         self.heartRateAtBanking = heartRateAtBanking
-        self.note = note
         self.date = .now
         self.sessionType = sessionType
         self.projectInfo = projectInfo
@@ -56,7 +53,6 @@ struct WatchAttempt: Identifiable {
         self.altitudeGain = dto.altitudeGain
         self.durationSeconds = dto.durationSeconds
         self.heartRateAtBanking = dto.heartRateAtBanking   // RP-6
-        self.note        = nil
         self.date        = dto.date
         self.sessionType = sessionType
         if let name = dto.projectName {
