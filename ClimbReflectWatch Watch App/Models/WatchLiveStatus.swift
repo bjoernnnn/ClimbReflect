@@ -8,6 +8,8 @@ struct WatchLiveStatus: Codable {
     let startedAt: Date
     var heartRate: Double?
     var activeEnergyKcal: Double?
+    // RP-15: abgeschlossene Pausenzeit → Banner rechnet live korrekt (optional → alte Payloads)
+    var accumulatedPausedSeconds: Double?
 
     static let key = "watchLiveStatus"
 

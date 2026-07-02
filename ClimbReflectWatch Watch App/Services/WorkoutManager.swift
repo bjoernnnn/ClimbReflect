@@ -617,7 +617,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             isPaused: isPaused,
             startedAt: workoutStartDate ?? Date(),
             heartRate: heartRate > 0 ? heartRate : nil,
-            activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil
+            activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil,
+            accumulatedPausedSeconds: accumulatedPaused   // RP-15
         )
         guard let data = try? JSONEncoder().encode(status) else { return }
         try? WCSession.default.updateApplicationContext([WatchLiveStatus.key: data])
