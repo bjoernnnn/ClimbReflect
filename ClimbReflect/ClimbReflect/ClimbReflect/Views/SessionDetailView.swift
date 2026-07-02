@@ -608,20 +608,25 @@ struct SessionDetailView: View {
 
             limiterPicker
 
-            Divider().background(Theme.surfaceStroke)
+            // FB-6: Technik-/Fokus-Picker sind kletterspezifisch → bei Training aus
+            if session.isClimbing {
+                Divider().background(Theme.surfaceStroke)
 
-            techniqueFocusPicker
+                techniqueFocusPicker
 
-            Divider().background(Theme.surfaceStroke)
+                Divider().background(Theme.surfaceStroke)
 
-            focusRatingPicker
+                focusRatingPicker
+            }
 
             Divider().background(Theme.surfaceStroke)
 
             reflectionField(
                 "Was habe ich gelernt?",
                 icon: "lightbulb.fill",
-                placeholder: "z. B. Hüfteinsatz beim Überhang verbessert…",
+                placeholder: session.isClimbing
+                    ? "z. B. Hüfteinsatz beim Überhang verbessert…"
+                    : "z. B. Max-Hangs erstmals an 10 mm gehalten…",
                 text: Binding(
                     get: { session.learned ?? "" },
                     set: { session.learned = $0.isEmpty ? nil : $0 }
@@ -631,7 +636,9 @@ struct SessionDetailView: View {
             reflectionField(
                 "Was war am schwersten?",
                 icon: "exclamationmark.triangle.fill",
-                placeholder: "z. B. Fingerkraft am Ende der Session…",
+                placeholder: session.isClimbing
+                    ? "z. B. Fingerkraft am Ende der Session…"
+                    : "z. B. Letzter Satz Repeaters…",
                 text: Binding(
                     get: { session.hardestPart ?? "" },
                     set: { session.hardestPart = $0.isEmpty ? nil : $0 }
@@ -641,7 +648,9 @@ struct SessionDetailView: View {
             reflectionField(
                 "Was will ich verbessern?",
                 icon: "arrow.up.circle.fill",
-                placeholder: "z. B. Mehr Fokus auf Füße und Balance…",
+                placeholder: session.isClimbing
+                    ? "z. B. Mehr Fokus auf Füße und Balance…"
+                    : "z. B. Nächstes Mal 2 kg mehr Zusatzlast…",
                 text: Binding(
                     get: { session.improveNext ?? "" },
                     set: { session.improveNext = $0.isEmpty ? nil : $0 }
@@ -773,7 +782,8 @@ struct SessionDetailView: View {
 
     private var limiterPicker: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Limitierende Faktoren")
+            // FB-6: bei Training ist es die Zielkapazität, nicht der limitierende Faktor
+            Text(session.isClimbing ? "Limitierende Faktoren" : "Trainiert")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.textSecondary)
 
@@ -819,8 +829,9 @@ struct SessionDetailView: View {
         session.reflectionCompleted =
             session.perceivedEffort != nil ||
             !session.limiterRaw.isEmpty ||
-            !session.techniqueFocusesRaw.isEmpty ||
-            session.focusRating != nil ||
+            // FB-6: Technik/Fokus zählen nur bei Klettersessions (Picker bei Training aus)
+            (session.isClimbing && !session.techniqueFocusesRaw.isEmpty) ||
+            (session.isClimbing && session.focusRating != nil) ||
             session.learned != nil ||
             session.hardestPart != nil ||
             session.improveNext != nil
