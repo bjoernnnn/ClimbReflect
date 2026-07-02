@@ -187,9 +187,16 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         if let existing = allSessions.first(where: { $0.watchSessionID == dto.id }) {
             // Nur Anreicherungsfelder aktualisieren (RPE, Focus) – Ascents bleiben
             if let rpe = dto.rpe { existing.perceivedEffort = rpe }
-            if let f = dto.focusRaw, let limiter = Limiter(rawValue: f) {
-                existing.limiterRaw = [limiter.rawValue]
+            if existing.sessionType == .training {
+                // Training: focusRaw = Zielkapazität → Limiter
+                if let f = dto.focusRaw, let limiter = Limiter(rawValue: f) {
+                    existing.limiterRaw = [limiter.rawValue]
+                }
+            } else {
+                // RP-2: Klettersession: focusRaw = WatchSessionFocus-Schwerpunkt
+                if let f = dto.focusRaw { existing.sessionFocusRaw = f }
             }
+            if let e = dto.energyRaw { existing.energyRaw = e }
             try? ctx.save()
             return
         }
@@ -222,7 +229,12 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         // Training: focusRaw = Limiter rawValue (Zielkapazität)
         if sessionType == .training, let f = dto.focusRaw, let limiter = Limiter(rawValue: f) {
             climbSession.limiterRaw = [limiter.rawValue]
+        } else if sessionType != .training {
+            // RP-2: Klettersession: focusRaw = WatchSessionFocus-Schwerpunkt
+            climbSession.sessionFocusRaw = dto.focusRaw
         }
+        // RP-2: Zustand (fresh/normal/tired) für alle Session-Typen
+        climbSession.energyRaw = dto.energyRaw
 
         ctx.insert(climbSession)
 

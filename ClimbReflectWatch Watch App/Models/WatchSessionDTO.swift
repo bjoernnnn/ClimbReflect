@@ -48,7 +48,9 @@ struct WatchSessionDTO: Codable, Sendable {
             avgHeartRate: avgHeartRate, maxHeartRate: maxHeartRate,
             activeEnergyKcal: activeEnergyKcal, altitudeTotalGain: altitudeTotalGain,
             ascents: ascents,
-            rpe: rpe, focusRaw: focus?.rawValue, energyRaw: energy?.rawValue
+            // RP-2: focus ist bei Training immer nil (skipFocus) – dann den in
+            // endWorkout() gesetzten focusRaw (Zielkapazität) NICHT überschreiben.
+            rpe: rpe, focusRaw: focus?.rawValue ?? self.focusRaw, energyRaw: energy?.rawValue
         )
     }
 }

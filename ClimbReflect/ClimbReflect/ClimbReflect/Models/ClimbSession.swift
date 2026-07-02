@@ -40,6 +40,12 @@ final class ClimbSession {
     var conditionsRaw: String?
     var temperatureC: Double?
 
+    // Watch-Fragebogen (RP-2): Klettersession-Schwerpunkt (WatchSessionFocus:
+    // power/endurance/technique/project/casual) + Zustand (fresh/normal/tired).
+    // Bei Training trägt focusRaw stattdessen die Zielkapazität → limiterRaw.
+    var sessionFocusRaw: String?
+    var energyRaw: String?
+
     @Relationship(deleteRule: .cascade, inverse: \Ascent.session) var ascents: [Ascent] = []
     @Relationship(deleteRule: .cascade, inverse: \TrainingSet.session) var trainingSets: [TrainingSet] = []
 
@@ -105,4 +111,25 @@ extension ClimbSession {
     }
     var isClimbing: Bool { sessionType != .training }
     var conditions: OutdoorConditions? { conditionsRaw.flatMap(OutdoorConditions.init(rawValue:)) }
+
+    // RP-2: Deutsche Anzeige-Labels für den Watch-Fragebogen (Watch-Enums liegen
+    // nicht im iPhone-Target → Mapping hier). nil, wenn kein/unbekannter Wert.
+    var sessionFocusLabel: String? {
+        switch sessionFocusRaw {
+        case "power":     return "Kraft"
+        case "endurance": return "Ausdauer"
+        case "technique": return "Technik"
+        case "project":   return "Projekt"
+        case "casual":    return "Spaß"
+        default:          return nil
+        }
+    }
+    var energyLabel: String? {
+        switch energyRaw {
+        case "fresh":  return "Frisch"
+        case "normal": return "Normal"
+        case "tired":  return "Müde"
+        default:       return nil
+        }
+    }
 }

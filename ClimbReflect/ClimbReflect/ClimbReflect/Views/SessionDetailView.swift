@@ -594,6 +594,11 @@ struct SessionDetailView: View {
 
             typePicker
 
+            if session.sessionFocusLabel != nil || session.energyLabel != nil {
+                Divider().background(Theme.surfaceStroke)
+                watchQuestionnaireChips
+            }
+
             Divider().background(Theme.surfaceStroke)
 
             rpePicker
@@ -725,6 +730,45 @@ struct SessionDetailView: View {
     }
 
     // MARK: - Limiter
+
+    // RP-2: Auf der Watch erfasster Schwerpunkt + Zustand (read-only Chips)
+    private var watchQuestionnaireChips: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Auf der Uhr erfasst")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.textSecondary)
+
+            HStack(spacing: 8) {
+                if let focus = session.sessionFocusLabel {
+                    readOnlyChip("Schwerpunkt", value: focus, icon: "scope")
+                }
+                if let energy = session.energyLabel {
+                    readOnlyChip("Zustand", value: energy, icon: "bolt.heart.fill")
+                }
+            }
+        }
+    }
+
+    private func readOnlyChip(_ title: String, value: String, icon: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(Theme.accent2)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.textSecondary)
+                Text(value)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8).fill(Theme.bgElevated)
+        )
+    }
 
     private var limiterPicker: some View {
         VStack(alignment: .leading, spacing: 10) {
