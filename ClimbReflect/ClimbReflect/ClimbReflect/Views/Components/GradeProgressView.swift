@@ -16,7 +16,8 @@ struct GradeProgressView: View {
             : (GradeSystem(rawValue: boulderScale) ?? .fontainebleau)
     }
     private var trendPoints: [StatsEngine.GradeTrendPoint] {
-        StatsEngine.maxGradeTrend(sessions, months: 6, boulder: !showRoutes)
+        // RP-16: Trend folgt derselben Periode wie die Konsolidierung
+        StatsEngine.maxGradeTrend(sessions, months: period.trendMonths, boulder: !showRoutes)
     }
 
     private var consolidation: [StatsEngine.PyramidEntry] {
@@ -40,6 +41,9 @@ struct GradeProgressView: View {
                 DisciplinePicker(showRoutes: $showRoutes)
             }
 
+            // RP-16: genau ein Perioden-Picker, gilt für Trend UND Konsolidierung
+            ChartPeriodPicker(selection: $period)
+
             if trendPoints.isEmpty && consolidation.isEmpty {
                 Text("Erfasse Tops um deine Grad-Entwicklung zu sehen.")
                     .font(.subheadline).foregroundStyle(Theme.textSecondary)
@@ -58,7 +62,7 @@ struct GradeProgressView: View {
 
     private var trendChart: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Höchstgrad (letzte 6 Monate)")
+            Text("Höchstgrad pro Monat")
                 .font(.caption2.weight(.semibold)).foregroundStyle(Theme.textTertiary)
             Chart(trendPoints) { p in
                 LineMark(x: .value("Monat", p.monthStart, unit: .month),
@@ -88,12 +92,8 @@ struct GradeProgressView: View {
 
     private var consolidationSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Konsolidiert (3+ Tops)")
-                    .font(.caption2.weight(.semibold)).foregroundStyle(Theme.textTertiary)
-                Spacer()
-                ChartPeriodPicker(selection: $period)
-            }
+            Text("Konsolidiert (3+ Tops)")
+                .font(.caption2.weight(.semibold)).foregroundStyle(Theme.textTertiary)
             if consolidation.isEmpty {
                 Text("Noch kein Grad 3× gesendet – drück weiter!")
                     .font(.caption).foregroundStyle(Theme.textTertiary)
