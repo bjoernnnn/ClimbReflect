@@ -55,7 +55,7 @@ struct WatchAttempt: Identifiable {
         self.attempts    = dto.attempts
         self.altitudeGain = dto.altitudeGain
         self.durationSeconds = dto.durationSeconds
-        self.heartRateAtBanking = nil
+        self.heartRateAtBanking = dto.heartRateAtBanking   // RP-6
         self.note        = nil
         self.date        = dto.date
         self.sessionType = sessionType
@@ -85,6 +85,7 @@ struct WatchAttempt: Identifiable {
             attempts: attempts,
             altitudeGain: altitudeGain,
             durationSeconds: durationSeconds,
+            heartRateAtBanking: heartRateAtBanking,   // RP-6
             date: date,
             sessionTypeRaw: sessionType.rawValue,
             projectName: projectInfo?.name,

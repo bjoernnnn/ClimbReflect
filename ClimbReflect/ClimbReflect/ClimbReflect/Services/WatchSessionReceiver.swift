@@ -255,6 +255,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             )
             ascent.altitudeGain = ascentDTO.altitudeGain
             ascent.durationSeconds = ascentDTO.durationSeconds
+            ascent.heartRateAtBanking = ascentDTO.heartRateAtBanking   // RP-6
 
             // P2-7: Projekt-Relation aufbauen
             // ID vorhanden → nur per ID matchen, nie neu anlegen (iPhone ist Source of Truth)

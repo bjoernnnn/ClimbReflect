@@ -14,6 +14,7 @@ struct WatchSessionDTO: Codable, Sendable {
         let attempts: Int
         let altitudeGain: Double
         let durationSeconds: Double?
+        let heartRateAtBanking: Double?   // RP-6: HF-Snapshot beim Banken (optional → alte DTOs)
         let date: Date
         let sessionTypeRaw: String
         let projectName: String?

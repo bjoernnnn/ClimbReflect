@@ -9,6 +9,7 @@ import SwiftData
 // V5 → V6: additive Änderungen (neue Tabelle TrainingSet + Relation ClimbSession.trainingSets T1).
 // V6 → V7: additive Änderungen (ClimbSession.sessionFocusRaw/energyRaw RP-2).
 // V7 → V8: additive Änderungen (ClimbSession.pausedSeconds RP-3).
+// V8 → V9: additive Änderungen (Ascent.heartRateAtBanking RP-6).
 
 enum SchemaV1: VersionedSchema {
     static var versionIdentifier = Schema.Version(1, 0, 0)
@@ -66,11 +67,18 @@ enum SchemaV8: VersionedSchema {
     }
 }
 
+enum SchemaV9: VersionedSchema {
+    static var versionIdentifier = Schema.Version(9, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, Shoe.self, TrainingSet.self]
+    }
+}
+
 enum AppMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self]
+        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self]
     }
-    static var stages: [MigrationStage] { [v1ToV2, v2ToV3, v3ToV4, v4ToV5, v5ToV6, v6ToV7, v7ToV8] }
+    static var stages: [MigrationStage] { [v1ToV2, v2ToV3, v3ToV4, v4ToV5, v5ToV6, v6ToV7, v7ToV8, v8ToV9] }
     static let v1ToV2 = MigrationStage.lightweight(
         fromVersion: SchemaV1.self,
         toVersion: SchemaV2.self
@@ -98,5 +106,9 @@ enum AppMigrationPlan: SchemaMigrationPlan {
     static let v7ToV8 = MigrationStage.lightweight(
         fromVersion: SchemaV7.self,
         toVersion: SchemaV8.self
+    )
+    static let v8ToV9 = MigrationStage.lightweight(
+        fromVersion: SchemaV8.self,
+        toVersion: SchemaV9.self
     )
 }

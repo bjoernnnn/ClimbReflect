@@ -25,6 +25,8 @@ final class Ascent {
     var altitudeGain: Double = 0
     // Versuchdauer aus dem Action-Button-Flow (optional, nur Watch)
     var durationSeconds: Double?
+    // RP-6: HF-Snapshot beim Banken auf der Uhr (optional, nur Watch)
+    var heartRateAtBanking: Double?
 
     // Schuh-Zugehörigkeit: shoeName als Cache, shoe als echte Relation (SH-1)
     var shoeName: String?

@@ -56,6 +56,10 @@ struct AscentRowView: View {
                               systemImage: "arrow.up.right")
                             .foregroundStyle(Theme.textTertiary)
                     }
+                    if let hr = ascent.heartRateAtBanking, hr > 0 {   // RP-6
+                        Label("\(Int(hr)) bpm", systemImage: "heart.fill")
+                            .foregroundStyle(Theme.textTertiary)
+                    }
                     if let project = ascent.project {
                         HStack(spacing: 3) {
                             Image(systemName: "target")
