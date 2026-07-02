@@ -7,6 +7,9 @@ import WatchConnectivity
 struct ProjectInfo: Identifiable, Hashable, Codable {
     let id: String   // UUID-String
     let name: String
+    // FB-2: Ziel-Grad + System des Projekts (optional → alte Kontexte/Caches dekodieren weiter)
+    var grade: String? = nil
+    var gradeSystem: String? = nil
 }
 
 // SH-6: Schuh-Info für Watch-Selektor (analog ProjectInfo)
@@ -110,7 +113,8 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
         if let list = context[SyncService.projectListKey] as? [[String: String]] {
             knownProjects = list.compactMap { dict -> ProjectInfo? in
                 guard let id = dict["id"], let name = dict["name"] else { return nil }
-                return ProjectInfo(id: id, name: name)
+                // FB-2: Grad/System optional (fehlende Keys → nil)
+                return ProjectInfo(id: id, name: name, grade: dict["grade"], gradeSystem: dict["gradeSystem"])
             }
         } else if let names = context[SyncService.projectsKey] as? [String] {
             knownProjects = names.map { ProjectInfo(id: $0, name: $0) }

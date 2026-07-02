@@ -10,8 +10,18 @@ struct AttemptLogView: View {
 
     @State private var gradeIndex: Int = 0
 
+    // FB-2: aktives Projekt mit Grad → dessen System (sonst Session-Default, RP-4)
     private var gradeSystem: WatchGradeSystem {
-        workoutManager.sessionType.defaultGradeSystem
+        if let raw = workoutManager.selectedProject?.gradeSystem,
+           let sys = WatchGradeSystem(rawValue: raw) { return sys }
+        return workoutManager.sessionType.defaultGradeSystem
+    }
+
+    // FB-2: gradeIndex auf den Projekt-Grad vorbelegen (Nutzer kann per Crown abweichen)
+    private func prefillFromProject() {
+        guard let grade = workoutManager.selectedProject?.grade,
+              let idx = gradeSystem.grades.firstIndex(of: grade) else { return }
+        gradeIndex = idx
     }
 
     private struct Outcome: Identifiable {
@@ -95,7 +105,12 @@ struct AttemptLogView: View {
         .padding(.top, 4)
         .background(WatchTheme.bg)
         .onAppear {
-            gradeIndex = gradeSystem.grades.count / 2
+            // FB-2: Projekt-Grad vorbelegen, sonst Mitte der Skala
+            if workoutManager.selectedProject?.grade != nil {
+                prefillFromProject()
+            } else {
+                gradeIndex = gradeSystem.grades.count / 2
+            }
             DiagnosticLog.shared.logVerbose("AttemptLogView appear mem=\(MemoryFootprint.residentMB())MB")
         }
         .onDisappear {

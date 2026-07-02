@@ -70,6 +70,8 @@ final class WorkoutManager: NSObject, ObservableObject {
     // P2-8: selectedProject über App-Neustart erhalten
     private static let selectedProjectIDKey  = "selectedProjectID"
     private static let selectedProjectNameKey = "selectedProjectName"
+    private static let selectedProjectGradeKey  = "selectedProjectGrade"        // FB-2
+    private static let selectedProjectSystemKey = "selectedProjectGradeSystem"  // FB-2
     // SH-7: selectedShoe über App-Neustart erhalten
     private static let selectedShoeIDKey        = "selectedShoeID"
     private static let selectedShoeNameKey      = "selectedShoeName"
@@ -85,6 +87,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             sessionTypeRaw: sessionType.rawValue,
             projectID: selectedProject?.id,
             projectName: selectedProject?.name,
+            projectGrade: selectedProject?.grade,             // FB-2
+            projectGradeSystem: selectedProject?.gradeSystem,
             ascents: attempts.map { $0.toDTO() },
             accumulatedPaused: accumulatedPaused,
             maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
@@ -146,8 +150,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             self.sessionType       = WatchSessionType(rawValue: p.sessionTypeRaw) ?? .boulder
             self.workoutStartDate  = p.startDate
             self.accumulatedPaused = p.accumulatedPaused
-            if let id = p.projectID, let name = p.projectName {
-                self.selectedProject = ProjectInfo(id: id, name: name)
+            if let info = p.projectInfo {   // FB-2: inkl. Grad/System
+                self.selectedProject = info
             }
             if let id = p.shoeID, let name = p.shoeName {
                 self.selectedShoe = ShoeInfo(id: id, name: name, condition: p.shoeCondition, defaultForTypes: [])
@@ -222,7 +226,11 @@ final class WorkoutManager: NSObject, ObservableObject {
         let ud = UserDefaults.standard
         if let id   = ud.string(forKey: Self.selectedProjectIDKey),
            let name = ud.string(forKey: Self.selectedProjectNameKey) {
-            _selectedProject = Published(wrappedValue: ProjectInfo(id: id, name: name))
+            _selectedProject = Published(wrappedValue: ProjectInfo(
+                id: id, name: name,
+                grade: ud.string(forKey: Self.selectedProjectGradeKey),        // FB-2
+                gradeSystem: ud.string(forKey: Self.selectedProjectSystemKey)
+            ))
         }
         if let id   = ud.string(forKey: Self.selectedShoeIDKey),
            let name = ud.string(forKey: Self.selectedShoeNameKey) {
@@ -242,9 +250,13 @@ final class WorkoutManager: NSObject, ObservableObject {
         if let p = selectedProject {
             ud.set(p.id,   forKey: Self.selectedProjectIDKey)
             ud.set(p.name, forKey: Self.selectedProjectNameKey)
+            ud.set(p.grade, forKey: Self.selectedProjectGradeKey)         // FB-2 (nil löscht)
+            ud.set(p.gradeSystem, forKey: Self.selectedProjectSystemKey)
         } else {
             ud.removeObject(forKey: Self.selectedProjectIDKey)
             ud.removeObject(forKey: Self.selectedProjectNameKey)
+            ud.removeObject(forKey: Self.selectedProjectGradeKey)
+            ud.removeObject(forKey: Self.selectedProjectSystemKey)
         }
     }
 
@@ -398,11 +410,13 @@ final class WorkoutManager: NSObject, ObservableObject {
         let gain = await altimeter.stopAscentTracking()
         let duration = lastAttemptDurationSeconds
         lastAttemptDurationSeconds = nil
+        // FB-2: Aktives Projekt mit bekanntem Grad → Grad + System übernehmen
+        // (kein „?"-/Unbewertet-Fall mehr für Projektversuche).
+        let projectSystem = selectedProject?.gradeSystem.flatMap(WatchGradeSystem.init(rawValue:))
         let attempt = WatchAttempt(
-            // RP-4: Grad-System aus dem Session-Typ (Seil → french, Boulder → fontainebleau),
-            // nicht mehr aus dem nie geschriebenen UserDefaults-Key "watchGradeSystem".
-            gradeSystem: sessionType.defaultGradeSystem,
-            grade: nil,
+            // RP-4: sonst Grad-System aus dem Session-Typ (Seil → french, Boulder → fontainebleau).
+            gradeSystem: projectSystem ?? sessionType.defaultGradeSystem,
+            grade: selectedProject?.grade,
             result: result,
             style: nil,
             altitudeGain: gain,

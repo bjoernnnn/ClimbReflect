@@ -11,6 +11,9 @@ struct PendingSession: Codable {
     let sessionTypeRaw: String
     let projectID: String?
     let projectName: String?
+    // FB-2: Projekt-Grad-Snapshot (optional → alte Snapshots dekodieren weiter)
+    var projectGrade: String?
+    var projectGradeSystem: String?
     // SH-7: Schuh-Snapshot (optional → alte Snapshots dekodieren weiter)
     var shoeID: String?
     var shoeName: String?
@@ -27,7 +30,7 @@ struct PendingSession: Codable {
 
     var projectInfo: ProjectInfo? {
         guard let id = projectID, let name = projectName else { return nil }
-        return ProjectInfo(id: id, name: name)
+        return ProjectInfo(id: id, name: name, grade: projectGrade, gradeSystem: projectGradeSystem)
     }
 
     var shoeInfo: ShoeInfo? {

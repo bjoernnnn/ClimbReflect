@@ -48,7 +48,13 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
               WCSession.default.isWatchAppInstalled else { return }
         let projects = (try? modelContext.fetch(FetchDescriptor<Project>())) ?? []
         let active = projects.filter { $0.isActive }
-        let projectList: [[String: String]] = active.map { ["id": $0.id.uuidString, "name": $0.name] }
+        // FB-2: Ziel-Grad + System mitsenden, damit die Watch Projektversuche vorbelegt
+        let projectList: [[String: String]] = active.map {
+            var dict = ["id": $0.id.uuidString, "name": $0.name]
+            if let g = $0.targetGradeRaw { dict["grade"] = g }
+            if let s = $0.gradeSystemRaw { dict["gradeSystem"] = s }
+            return dict
+        }
         let projectNames: [String] = active.map(\.name)
 
         // SH-6: Aktive (nicht retired) Schuhe mitsenden inkl. Zustand + Standard-Typen (SH-11)
