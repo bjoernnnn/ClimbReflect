@@ -664,7 +664,9 @@ enum StatsEngine {
         guard let thisWeekStart = cal.dateInterval(of: .weekOfYear, for: now)?.start
         else { return [] }
 
-        let historyWeeks = 8
+        // FB-9: interne Historie um 4 Wochen erweitern, damit die sichtbaren `weeks`
+        // vorn bereits valide ACWR-Werte haben (chronisches 4-Wochen-Fenster gefüllt).
+        let historyWeeks = weeks + 4
         var rawLoads: [Int] = []
         var weekStarts: [Date] = []
         for offset in stride(from: historyWeeks - 1, through: 0, by: -1) {
@@ -682,19 +684,24 @@ enum StatsEngine {
             weekStarts.append(start)
         }
 
+        // FB-9: ACWR erst ab 4 Wochen echter Historie (seit erster belasteter Woche)
+        // → keine Fenster-Artefakte am Rand. Wochen ohne genug Vorlauf: acwr = nil.
+        let firstLoadedIndex = rawLoads.firstIndex(where: { $0 > 0 })
+
         let showFrom = max(0, rawLoads.count - weeks)
         var result: [WeekLoad] = []
         for i in showFrom..<rawLoads.count {
             // ACWR nach Konvention: Akutlast = aktuelle Woche,
             // chronische Last = Ø der letzten 4 Wochen (inkl. aktueller).
-            // Erst ab 4 Wochen Historie aussagekräftig.
             let chronicRange = max(0, i - 3)...i
             let acute = Double(rawLoads[i])
             let chronic = Double(rawLoads[chronicRange].reduce(0, +)) / Double(rawLoads[chronicRange].count)
+            // Genug Vorlauf = mind. 4 Wochen seit der ersten belasteten Woche
+            let hasEnoughHistory = firstLoadedIndex.map { i - $0 >= 3 } ?? false
             result.append(WeekLoad(
                 weekStart: weekStarts[i],
                 load: rawLoads[i],
-                acwr: (i >= 3 && chronic > 0) ? acute / chronic : nil
+                acwr: (hasEnoughHistory && chronic > 0) ? acute / chronic : nil
             ))
         }
         return result

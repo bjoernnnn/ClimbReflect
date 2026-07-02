@@ -12,6 +12,12 @@ struct LoadManagementView: View {
     private var hasAcwr: Bool { points.contains { $0.acwr != nil } }
     private var maxLoad: Int { points.map(\.load).max() ?? 1 }
 
+    // FB-9: Zonenfarbe nach ACWR; ohne Wert (nil) neutral accent (kein Fenster-Artefakt)
+    private func zoneColor(_ acwr: Double?) -> Color {
+        guard let a = acwr else { return Theme.accent }
+        return a > 1.5 ? Theme.danger : a > 1.3 ? Theme.gold : Theme.accent
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
@@ -68,11 +74,7 @@ struct LoadManagementView: View {
             Chart(points) { point in
                 BarMark(x: .value("Woche", point.weekStart, unit: .weekOfYear),
                         y: .value("Last", point.load))
-                    .foregroundStyle(
-                        (point.acwr ?? 1) > 1.5 ? Theme.danger.opacity(0.75) :
-                        (point.acwr ?? 1) > 1.3 ? Theme.gold.opacity(0.75) :
-                        Theme.accent.opacity(0.75)
-                    )
+                    .foregroundStyle(zoneColor(point.acwr).opacity(0.75))   // FB-9: nil → accent
                     .cornerRadius(3)
             }
             .chartYAxis {
@@ -101,29 +103,34 @@ struct LoadManagementView: View {
                 .font(.caption2.weight(.semibold)).foregroundStyle(Theme.textTertiary)
             if acwrPoints.count >= 2 {
                 Chart {
+                    // FB-9: Schwellen als RuleMarks mit versetzten Labels (1,3 unten / 1,5 oben)
                     RuleMark(y: .value("Grenze", 1.5))
                         .foregroundStyle(Theme.danger.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        .annotation(position: .top, alignment: .trailing) { ruleLabel("1,5") }
                     RuleMark(y: .value("Ideal hoch", 1.3))
                         .foregroundStyle(Theme.gold.opacity(0.35))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        .annotation(position: .bottom, alignment: .trailing) { ruleLabel("1,3") }
                     RuleMark(y: .value("Ideal niedrig", 0.8))
                         .foregroundStyle(Theme.gold.opacity(0.35))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        .annotation(position: .top, alignment: .trailing) { ruleLabel("0,8") }
                     ForEach(acwrPoints, id: \.0) { date, acwr in
+                        // FB-9: Linie neutral, nur Punkte nach Zone einfärben
                         LineMark(x: .value("Woche", date, unit: .weekOfYear),
                                  y: .value("ACWR", acwr))
-                            .foregroundStyle(acwr > 1.5 ? Theme.danger : acwr > 1.3 ? Theme.gold : Theme.accent)
+                            .foregroundStyle(Theme.textTertiary)
                             .lineStyle(StrokeStyle(lineWidth: 2))
                         PointMark(x: .value("Woche", date, unit: .weekOfYear),
                                   y: .value("ACWR", acwr))
-                            .foregroundStyle(acwr > 1.5 ? Theme.danger : acwr > 1.3 ? Theme.gold : Theme.accent)
+                            .foregroundStyle(zoneColor(acwr))
                             .symbolSize(30)
                     }
                 }
-                .chartYScale(domain: 0...2.5)
+                .chartYScale(domain: 0...2)
                 .chartYAxis {
-                    AxisMarks(values: [0.0, 0.8, 1.3, 1.5, 2.0]) { v in
+                    AxisMarks(values: [0.0, 1.0, 2.0]) { _ in
                         AxisGridLine().foregroundStyle(Theme.surfaceStroke.opacity(0.4))
                         AxisValueLabel().foregroundStyle(Theme.textTertiary)
                     }
@@ -146,6 +153,12 @@ struct LoadManagementView: View {
             legendItem(color: Theme.gold, label: "1.3–1.5 Hoch")
             legendItem(color: Theme.danger, label: "> 1.5 Risiko")
         }
+    }
+
+    private func ruleLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 8))
+            .foregroundStyle(Theme.textTertiary)
     }
 
     private func legendItem(color: Color, label: String) -> some View {
