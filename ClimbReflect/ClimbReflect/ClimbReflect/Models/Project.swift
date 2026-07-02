@@ -42,6 +42,15 @@ final class Project {
         ascents.map(\.date).max() ?? .distantPast
     }
 
+    // FB-1: Projekt-Grad als Stammdatum
+    var gradeSystem: GradeSystem? { gradeSystemRaw.flatMap(GradeSystem.init(rawValue:)) }
+    var hasTargetGrade: Bool { targetGradeRaw != nil && gradeSystem != nil }
+    /// Ziel-Grad ins Anzeige-System umgerechnet (nil, wenn kein Grad festgelegt).
+    var displayTargetGrade: String? {
+        guard let raw = targetGradeRaw, let sys = gradeSystem else { return nil }
+        return GradeConverter.display(grade: raw, storedIn: sys)
+    }
+
     init(name: String, betaNotes: String = "", statusRaw: String? = nil, isPinned: Bool = false) {
         self.id = UUID()
         self.name = name
