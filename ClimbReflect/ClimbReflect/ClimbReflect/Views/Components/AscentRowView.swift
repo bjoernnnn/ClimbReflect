@@ -16,7 +16,7 @@ struct AscentRowView: View {
                         Text(GradeConverter.display(grade: ascent.gradeRaw, storedIn: ascent.gradeSystem))
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(Theme.textPrimary)
-                        Text(ascent.gradeSystem.label)
+                        Text(GradeConverter.displaySystem(for: ascent.gradeSystem).label)  // RP-17
                             .font(.caption2)
                             .foregroundStyle(Theme.textTertiary)
                             .padding(.horizontal, 6)

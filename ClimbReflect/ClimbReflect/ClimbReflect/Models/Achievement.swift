@@ -477,6 +477,7 @@ enum StatsEngine {
         let successRate: Double?
         let attemptsPerSend: Double?
         let hardestTopGrade: String?
+        let hardestTopGradeSystem: GradeSystem?   // RP-17: für Anzeige-Umrechnung
     }
 
     static func insights(for session: ClimbSession) -> SessionInsights {
@@ -502,8 +503,9 @@ enum StatsEngine {
         let attemptsPerSend: Double? = tops.isEmpty ? nil
             : Double(tops.reduce(0) { $0 + $1.attempts }) / Double(tops.count)
 
-        let hardestTopGrade = tops.filter { $0.isGraded }
-            .max(by: { $0.canonicalOrder < $1.canonicalOrder })?.gradeRaw  // RP-5
+        let hardestTop = tops.filter { $0.isGraded }
+            .max(by: { $0.canonicalOrder < $1.canonicalOrder })  // RP-5
+        let hardestTopGrade = hardestTop?.gradeRaw
 
         return SessionInsights(
             totalSeconds: total,
@@ -515,7 +517,8 @@ enum StatsEngine {
             load: load,
             successRate: successRate,
             attemptsPerSend: attemptsPerSend,
-            hardestTopGrade: hardestTopGrade
+            hardestTopGrade: hardestTopGrade,
+            hardestTopGradeSystem: hardestTop?.gradeSystem
         )
     }
 

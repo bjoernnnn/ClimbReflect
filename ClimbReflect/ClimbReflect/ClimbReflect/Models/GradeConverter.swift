@@ -65,12 +65,18 @@ enum GradeConverter {
     /// Konvertiert zum Anzeige-System das in AppStorage gespeichert ist.
     /// Liest `boulderScale` / `routeScale` aus UserDefaults.
     static func display(grade: String, storedIn system: GradeSystem) -> String {
+        let target = displaySystem(for: system)
+        return convert(grade: grade, from: system, to: target) ?? grade
+    }
+
+    /// RP-17: Anzeige-System (boulderScale/routeScale aus AppStorage) zur gespeicherten
+    /// Disziplin – für Grad-Labels, die die gewählte Skala benennen sollen.
+    static func displaySystem(for system: GradeSystem) -> GradeSystem {
         let isBoulder = (system == .fontainebleau || system == .vScale)
         let targetRaw = isBoulder
             ? (UserDefaults.standard.string(forKey: "boulderScale") ?? GradeSystem.fontainebleau.rawValue)
             : (UserDefaults.standard.string(forKey: "routeScale") ?? GradeSystem.french.rawValue)
-        guard let target = GradeSystem(rawValue: targetRaw) else { return grade }
-        return convert(grade: grade, from: system, to: target) ?? grade
+        return GradeSystem(rawValue: targetRaw) ?? (isBoulder ? .fontainebleau : .french)
     }
 
     /// Kanonischer Schwierigkeits-Index innerhalb der Disziplin (gemeinsame Leiter).

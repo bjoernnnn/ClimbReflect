@@ -92,12 +92,15 @@ struct RecapCardContent: View {
             }
 
             if let grade = recap.highestGrade, let sys = recap.highestGradeSystem {
+                // RP-17: ins Anzeige-System umrechnen und dessen Label zeigen
+                let shown = GradeConverter.display(grade: grade, storedIn: sys)
+                let shownSys = GradeConverter.displaySystem(for: sys)
                 HStack(spacing: 8) {
                     Image(systemName: recap.newPB ? "trophy.fill" : "chart.bar.fill")
                         .foregroundStyle(recap.newPB ? Theme.gold : Theme.accent)
                     Text(recap.newPB
-                         ? "Neuer Höchstgrad: \(grade) (\(sys.label))"
-                         : "Schwerstes Top: \(grade) (\(sys.label))")
+                         ? "Neuer Höchstgrad: \(shown) (\(shownSys.label))"
+                         : "Schwerstes Top: \(shown) (\(shownSys.label))")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(recap.newPB ? Theme.gold : Theme.textPrimary)
                 }

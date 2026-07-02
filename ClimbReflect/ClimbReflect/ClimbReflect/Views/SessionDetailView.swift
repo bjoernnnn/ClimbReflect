@@ -156,7 +156,8 @@ struct SessionDetailView: View {
             insights.successRate.map { ("Erfolgsquote",
                 "\(Int($0 * 100))%", "percent", Theme.textSecondary) },
             insights.hardestTopGrade.map { ("Top-Grad",
-                $0, "trophy", Theme.gold) },
+                GradeConverter.display(grade: $0, storedIn: insights.hardestTopGradeSystem ?? .fontainebleau),
+                "trophy", Theme.gold) },   // RP-17
         ]
         let valid = items.compactMap { $0 }
         if !valid.isEmpty {
