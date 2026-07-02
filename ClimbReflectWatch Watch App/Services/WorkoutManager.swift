@@ -34,6 +34,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     @Published var healthKitActive = false
     @Published var healthKitDenied = false
     @Published var pendingSummaryDTO: WatchSessionDTO? = nil
+    @Published var isEnding = false   // RP-13: HealthKit-Abschluss läuft (2–5 s) → „Speichern…"-Overlay
     @Published var selectedProject: ProjectInfo? = nil {  // P5.7 / P2-8
         didSet { persistSelectedProject() }
     }
@@ -488,6 +489,10 @@ final class WorkoutManager: NSObject, ObservableObject {
         // S4: Guard gegen Doppelaufruf (z. B. UI + Delegate parallel)
         guard !isFinishingIntentionally else { return nil }
         isFinishingIntentionally = true
+        // RP-13: sofort sichtbares Feedback (Overlay + Haptik von hinten nach vorn
+        // gezogen), bevor die 2–5 s HealthKit-Roundtrips laufen → keine eingefrorene Uhr.
+        isEnding = true
+        WKInterfaceDevice.current().play(.stop)
         await altimeter.stop()
         timer?.invalidate()
         timer = nil
@@ -538,7 +543,7 @@ final class WorkoutManager: NSObject, ObservableObject {
 
         DiagnosticLog.shared.log("end ascents=\(attempts.count) duration=\(Int(duration))s")
         clearLiveStatus()
-        WKInterfaceDevice.current().play(.stop)
+        // Haptik bereits zu Beginn gespielt (RP-13)
 
         // RP-1: Basis-DTO SOFORT senden (vor finishSession/PendingSessionStore.clear),
         // damit die Session inkl. aller Begehungen auch dann auf dem iPhone landet,
@@ -572,6 +577,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     func finishSession() {
         isRunning = false
         isPaused = false
+        isEnding = false   // RP-13
         session = nil
         builder = nil
         hrQuery = nil

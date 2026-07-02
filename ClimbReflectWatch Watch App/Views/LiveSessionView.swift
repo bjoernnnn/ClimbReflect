@@ -18,10 +18,20 @@ struct LiveSessionView: View {
 
     var body: some View {
         NavigationStack {
-            if workoutManager.isTraining {
-                trainingTabView
-            } else {
-                climbingTabView
+            ZStack {
+                Group {
+                    if workoutManager.isTraining {
+                        trainingTabView
+                    } else {
+                        climbingTabView
+                    }
+                }
+                .allowsHitTesting(!workoutManager.isEnding)   // RP-13: keine Doppel-Taps
+
+                // RP-13: deckendes „Speichern…"-Overlay während der HealthKit-Roundtrips
+                if workoutManager.isEnding {
+                    savingOverlay
+                }
             }
         }
         .onChange(of: workoutManager.sessionEndedUnexpectedly) { _, ended in
@@ -62,6 +72,24 @@ struct LiveSessionView: View {
                 }
             }
         }
+    }
+
+    // MARK: - RP-13: „Speichern…"-Overlay
+
+    private var savingOverlay: some View {
+        ZStack {
+            WatchTheme.bg.ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                Text("Session wird gespeichert…")
+                    .font(.footnote)
+                    .foregroundStyle(WatchTheme.textSecond)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+        }
+        .transition(.opacity)
     }
 
     // MARK: - Klettern: 3-Tab-View
