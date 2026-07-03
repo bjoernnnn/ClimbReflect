@@ -95,6 +95,50 @@ enum ProgressEngine {
         )
     }
 
+    // MARK: - FO-2: Grad-Verlauf je Monat
+
+    struct TimelinePoint: Equatable {
+        let month: Date       // 1. des Monats
+        let sendOrder: Int?   // max canonicalOrder der Sends
+        let flashOrder: Int?  // max canonicalOrder der Flash/Onsight-Sends
+    }
+
+    /// Härtester Send (und Flash/Onsight) je Kalendermonat. Monate ohne Sends
+    /// fehlen im Array (Chart zeichnet Lücke). monthsBack == nil ⇒ gesamte Historie.
+    static func gradeTimeline(_ sessions: [ClimbSession], discipline: Discipline,
+                              monthsBack: Int?, calendar: Calendar = .current,
+                              now: Date = Date()) -> [TimelinePoint] {
+        let scoped = sessionsInPeriod(sessions, monthsBack: monthsBack, calendar: calendar, now: now)
+        let tops = scoped.flatMap(\.ascents)
+            .filter { discipline.matches($0) && $0.result == .top && $0.isGraded }
+
+        var byMonth: [Date: (send: Int, flash: Int?)] = [:]
+        for a in tops {
+            let m = startOfMonth(a.date, calendar)
+            let order = a.canonicalOrder
+            var entry = byMonth[m] ?? (send: order, flash: nil)
+            entry.send = max(entry.send, order)
+            if isFlashStyle(a.style, discipline: discipline) {
+                entry.flash = max(entry.flash ?? Int.min, order)
+            }
+            byMonth[m] = entry
+        }
+        return byMonth.keys.sorted().map { m in
+            let e = byMonth[m]!
+            return TimelinePoint(month: m, sendOrder: e.send, flashOrder: e.flash)
+        }
+    }
+
+    /// Y-Achsen-Label: kanonischer Index → Grad-String der Anzeige-Skala.
+    static func gradeLabel(forOrder order: Int, discipline: Discipline) -> String {
+        guard let ref = GradeConverter.canonicalGrade(order: order, boulder: discipline.isBoulder) else { return "" }
+        return GradeConverter.display(grade: ref, storedIn: discipline.referenceSystem)
+    }
+
+    static func startOfMonth(_ date: Date, _ calendar: Calendar = .current) -> Date {
+        calendar.date(from: calendar.dateComponents([.year, .month], from: date)) ?? date
+    }
+
     // MARK: - Zeitraum-Filter
 
     /// Sessions ab `monthsBack` Monaten (nil = gesamte Historie).

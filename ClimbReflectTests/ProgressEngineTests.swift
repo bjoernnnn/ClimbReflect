@@ -74,4 +74,32 @@ final class ProgressEngineTests: XCTestCase {
         XCTAssertEqual(ProgressEngine.personalBests([s], discipline: .boulder).send?.grade, "7A")
         XCTAssertEqual(ProgressEngine.personalBests([s], discipline: .rope).send?.grade, "6a")
     }
+
+    // MARK: - gradeTimeline
+
+    func testGradeTimeline_gapMonthOmitted() {
+        // Sends in Monat 0 und ~2 Monate später, dazwischen Lücke
+        let s0 = session([ascent(.fontainebleau, "6A", day: 0)], day: 0)
+        let s2 = session([ascent(.fontainebleau, "6B", day: 62)], day: 62)
+        let points = ProgressEngine.gradeTimeline([s0, s2], discipline: .boulder, monthsBack: nil)
+        // Nur Monate mit Sends erscheinen (kein interpolierter Lücken-Monat)
+        XCTAssertEqual(points.count, 2)
+        XCTAssertTrue(points.allSatisfy { $0.sendOrder != nil })
+    }
+
+    func testGradeTimeline_flashSubsetOfSend() {
+        let s = session([
+            ascent(.fontainebleau, "7A", day: 0),                    // Send, kein Flash
+            ascent(.fontainebleau, "6B", style: .flash, day: 1)      // Flash
+        ], day: 0)
+        let p = ProgressEngine.gradeTimeline([s], discipline: .boulder, monthsBack: nil).first!
+        XCTAssertNotNil(p.sendOrder)
+        // Flash-Order ≤ Send-Order (Flash ist Teilmenge)
+        XCTAssertLessThanOrEqual(p.flashOrder ?? Int.min, p.sendOrder ?? 0)
+    }
+
+    func testGradeLabel_boulderOrderToDisplay() {
+        // canonical 11 = Fb "7A" (Standard-Anzeige = Fb)
+        XCTAssertEqual(ProgressEngine.gradeLabel(forOrder: 11, discipline: .boulder), "7A")
+    }
 }
