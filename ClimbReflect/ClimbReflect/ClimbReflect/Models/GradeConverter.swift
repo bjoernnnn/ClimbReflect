@@ -97,6 +97,15 @@ enum GradeConverter {
         }
     }
 
+    /// FO-2: Umkehrung von `canonicalIndex` – Grad-String (Referenz-Skala Fb bzw.
+    /// French) zum kanonischen Index einer Disziplin. Für Y-Achsen-Labels des
+    /// Verlauf-Charts. nil außerhalb der Leiter.
+    static func canonicalGrade(order: Int, boulder: Bool) -> String? {
+        let ladder = boulder ? boulderFb : routeFrench
+        guard order >= 0, order < ladder.count else { return nil }
+        return ladder[order]
+    }
+
     // MARK: - Intern
 
     private static func lookup(_ grade: String, in source: [String], out target: [String]) -> String? {
