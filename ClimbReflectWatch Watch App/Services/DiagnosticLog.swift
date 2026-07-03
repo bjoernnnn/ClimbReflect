@@ -34,6 +34,18 @@ final class DiagnosticLog: ObservableObject {
 
     private init() { load() }
 
+    /// Master-Schalter für die Diagnose. Standard: an (bewahrt bisheriges
+    /// Verhalten). Aus ⇒ `log()`/`logVerbose()` sind No-Ops, bereits erfasste
+    /// Einträge bleiben aber sichtbar und lassen sich weiterhin senden/löschen.
+    var isEnabled: Bool {
+        get {
+            UserDefaults.standard.object(forKey: "diagEnabled") == nil
+                ? true
+                : UserDefaults.standard.bool(forKey: "diagEnabled")
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "diagEnabled") }
+    }
+
     var isVerbose: Bool {
         get { UserDefaults.standard.bool(forKey: "diagVerbose") }
         set { UserDefaults.standard.set(newValue, forKey: "diagVerbose") }
@@ -45,6 +57,7 @@ final class DiagnosticLog: ObservableObject {
     }
 
     func log(_ event: String, flushImmediately: Bool = false) {
+        guard isEnabled else { return }
         let entry = DiagnosticEntry(event)
         entries.append(entry)
         if entries.count > maxEntries { entries.removeFirst(entries.count - maxEntries) }

@@ -5,6 +5,10 @@ struct DiagnosticView: View {
     @StateObject private var log = DiagnosticLog.shared
     @State private var showClearConfirm = false
 
+    // Reaktiv an dieselben UserDefaults-Keys gekoppelt, die DiagnosticLog liest.
+    @AppStorage("diagEnabled") private var isEnabled = true
+    @AppStorage("diagVerbose") private var isVerbose = false
+
     private static let formatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
@@ -13,6 +17,18 @@ struct DiagnosticView: View {
 
     var body: some View {
         List {
+            Toggle(isOn: $isEnabled) {
+                Text("Diagnose aktiv")
+                    .font(.caption)
+                    .foregroundStyle(WatchTheme.textPrimary)
+            }
+
+            if !isEnabled {
+                Text("Diagnose ist aus – es werden keine neuen Ereignisse aufgezeichnet.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(WatchTheme.textTert)
+            }
+
             if log.entries.isEmpty {
                 Text("Keine Einträge")
                     .font(.caption)
@@ -40,13 +56,12 @@ struct DiagnosticView: View {
                         .foregroundStyle(WatchTheme.accent)
                 }
 
-                Toggle(isOn: Binding(
-                    get: { log.isVerbose },
-                    set: { log.isVerbose = $0 }
-                )) {
-                    Text("Ausführlich")
-                        .font(.caption)
-                        .foregroundStyle(WatchTheme.textSecond)
+                if isEnabled {
+                    Toggle(isOn: $isVerbose) {
+                        Text("Ausführlich")
+                            .font(.caption)
+                            .foregroundStyle(WatchTheme.textSecond)
+                    }
                 }
 
                 Button(role: .destructive) { showClearConfirm = true } label: {
