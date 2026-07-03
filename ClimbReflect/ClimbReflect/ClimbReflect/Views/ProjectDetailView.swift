@@ -20,6 +20,7 @@ struct ProjectDetailView: View {
     @State private var editingCaption: ProjectMedia? = nil
     @State private var captionDraft = ""
     @State private var showDeleteConfirm = false
+    @State private var showGradeEditor = false   // FB-1
 
     private var sortedAscents: [Ascent] {
         project.ascents.sorted { $0.date > $1.date }
@@ -105,6 +106,21 @@ struct ProjectDetailView: View {
         .sheet(item: $editingCaption) { media in
             captionSheet(for: media)
         }
+        .sheet(isPresented: $showGradeEditor) {
+            // FB-1: Ziel-Grad in der Detailansicht bearbeiten (Name bleibt unverändert)
+            ProjectGradeSheet(
+                titleText: "Grad festlegen",
+                showsName: false,
+                name: project.name,
+                gradeSystemRaw: project.gradeSystemRaw,
+                targetGradeRaw: project.targetGradeRaw
+            ) { _, systemRaw, targetRaw in
+                project.gradeSystemRaw = systemRaw
+                project.targetGradeRaw = targetRaw
+                try? context.save()
+                WatchSessionReceiver.shared.pushProjectsToWatch()
+            }
+        }
         .onChange(of: selectedPhotos) { _, items in
             Task { await addPhotos(items) }
         }
@@ -131,11 +147,19 @@ struct ProjectDetailView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(Capsule().fill(statusColor.opacity(0.15)))
-                    if let grade = project.targetGradeRaw {
-                        Label(grade, systemImage: "chart.bar.fill")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textTertiary)
+                    // FB-1: Ziel-Grad (Stammdatum) – tappbar; fehlt er → Hinweis-Chip
+                    Button { showGradeEditor = true } label: {
+                        if let grade = project.displayTargetGrade {
+                            Label(grade, systemImage: "chart.bar.fill")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.accent)
+                        } else {
+                            Label("Grad festlegen", systemImage: "plus.circle")
+                                .font(.caption)
+                                .foregroundStyle(Theme.textTertiary)
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
                 Spacer()
                 if project.isPinned {

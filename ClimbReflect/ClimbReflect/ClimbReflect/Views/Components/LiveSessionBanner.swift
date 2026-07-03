@@ -3,6 +3,7 @@ import WatchConnectivity
 
 struct LiveSessionBanner: View {
     let status: WatchLiveStatus
+    @State private var showEndConfirm = false   // RP-15
 
     private var sessionLabel: String {
         switch status.sessionTypeRaw {
@@ -30,7 +31,7 @@ struct LiveSessionBanner: View {
                     .foregroundStyle(status.isPaused ? Theme.gold : Theme.accent)
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("\(sessionLabel) auf der Watch")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.textPrimary)
@@ -44,6 +45,18 @@ struct LiveSessionBanner: View {
                         Text(liveElapsedFormatted())
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(Theme.accent)
+                    }
+                }
+                HStack(spacing: 10) {
+                    if let hr = status.heartRate {
+                        Label(String(format: "%.0f bpm", hr), systemImage: "heart.fill")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.danger)
+                    }
+                    if let kcal = status.activeEnergyKcal {
+                        Label(String(format: "%.0f kcal", kcal), systemImage: "flame.fill")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.gold)
                     }
                 }
             }
@@ -63,7 +76,7 @@ struct LiveSessionBanner: View {
                 .buttonStyle(.plain)
 
                 Button {
-                    sendCommand("end")
+                    showEndConfirm = true   // RP-15: Rückfrage statt Sofort-Ende
                 } label: {
                     Image(systemName: "stop.fill")
                         .font(.system(size: 16, weight: .semibold))
@@ -74,6 +87,10 @@ struct LiveSessionBanner: View {
                 .buttonStyle(.plain)
             }
         }
+        .confirmationDialog("Session auf der Watch beenden?", isPresented: $showEndConfirm, titleVisibility: .visible) {
+            Button("Beenden", role: .destructive) { sendCommand("end") }
+            Button("Abbrechen", role: .cancel) {}
+        }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
         .overlay(
@@ -83,7 +100,9 @@ struct LiveSessionBanner: View {
     }
 
     private func liveElapsedFormatted() -> String {
-        let s = Int(Date().timeIntervalSince(status.startedAt))
+        // RP-15: Pausenzeit abziehen, sonst divergieren Watch- und iPhone-Zeit nach jeder Pause
+        let paused = status.accumulatedPausedSeconds ?? 0
+        let s = max(0, Int(Date().timeIntervalSince(status.startedAt) - paused))
         let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
         return h > 0
             ? String(format: "%d:%02d:%02d", h, m, sec)

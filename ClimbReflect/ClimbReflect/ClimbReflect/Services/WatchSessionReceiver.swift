@@ -9,32 +9,82 @@ import WatchConnectivity
 final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject {
     static let shared = WatchSessionReceiver()
     static let projectsKey = "knownProjects"
+    static let shoeProjectSyncKey = "shoeProjectSync"   // SH-14: transferUserInfo-Fallback-Key
 
     @Published var liveStatus: WatchLiveStatus?
+    @Published var diagnosticLogText: String = ""
+    @Published var diagnosticLogFileURL: URL?
 
     private var modelContext: ModelContext?
 
     func configure(modelContext: ModelContext) {
         self.modelContext = modelContext
+        seedDefaultShoeIfNeeded(ctx: modelContext)
         if WCSession.isSupported() {
             WCSession.default.delegate = self
             WCSession.default.activate()
         }
     }
 
-    // W5.2: Aktive+angepinnte Projekte an Watch pushen
+    private func seedDefaultShoeIfNeeded(ctx: ModelContext) {
+        let count = (try? ctx.fetchCount(FetchDescriptor<Shoe>())) ?? 0
+        guard count == 0 else { return }
+        let now = Date()
+        let cal = Calendar.current
+        let shoe = Shoe(
+            name: "Eigener Schuh",
+            startMonth: cal.component(.month, from: now),
+            startYear:  cal.component(.year,  from: now)
+        )
+        shoe.condition = .eingetragen
+        shoe.isBuiltInDefault = true
+        ctx.insert(shoe)
+        try? ctx.save()
+    }
+
+    // W5.2: Aktive+angepinnte Projekte + Schuhe an Watch pushen
     func pushProjectsToWatch(modelContext: ModelContext) {
         guard WCSession.default.activationState == .activated,
               WCSession.default.isWatchAppInstalled else { return }
         let projects = (try? modelContext.fetch(FetchDescriptor<Project>())) ?? []
         let active = projects.filter { $0.isActive }
-        let list: [[String: String]] = active.map { ["id": $0.id.uuidString, "name": $0.name] }
-        let names: [String] = active.map(\.name)
+        // FB-2: Ziel-Grad + System mitsenden, damit die Watch Projektversuche vorbelegt
+        let projectList: [[String: String]] = active.map {
+            var dict = ["id": $0.id.uuidString, "name": $0.name]
+            if let g = $0.targetGradeRaw { dict["grade"] = g }
+            if let s = $0.gradeSystemRaw { dict["gradeSystem"] = s }
+            return dict
+        }
+        let projectNames: [String] = active.map(\.name)
+
+        // SH-6: Aktive (nicht retired) Schuhe mitsenden inkl. Zustand + Standard-Typen (SH-11)
+        let shoes = (try? modelContext.fetch(FetchDescriptor<Shoe>())) ?? []
+        let activeShoes = shoes.filter { !$0.isRetired }
+        let shoeList: [[String: Any]] = activeShoes.map {
+            [
+                "id": $0.id.uuidString,
+                "name": $0.name,
+                "condition": $0.conditionRaw,
+                "defaultForTypes": $0.defaultForTypesRaw
+            ]
+        }
+
         let context: [String: Any] = [
-            "projectList": list,
-            Self.projectsKey: names
+            "projectList": projectList,
+            Self.projectsKey: projectNames,
+            "shoeList": shoeList
         ]
-        try? WCSession.default.updateApplicationContext(context)
+        var updateFailed = false
+        do {
+            try WCSession.default.updateApplicationContext(context)
+        } catch {
+            updateFailed = true
+        }
+        // SH-14: updateApplicationContext ist best-effort/coalescing – bei Fehlschlag oder
+        // nicht erreichbarer Uhr zusätzlich per transferUserInfo senden (zuverlässig, persistiert).
+        if updateFailed || !WCSession.default.isReachable {
+            WCSession.default.transferUserInfo([Self.shoeProjectSyncKey: context])
+        }
     }
 
     func pushProjectsToWatch() {
@@ -58,6 +108,12 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
     nonisolated func sessionDidDeactivate(_ session: WCSession) {
         WCSession.default.activate()
+    }
+
+    // SH-15: Watch-App wurde (neu) installiert oder Pairing-Status änderte sich →
+    // Projekt-/Schuh-Liste erneut pushen (nach Reinstall ist der Watch-Kontext leer).
+    nonisolated func sessionWatchStateDidChange(_ session: WCSession) {
+        Task { @MainActor [self] in self.pushProjectsToWatch() }
     }
 
     nonisolated func session(_ session: WCSession,
@@ -88,6 +144,15 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
 
     nonisolated func session(_ session: WCSession,
                              didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        if let diagData = userInfo["diagnosticLog"] as? Data {
+            Task { @MainActor [self] in self.storeDiagnostics(diagData) }
+            return
+        }
+        // SH-15: Watch fordert Re-Push der Projekt-/Schuh-Liste an (z. B. nach Reinstall)
+        if userInfo["requestShoeProjectSync"] != nil {
+            Task { @MainActor [self] in self.pushProjectsToWatch() }
+            return
+        }
         // Literal statt WatchSessionDTO.transferKey — nonisolated Kontext darf keine
         // @MainActor-isolierten statischen Properties lesen (SWIFT_DEFAULT_ACTOR_ISOLATION).
         guard let data = userInfo["watchSessionDTO"] as? Data else { return }
@@ -101,6 +166,22 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         }
     }
 
+    @MainActor
+    private func storeDiagnostics(_ data: Data) {
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("watchDiagnostics.json")
+        try? data.write(to: url, options: .atomic)
+        diagnosticLogFileURL = url
+
+        struct Entry: Decodable { let timestamp: Date; let event: String }
+        guard let entries = try? JSONDecoder().decode([Entry].self, from: data) else { return }
+        let df = DateFormatter()
+        df.dateFormat = "HH:mm:ss"
+        diagnosticLogText = entries
+            .map { "\(df.string(from: $0.timestamp))  \($0.event)" }
+            .joined(separator: "\n")
+    }
+
     // MARK: - Persistierung
 
     private func insert(dto: WatchSessionDTO) {
@@ -112,9 +193,16 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         if let existing = allSessions.first(where: { $0.watchSessionID == dto.id }) {
             // Nur Anreicherungsfelder aktualisieren (RPE, Focus) – Ascents bleiben
             if let rpe = dto.rpe { existing.perceivedEffort = rpe }
-            if let f = dto.focusRaw, let limiter = Limiter(rawValue: f) {
-                existing.limiterRaw = [limiter.rawValue]
+            if existing.sessionType == .training {
+                // Training: focusRaw = Zielkapazität → Limiter
+                if let f = dto.focusRaw, let limiter = Limiter(rawValue: f) {
+                    existing.limiterRaw = [limiter.rawValue]
+                }
+            } else {
+                // RP-2: Klettersession: focusRaw = WatchSessionFocus-Schwerpunkt
+                if let f = dto.focusRaw { existing.sessionFocusRaw = f }
             }
+            if let e = dto.energyRaw { existing.energyRaw = e }
             try? ctx.save()
             return
         }
@@ -140,6 +228,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
 
         climbSession.watchSessionID = dto.id
         climbSession.altitudeTotalGain = dto.altitudeTotalGain
+        climbSession.pausedSeconds = dto.pausedSeconds ?? 0   // RP-3
 
         // RPE aus dem Fragebogen
         if let rpe = dto.rpe { climbSession.perceivedEffort = rpe }
@@ -147,11 +236,17 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         // Training: focusRaw = Limiter rawValue (Zielkapazität)
         if sessionType == .training, let f = dto.focusRaw, let limiter = Limiter(rawValue: f) {
             climbSession.limiterRaw = [limiter.rawValue]
+        } else if sessionType != .training {
+            // RP-2: Klettersession: focusRaw = WatchSessionFocus-Schwerpunkt
+            climbSession.sessionFocusRaw = dto.focusRaw
         }
+        // RP-2: Zustand (fresh/normal/tired) für alle Session-Typen
+        climbSession.energyRaw = dto.energyRaw
 
         ctx.insert(climbSession)
 
         let allProjects = (try? ctx.fetch(FetchDescriptor<Project>())) ?? []
+        let allShoes = (try? ctx.fetch(FetchDescriptor<Shoe>())) ?? []   // SH-9
 
         for ascentDTO in dto.ascents {
             let ascent = Ascent(
@@ -165,6 +260,8 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
                 session: climbSession
             )
             ascent.altitudeGain = ascentDTO.altitudeGain
+            ascent.durationSeconds = ascentDTO.durationSeconds
+            ascent.heartRateAtBanking = ascentDTO.heartRateAtBanking   // RP-6
 
             // P2-7: Projekt-Relation aufbauen
             // ID vorhanden → nur per ID matchen, nie neu anlegen (iPhone ist Source of Truth)
@@ -182,6 +279,22 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
                     ctx.insert(project)
                     ascent.project = project
                 }
+            }
+
+            // SH-9: Schuh-Relation aufbauen — kein Auto-Anlegen (iPhone ist Source of Truth)
+            ascent.shoeName = ascentDTO.shoeName
+            ascent.shoeCondition = ascentDTO.shoeCondition
+            if let sid = ascentDTO.shoeID {
+                ascent.shoe = allShoes.first(where: { $0.id == sid })
+            } else if let name = ascentDTO.shoeName {
+                let trimmed = name.trimmingCharacters(in: .whitespaces).lowercased()
+                ascent.shoe = allShoes.first(where: {
+                    $0.name.trimmingCharacters(in: .whitespaces).lowercased() == trimmed
+                })
+            }
+            // SH-A3: Fallback auf eingebauten Standard-Schuh wenn keine Zuordnung
+            if ascent.shoe == nil {
+                ascent.shoe = allShoes.first(where: { $0.isBuiltInDefault }) ?? allShoes.first
             }
 
             ctx.insert(ascent)

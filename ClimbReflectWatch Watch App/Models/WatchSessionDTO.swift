@@ -11,10 +11,16 @@ struct WatchSessionDTO: Codable, Sendable {
         let styleRaw: String?
         let attempts: Int
         let altitudeGain: Double
+        let durationSeconds: Double?
+        let heartRateAtBanking: Double?   // RP-6: HF-Snapshot beim Banken (optional → alte DTOs)
         let date: Date
         let sessionTypeRaw: String
         let projectName: String?
         let projectID: UUID?
+        // SH-5: Schuh-Cache (optional → alte DTOs dekodieren weiter)
+        let shoeName: String?
+        let shoeID: UUID?
+        let shoeCondition: String?  // ShoeCondition.rawValue Snapshot
     }
 
     let id: UUID
@@ -27,6 +33,11 @@ struct WatchSessionDTO: Codable, Sendable {
     let activeEnergyKcal: Double?
     let altitudeTotalGain: Double
     let ascents: [AscentDTO]
+
+    // RP-3: Workout-Pausenzeit (brutto durationSeconds bleibt die volle Session-
+    // Spanne; Aktivzeit = durationSeconds − pausedSeconds). Optional → alte DTOs
+    // dekodieren als nil (= 0).
+    let pausedSeconds: Double?
 
     // Fragebogen (optional — ältere Empfänger ignorieren diese Felder)
     let rpe: Int?
@@ -43,7 +54,10 @@ struct WatchSessionDTO: Codable, Sendable {
             avgHeartRate: avgHeartRate, maxHeartRate: maxHeartRate,
             activeEnergyKcal: activeEnergyKcal, altitudeTotalGain: altitudeTotalGain,
             ascents: ascents,
-            rpe: rpe, focusRaw: focus?.rawValue, energyRaw: energy?.rawValue
+            pausedSeconds: pausedSeconds,
+            // RP-2: focus ist bei Training immer nil (skipFocus) – dann den in
+            // endWorkout() gesetzten focusRaw (Zielkapazität) NICHT überschreiben.
+            rpe: rpe, focusRaw: focus?.rawValue ?? self.focusRaw, energyRaw: energy?.rawValue
         )
     }
 }

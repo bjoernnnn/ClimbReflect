@@ -44,12 +44,11 @@ struct ProjectsView: View {
                 .tint(Theme.accent)
             }
         }
-        .alert("Projekt hinzufügen", isPresented: $showAddProject) {
-            TextField("Projektname", text: $newProjectName)
-            Button("Hinzufügen") { createProject(name: newProjectName) }
-            Button("Abbrechen", role: .cancel) { newProjectName = "" }
-        } message: {
-            Text("Name des Projekts (Route oder Boulder)")
+        .sheet(isPresented: $showAddProject) {
+            // FB-1: Anlegen inkl. Disziplin + Ziel-Grad
+            ProjectGradeSheet(titleText: "Projekt hinzufügen", showsName: true) { name, systemRaw, targetRaw in
+                createProject(name: name, gradeSystemRaw: systemRaw, targetGradeRaw: targetRaw)
+            }
         }
         .preferredColorScheme(.dark)
     }
@@ -176,14 +175,15 @@ struct ProjectsView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.textPrimary)
                     HStack(spacing: 8) {
-                        if let grade = project.bestTopGrade {
-                            Text(grade)
+                        // FB-1: Projekt-Ziel-Grad (Stammdatum) prominent; sonst bester Top-Grad
+                        if let target = project.displayTargetGrade {
+                            Text(target)
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(Theme.accent)
-                        } else if let target = project.targetGradeRaw {
-                            Text("Ziel: \(target)")
-                                .font(.caption)
-                                .foregroundStyle(Theme.textTertiary)
+                        } else if let grade = project.bestTopGrade {
+                            Text(GradeConverter.display(grade: grade, storedIn: project.gradeSystem ?? .fontainebleau))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Theme.accent)
                         }
                         if project.totalAttempts > 0 {
                             Text("\(project.totalAttempts) Versuch\(project.totalAttempts == 1 ? "" : "e") · \(project.distinctDays) Tag\(project.distinctDays == 1 ? "" : "e")")
@@ -218,14 +218,17 @@ struct ProjectsView: View {
         .buttonStyle(.plain)
     }
 
-    private func createProject(name: String) {
+    private func createProject(name: String, gradeSystemRaw: String? = nil, targetGradeRaw: String? = nil) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { newProjectName = ""; return }
         guard !projects.contains(where: { $0.name.lowercased() == trimmed.lowercased() }) else {
             newProjectName = ""
             return
         }
-        context.insert(Project(name: trimmed))
+        let project = Project(name: trimmed)
+        project.gradeSystemRaw = gradeSystemRaw
+        project.targetGradeRaw = targetGradeRaw
+        context.insert(project)
         try? context.save()
         WatchSessionReceiver.shared.pushProjectsToWatch()
         newProjectName = ""

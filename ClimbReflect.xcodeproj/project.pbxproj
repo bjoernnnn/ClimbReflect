@@ -47,21 +47,11 @@
 			);
 			target = 1151C11D2FE094D600D73FFD /* ClimbReflect */;
 		};
-		11632D8B2FE192B2000AE643 /* Exceptions for "ClimbReflectWatch Watch App" folder in "ClimbReflectWatch Watch App" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"ClimbReflectWatch-Watch-App-Info.plist",
-			);
-			target = 113652292FE132CA007A638C /* ClimbReflectWatch Watch App */;
-		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1136522B2FE132CA007A638C /* ClimbReflectWatch Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				11632D8B2FE192B2000AE643 /* Exceptions for "ClimbReflectWatch Watch App" folder in "ClimbReflectWatch Watch App" target */,
-			);
 			path = "ClimbReflectWatch Watch App";
 			sourceTree = "<group>";
 		};
@@ -245,7 +235,7 @@
 				CODE_SIGN_ENTITLEMENTS = "ClimbReflectWatch Watch App/ClimbReflectWatch Watch App.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = DCXAD9B8Q3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -255,7 +245,6 @@
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "ClimbReflect speichert Kletterworkouts in Apple Health.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ClimbReflect erkennt Kletterbewegungen, um Versuche vorzuschlagen.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = de.dreselbjoern.ClimbReflect;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				INFOPLIST_KEY_WKSupportsAlwaysOnDisplay = YES;
@@ -288,7 +277,7 @@
 				CODE_SIGN_ENTITLEMENTS = "ClimbReflectWatch Watch App/ClimbReflectWatch Watch App.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = DCXAD9B8Q3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -298,7 +287,6 @@
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "ClimbReflect speichert Kletterworkouts in Apple Health.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ClimbReflect erkennt Kletterbewegungen, um Versuche vorzuschlagen.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = de.dreselbjoern.ClimbReflect;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				INFOPLIST_KEY_WKSupportsAlwaysOnDisplay = YES;
@@ -452,7 +440,7 @@
 				CODE_SIGN_ENTITLEMENTS = ClimbReflect/ClimbReflect/ClimbReflect/ClimbReflect.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = DCXAD9B8Q3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -490,7 +478,7 @@
 				CODE_SIGN_ENTITLEMENTS = ClimbReflect/ClimbReflect/ClimbReflect/ClimbReflect.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = DCXAD9B8Q3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;

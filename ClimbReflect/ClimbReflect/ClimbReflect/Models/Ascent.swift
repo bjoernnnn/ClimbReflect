@@ -23,6 +23,15 @@ final class Ascent {
 
     // Kletterhöhe (B1 – Watch-Barometer, optional manuell)
     var altitudeGain: Double = 0
+    // Versuchdauer aus dem Action-Button-Flow (optional, nur Watch)
+    var durationSeconds: Double?
+    // RP-6: HF-Snapshot beim Banken auf der Uhr (optional, nur Watch)
+    var heartRateAtBanking: Double?
+
+    // Schuh-Zugehörigkeit: shoeName als Cache, shoe als echte Relation (SH-1)
+    var shoeName: String?
+    var shoe: Shoe?
+    var shoeCondition: String?  // Snapshot von Shoe.conditionRaw zum Zeitpunkt des Bankens
 
     // Gym-/Set-Kontext (P3.13)
     var setName: String?               // z. B. "Gelb rechts", "Sektor B"
@@ -64,6 +73,14 @@ final class Ascent {
 }
 
 extension Ascent {
+    /// RP-5: Sentinel für Begehungen ohne erfassten Grad (z. B. Quick-Bank auf der Uhr).
+    static let ungraded = "?"
+    /// true, wenn ein echter Grad hinterlegt ist (nicht Sentinel/leer). Grad-basierte
+    /// Auswertungen (Pyramide, PB, Max-Trend) müssen ungegradete Begehungen ausschließen.
+    var isGraded: Bool {
+        !gradeRaw.isEmpty && gradeRaw != Self.ungraded
+    }
+
     var gradeSystem: GradeSystem { GradeSystem(rawValue: gradeSystemRaw) ?? .fontainebleau }
     var result: AscentResult { AscentResult(rawValue: resultRaw) ?? .attempt }
     var style: AscentStyle? { styleRaw.flatMap(AscentStyle.init(rawValue:)) }
@@ -71,4 +88,9 @@ extension Ascent {
     var holdType: HoldType? { holdTypeRaw.flatMap(HoldType.init(rawValue:)) }
     var climbStyle: ClimbStyle? { climbStyleRaw.flatMap(ClimbStyle.init(rawValue:)) }
     var sortOrder: Int { gradeSystem.sortOrder(of: gradeRaw) }
+    /// Skalenübergreifend vergleichbare Schwierigkeit (gemeinsame Leiter pro Disziplin).
+    /// Für Grade außerhalb der Umrechnungs-Leiter Fallback auf den eigenen Skala-Index.
+    var canonicalOrder: Int {
+        GradeConverter.canonicalIndex(grade: gradeRaw, system: gradeSystem) ?? sortOrder
+    }
 }

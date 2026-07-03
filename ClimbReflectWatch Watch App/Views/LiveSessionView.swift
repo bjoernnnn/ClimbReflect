@@ -3,50 +3,93 @@ import WatchKit
 
 // Tab-Reihenfolge Klettern:  [Steuerung] ← [Session] → [Klassifizieren]
 // Tab-Reihenfolge Training:  [Steuerung] ← [Session]
-// Nach Ende: Fragebogen → Zusammenfassung
-
-enum WatchNavStep: Hashable {
-    case questionnaire, summary
-}
+// Nach Ende: ContentView zeigt SessionEndFlowView via pendingSummaryDTO (Blackscreen-Fix)
 
 struct LiveSessionView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     @ObservedObject private var syncService = SyncService.shared
     @State private var currentTab = 1
     @State private var showEndConfirm = false
-    @State private var navPath = [WatchNavStep]()
-    @State private var sessionDTO: WatchSessionDTO? = nil
     @State private var selectedAttempt: WatchAttempt? = nil
     @State private var showDiscardConfirm = false
-    @State private var showProjectPicker = false
+    @State private var showContextPicker = false
 
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     var body: some View {
-        NavigationStack(path: $navPath) {
-            if workoutManager.isTraining {
-                trainingTabView
-            } else {
-                climbingTabView
+        NavigationStack {
+            ZStack {
+                Group {
+                    if workoutManager.isTraining {
+                        trainingTabView
+                    } else {
+                        climbingTabView
+                    }
+                }
+                .allowsHitTesting(!workoutManager.isEnding)   // RP-13: keine Doppel-Taps
+
+                // RP-13: deckendes „Speichern…"-Overlay während der HealthKit-Roundtrips
+                if workoutManager.isEnding {
+                    savingOverlay
+                }
             }
         }
+        .onChange(of: workoutManager.sessionEndedUnexpectedly) { _, ended in
+            guard ended else { return }
+            // endWorkout() setzt pendingSummaryDTO → ContentView zeigt SessionEndFlowView
+            Task { @MainActor in
+                _ = await workoutManager.endWorkout()
+                workoutManager.sessionEndedUnexpectedly = false
+            }
+        }
+        .onChange(of: isLuminanceReduced) { _, reduced in
+            // P2-7.3: Sensoren nach Aufwachen sofort synchronisieren
+            if !reduced { workoutManager.resyncSensors() }
+        }
+        .onChange(of: workoutManager.attemptState) { _, state in
+            if case .awaitingResult = state, !workoutManager.isTraining {
+                currentTab = 2
+            }
+        }
+        .onChange(of: currentTab) { _, tab in
+            DiagnosticLog.shared.logVerbose("tab=\(tab) mem=\(MemoryFootprint.residentMB())MB")
+        }
+        .onChange(of: showContextPicker) { _, open in
+            DiagnosticLog.shared.logVerbose("contextPicker \(open ? "open" : "close") mem=\(MemoryFootprint.residentMB())MB")
+        }
         .onAppear {
+            // Fix race condition: intent may have set awaitingResult before this view rendered
+            if case .awaitingResult = workoutManager.attemptState, !workoutManager.isTraining {
+                currentTab = 2
+            }
             // E2: iPhone-Befehle verarbeiten
             SyncService.shared.onCommand = { [workoutManager] cmd in
                 switch cmd {
                 case "pause":   workoutManager.pauseWorkout()
                 case "resume":  workoutManager.resumeWorkout()
-                case "end":
-                    // P1-6: Fragebogen durchlaufen wie beim lokalen Beenden
-                    // (Voraussetzung P1-5: Upsert verhindert Doppel-Session)
-                    Task { @MainActor in
-                        sessionDTO = await workoutManager.endWorkout()
-                        navPath = [.questionnaire]
-                    }
+                case "end":     Task { _ = await workoutManager.endWorkout() }
                 default: break
                 }
             }
         }
+    }
+
+    // MARK: - RP-13: „Speichern…"-Overlay
+
+    private var savingOverlay: some View {
+        ZStack {
+            WatchTheme.bg.ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                Text("Session wird gespeichert…")
+                    .font(.footnote)
+                    .foregroundStyle(WatchTheme.textSecond)
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+        }
+        .transition(.opacity)
     }
 
     // MARK: - Klettern: 3-Tab-View
@@ -55,19 +98,23 @@ struct LiveSessionView: View {
         TabView(selection: $currentTab) {
             controlsPage.tag(0)
             sessionInfoPage.tag(1)
-            AttemptLogView(onBank: { currentTab = 1 }).tag(2)
+            Group {
+                if currentTab == 2 {
+                    AttemptLogView(onBank: { currentTab = 1 })
+                } else {
+                    Color.clear
+                }
+            }
+            .tag(2)
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
         .background(WatchTheme.bg)
-        .sheet(isPresented: $showProjectPicker) {
-            projectPickerSheet
+        .sheet(isPresented: $showContextPicker) {
+            contextPickerSheet
         }
         .confirmationDialog("Session beenden?", isPresented: $showEndConfirm) {
             Button("Beenden", role: .destructive) {
-                Task {
-                    sessionDTO = await workoutManager.endWorkout()
-                    navPath = [.questionnaire]
-                }
+                Task { _ = await workoutManager.endWorkout() }
             }
             Button("Weiter", role: .cancel) {}
         }
@@ -79,24 +126,6 @@ struct LiveSessionView: View {
         } message: {
             Text("Diese Session wird nicht gespeichert.")
         }
-        .navigationDestination(for: WatchNavStep.self) { step in
-            switch step {
-            case .questionnaire:
-                if let dto = sessionDTO {
-                    SessionEndQuestionnaireView(dto: dto) { enriched in
-                        SyncService.shared.send(dto: enriched)
-                        sessionDTO = enriched
-                        navPath = [.summary]
-                    }
-                }
-            case .summary:
-                SessionSummaryView(dto: sessionDTO, onDone: {
-                    navPath = []
-                    workoutManager.finishSession()
-                })
-            }
-        }
-        .navigationBarBackButtonHidden(true)
     }
 
     // MARK: - Training: 2-Tab-View
@@ -110,10 +139,7 @@ struct LiveSessionView: View {
         .background(WatchTheme.bg)
         .confirmationDialog("Training beenden?", isPresented: $showEndConfirm) {
             Button("Beenden", role: .destructive) {
-                Task {
-                    sessionDTO = await workoutManager.endWorkout()
-                    navPath = [.questionnaire]
-                }
+                Task { _ = await workoutManager.endWorkout() }
             }
             Button("Weiter", role: .cancel) {}
         }
@@ -125,39 +151,18 @@ struct LiveSessionView: View {
         } message: {
             Text("Dieses Training wird nicht gespeichert.")
         }
-        .navigationDestination(for: WatchNavStep.self) { step in
-            switch step {
-            case .questionnaire:
-                if let dto = sessionDTO {
-                    SessionEndQuestionnaireView(dto: dto, skipFocus: true) { enriched in
-                        SyncService.shared.send(dto: enriched)
-                        sessionDTO = enriched
-                        navPath = [.summary]
-                    }
-                }
-            case .summary:
-                SessionSummaryView(dto: sessionDTO, onDone: {
-                    navPath = []
-                    workoutManager.finishSession()
-                })
-            }
-        }
-        .navigationBarBackButtonHidden(true)
     }
 
-    // MARK: - Tab 1 (Klettern): Session-Info + Verlauf (Wetter-App-Muster: verticalPage)
+    // MARK: - Tab 1 (Klettern): Session-Info + Verlauf
 
     private var sessionInfoPage: some View {
         TabView {
-            // ── Seite 1: Stats ──
             statsPage
                 .overlay {
                     if workoutManager.attemptState == .awaitingResult {
                         quickResultOverlay
                     }
                 }
-
-            // ── Seite 2: Verlauf (nur sichtbar wenn Begehungen vorhanden) ──
             if !workoutManager.attempts.isEmpty {
                 historyPage
             }
@@ -172,53 +177,80 @@ struct LiveSessionView: View {
     }
 
     private var statsPage: some View {
-        VStack(spacing: 8) {
-            Spacer(minLength: 0)
+        VStack(spacing: 6) {
+            HStack {
+                elapsedView
+                    .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
+                    .padding(.leading, 12)
+                Spacer(minLength: 0)
+            }
+            .padding(.top, +8)
 
-            Text(elapsedFormatted)
-                .font(.system(.title, design: .monospaced, weight: .bold))
-                .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
+            if !workoutManager.healthKitActive {
+                hkWarningBanner
+            }
 
+            // A2: vitalsRow liest Sensor-Werte nur noch über Blatt-Views
             vitalsRow
                 .opacity(isLuminanceReduced ? 0.6 : 1.0)
 
+            // fixedSize + maxHeight: beide Badges immer gleich hoch (auch im Timer-Modus)
             HStack(spacing: 8) {
-                statBadge(value: "\(workoutManager.attempts.count)",
-                          label: "Versuche", icon: "figure.climbing",
-                          color: WatchTheme.textSecond)
+                attemptToggleBadge
                 statBadge(value: "\(topCount)",
                           label: "Tops", icon: "checkmark.circle.fill",
                           color: WatchTheme.accent)
             }
+            .fixedSize(horizontal: false, vertical: true)
 
-            if workoutManager.pendingClassifications > 0 { pendingBanner }
+            // B1: pendingBanner entfernt (kein Auto-Detektor mehr)
 
-            if !syncService.knownProjects.isEmpty {
-                Button { showProjectPicker = true } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "target")
-                            .font(.system(size: 10))
-                            .foregroundStyle(workoutManager.selectedProject != nil
-                                             ? WatchTheme.gold : WatchTheme.textTert)
-                        Text(workoutManager.selectedProject?.name ?? "Projekt wählen")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(workoutManager.selectedProject != nil
-                                             ? WatchTheme.textPrimary : WatchTheme.textTert)
-                            .lineLimit(1)
+            // Kombinierter Kontext-Button: Projekt + Schuh in einem
+            if !syncService.knownProjects.isEmpty || !syncService.knownShoes.isEmpty {
+                Button { showContextPicker = true } label: {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "target")
+                                .font(.system(size: 10))
+                                .foregroundStyle(workoutManager.selectedProject != nil
+                                                 ? WatchTheme.gold : WatchTheme.textTert)
+                            Text(workoutManager.selectedProject?.name ?? "Projekt")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(workoutManager.selectedProject != nil
+                                                 ? WatchTheme.textPrimary : WatchTheme.textTert)
+                                .lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        if !syncService.knownShoes.isEmpty {
+                            Divider()
+                                .background(WatchTheme.textTert.opacity(0.25))
+                                .padding(.vertical, 3)
+                            HStack(spacing: 5) {
+                                Image(systemName: "shoeprints.fill")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(workoutManager.selectedShoe != nil
+                                                     ? WatchTheme.accent2 : WatchTheme.textTert)
+                                Text(workoutManager.selectedShoe?.name ?? "Schuh")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(workoutManager.selectedShoe != nil
+                                                     ? WatchTheme.textPrimary : WatchTheme.textTert)
+                                    .lineLimit(1)
+                                Spacer(minLength: 0)
+                            }
+                        }
                     }
-                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 5)
+                    .frame(maxWidth: .infinity)
                     .background(WatchTheme.elevated)
-                    .clipShape(Capsule())
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 .buttonStyle(.plain)
             }
 
             Spacer(minLength: 0)
-
-            actionStateIndicator.padding(.bottom, 4)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 3)
     }
 
     private var historyPage: some View {
@@ -234,31 +266,37 @@ struct LiveSessionView: View {
         }
     }
 
-    // MARK: - D1: Action-Button Indikator & Quick-Result-Overlay
+    // MARK: - C1: Versuche-Badge als Start/Stopp-Schalter (Doppeltipp-Geste)
 
-    private var actionStateIndicator: some View {
-        Group {
-            switch workoutManager.attemptState {
-            case .idle:
-                EmptyView()
-            case .active:
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(WatchTheme.danger)
-                        .frame(width: 8, height: 8)
-                        .symbolEffect(.pulse, options: .repeating)
-                    Text("Versuch läuft")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(WatchTheme.danger)
+    @ViewBuilder
+    private var attemptToggleBadge: some View {
+        Button { workoutManager.handleActionButton() } label: {
+            if case .active(let startTime) = workoutManager.attemptState {
+                TimelineView(.periodic(from: startTime, by: 1)) { _ in
+                    VStack(spacing: 1) {
+                        Text("Versuch")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.orange.opacity(0.75))
+                        Text(formatDuration(Date().timeIntervalSince(startTime)))
+                            .font(.system(size: 22, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.orange)
+                            .minimumScaleFactor(0.7)
+                            .lineLimit(1)
+                    }
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(WatchTheme.danger.opacity(0.12))
-                .clipShape(Capsule())
-            case .awaitingResult:
-                EmptyView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 8)
+                .background(Color.orange.opacity(0.18))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else {
+                statBadge(value: "\(workoutManager.attempts.count)",
+                          label: "Versuche", icon: "figure.climbing",
+                          color: WatchTheme.textSecond)
             }
         }
+        .buttonStyle(.plain)
+        .handGestureShortcut(.primaryAction)
     }
 
     @ViewBuilder
@@ -331,8 +369,7 @@ struct LiveSessionView: View {
             VStack(spacing: 8) {
                 Spacer(minLength: 0).frame(height: 8)
 
-                Text(elapsedFormatted)
-                    .font(.system(.title, design: .monospaced, weight: .bold))
+                elapsedView
                     .foregroundStyle(workoutManager.isPaused ? WatchTheme.textTert : WatchTheme.accent)
 
                 if let target = workoutManager.trainingTarget {
@@ -460,63 +497,46 @@ struct LiveSessionView: View {
         .padding(.horizontal, 10)
     }
 
-    // MARK: - Unklassifizierter-Banner
+    // MARK: - HealthKit-Warnbanner
 
-    private var pendingBanner: some View {
-        Button { currentTab = 2 } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(WatchTheme.gold)
-                    .font(.system(size: 13))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(workoutManager.pendingClassifications == 1
-                         ? "1 Versuch erkannt"
-                         : "\(workoutManager.pendingClassifications) Versuche erkannt")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(WatchTheme.textPrimary)
-                    Text("Zum Klassifizieren wischen →")
-                        .font(.system(size: 9))
-                        .foregroundStyle(WatchTheme.textSecond)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(WatchTheme.gold.opacity(0.12))
-            .overlay(RoundedRectangle(cornerRadius: 10)
-                .stroke(WatchTheme.gold.opacity(0.35), lineWidth: 1))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+    private var hkWarningBanner: some View {
+        let message = workoutManager.healthKitDenied
+            ? "HealthKit verweigert – Einstellungen"
+            : "Kein HealthKit – kein Hintergrund"
+        return HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(WatchTheme.danger)
+                .font(.system(size: 11))
+            Text(message)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(WatchTheme.danger)
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 5)
+        .background(WatchTheme.danger.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
-    // MARK: - Shared UI
+    // MARK: - Vitals Row (A2: Sensor-Werte in Blatt-Views isoliert)
 
     private var vitalsRow: some View {
         HStack(spacing: 0) {
-            vitalCell(value: heartStr, unit: "BPM",
-                      icon: "heart.fill", color: WatchTheme.danger)
+            HeartRateCell()
             vitalSep
             if workoutManager.isTraining {
-                vitalCell(value: "\(Int(workoutManager.activeEnergyKcal))", unit: "kcal",
-                          icon: "flame.fill", color: WatchTheme.gold)
+                EnergyCell()
             } else {
-                vitalCell(value: String(format: "%.0f", workoutManager.totalAltitudeGain), unit: "m",
-                          icon: "arrow.up.forward", color: WatchTheme.gold)
+                AltitudeGainCell()
             }
             vitalSep
-            vitalCell(value: maxHRStr, unit: "Max",
-                      icon: "arrow.up.heart.fill", color: WatchTheme.danger.opacity(0.7))
+            MaxHRCell()
         }
         .background(WatchTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
-    private var scrollHint: some View {
-        Image(systemName: "chevron.compact.down")
-            .font(.system(size: 14))
-            .foregroundStyle(WatchTheme.textTert)
-            .padding(.bottom, 4)
+    private var vitalSep: some View {
+        Divider().frame(height: 28).background(WatchTheme.elevated)
     }
 
     // MARK: - Hilfsmethoden
@@ -524,14 +544,28 @@ struct LiveSessionView: View {
     private var topCount: Int {
         workoutManager.attempts.filter { $0.result == .top }.count
     }
-    private var heartStr: String {
-        workoutManager.heartRate > 0 ? "\(Int(workoutManager.heartRate))" : "--"
+
+    // TimelineView aktualisiert sich auch im Always-On-Modus selbstständig.
+    @ViewBuilder
+    private var elapsedView: some View {
+        if let start = workoutManager.workoutStartDate {
+            TimelineView(.periodic(from: start, by: 1)) { _ in
+                Text(formatElapsed(workoutManager.currentElapsed()))
+                    .font(.system(.title, design: .monospaced, weight: .bold))
+            }
+        } else {
+            Text("00:00")
+                .font(.system(.title, design: .monospaced, weight: .bold))
+        }
     }
-    private var maxHRStr: String {
-        workoutManager.maxHeartRate > 0 ? "\(Int(workoutManager.maxHeartRate))" : "--"
+
+    private func formatDuration(_ t: TimeInterval) -> String {
+        let s = Int(t)
+        return String(format: "%d:%02d", s / 60, s % 60)
     }
-    private var elapsedFormatted: String {
-        let s = workoutManager.elapsedSeconds
+
+    private func formatElapsed(_ t: TimeInterval) -> String {
+        let s = Int(t)
         let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%02d:%02d", m, sec)
     }
@@ -541,63 +575,81 @@ struct LiveSessionView: View {
         return "vor \(mins) min"
     }
 
-    private func vitalCell(value: String, unit: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Image(systemName: icon).foregroundStyle(color).font(.system(size: 11))
-            Text(value)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundStyle(WatchTheme.textPrimary)
-            Text(unit).font(.system(size: 9)).foregroundStyle(WatchTheme.textSecond)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 7)
-    }
+    // MARK: - Kombinierter Kontext-Picker (Projekt + Schuh)
 
-    private var vitalSep: some View {
-        Divider().frame(height: 28).background(WatchTheme.elevated)
-    }
-
-    // MARK: - Projekt-Picker Sheet (P5.7)
-
-    private var projectPickerSheet: some View {
-        List {
-            Button {
-                workoutManager.selectedProject = nil
-                showProjectPicker = false
-            } label: {
-                HStack {
-                    Text("Kein Projekt")
-                        .font(.system(size: 13))
-                        .foregroundStyle(WatchTheme.textSecond)
-                    Spacer()
-                    if workoutManager.selectedProject == nil {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 11))
-                            .foregroundStyle(WatchTheme.accent)
+    private var contextPickerSheet: some View {
+        NavigationStack {
+            List {
+                if !syncService.knownProjects.isEmpty {
+                    Section("Projekt") {
+                        Button {
+                            workoutManager.selectedProject = nil
+                        } label: {
+                            HStack {
+                                Text("Kein Projekt")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(WatchTheme.textSecond)
+                                Spacer()
+                                if workoutManager.selectedProject == nil {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(WatchTheme.gold)
+                                }
+                            }
+                        }
+                        ForEach(syncService.knownProjects) { project in
+                            Button {
+                                workoutManager.selectedProject = project
+                            } label: {
+                                HStack {
+                                    Text(project.name)
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(WatchTheme.textPrimary)
+                                        .lineLimit(2)
+                                    Spacer()
+                                    if workoutManager.selectedProject?.id == project.id {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(WatchTheme.gold)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-            }
-            ForEach(syncService.knownProjects) { project in
-                Button {
-                    workoutManager.selectedProject = project
-                    showProjectPicker = false
-                } label: {
-                    HStack {
-                        Text(project.name)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(WatchTheme.textPrimary)
-                            .lineLimit(2)
-                        Spacer()
-                        if workoutManager.selectedProject?.id == project.id {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 11))
-                                .foregroundStyle(WatchTheme.accent)
+                if !syncService.knownShoes.isEmpty {
+                    Section("Schuh") {
+                        ForEach(syncService.knownShoes) { shoe in
+                            Button {
+                                workoutManager.selectedShoe = shoe
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(shoe.name)
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(WatchTheme.textPrimary)
+                                            .lineLimit(1)
+                                        if let cond = shoe.condition {
+                                            Text(cond)
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(WatchTheme.textTert)
+                                        }
+                                    }
+                                    Spacer()
+                                    if workoutManager.selectedShoe?.id == shoe.id {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(WatchTheme.accent2)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
+            .navigationTitle("Kontext")
+            .navigationBarTitleDisplayMode(.inline)
         }
-        .navigationTitle("Projekt")
     }
 
     private func statBadge(value: String, label: String, icon: String, color: Color) -> some View {
@@ -605,17 +657,82 @@ struct LiveSessionView: View {
             Image(systemName: icon).foregroundStyle(color).font(.system(size: 11))
             VStack(alignment: .leading, spacing: 0) {
                 Text(value)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(WatchTheme.textPrimary)
                 Text(label)
                     .font(.system(size: 9))
                     .foregroundStyle(WatchTheme.textSecond)
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.vertical, 10)
         .padding(.horizontal, 10)
         .background(WatchTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+// MARK: - A2: Blatt-Views für Live-Sensor-Werte
+
+private struct HeartRateCell: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+    var body: some View {
+        VStack(spacing: 2) {
+            Image(systemName: "heart.fill").foregroundStyle(WatchTheme.danger).font(.system(size: 11))
+            Text(workoutManager.heartRate > 0 ? "\(Int(workoutManager.heartRate))" : "--")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchTheme.textPrimary)
+            Text("BPM").font(.system(size: 9)).foregroundStyle(WatchTheme.textSecond)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+    }
+}
+
+private struct AltitudeGainCell: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+    var body: some View {
+        VStack(spacing: 2) {
+            Image(systemName: "arrow.up.forward").foregroundStyle(WatchTheme.gold).font(.system(size: 11))
+            Text(workoutManager.totalAltitudeGain > 0
+                 ? String(format: "%.0f", workoutManager.totalAltitudeGain)
+                 : "--")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchTheme.textPrimary)
+            Text("m").font(.system(size: 9)).foregroundStyle(WatchTheme.textSecond)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+    }
+}
+
+private struct EnergyCell: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+    var body: some View {
+        VStack(spacing: 2) {
+            Image(systemName: "flame.fill").foregroundStyle(WatchTheme.gold).font(.system(size: 11))
+            Text("\(Int(workoutManager.activeEnergyKcal))")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchTheme.textPrimary)
+            Text("kcal").font(.system(size: 9)).foregroundStyle(WatchTheme.textSecond)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+    }
+}
+
+private struct MaxHRCell: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+    var body: some View {
+        VStack(spacing: 2) {
+            Image(systemName: "arrow.up.heart.fill")
+                .foregroundStyle(WatchTheme.danger.opacity(0.7)).font(.system(size: 11))
+            Text(workoutManager.maxHeartRate > 0 ? "\(Int(workoutManager.maxHeartRate))" : "--")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(WatchTheme.textPrimary)
+            Text("Max").font(.system(size: 9)).foregroundStyle(WatchTheme.textSecond)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
     }
 }

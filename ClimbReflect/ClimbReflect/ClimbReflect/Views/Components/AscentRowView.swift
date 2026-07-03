@@ -12,15 +12,22 @@ struct AscentRowView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(GradeConverter.display(grade: ascent.gradeRaw, storedIn: ascent.gradeSystem))
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(Theme.textPrimary)
-                    Text(ascent.gradeSystem.label)
-                        .font(.caption2)
-                        .foregroundStyle(Theme.textTertiary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Theme.bgElevated))
+                    if ascent.isGraded {
+                        Text(GradeConverter.display(grade: ascent.gradeRaw, storedIn: ascent.gradeSystem))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Theme.textPrimary)
+                        Text(GradeConverter.displaySystem(for: ascent.gradeSystem).label)  // RP-17
+                            .font(.caption2)
+                            .foregroundStyle(Theme.textTertiary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Theme.bgElevated))
+                    } else {
+                        // RP-5: ungegradete Begehung – Grad über den Editor nachtragbar
+                        Text("Unbewertet")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.textTertiary)
+                    }
                     if let style = ascent.style {
                         HStack(spacing: 3) {
                             Image(systemName: style.symbol)
@@ -33,6 +40,7 @@ struct AscentRowView: View {
                         .background(Capsule().fill(Theme.gold.opacity(0.12)))
                     }
                 }
+                // FB-4: Metriken in einer Zeile, nie zeichenweise umbrechen
                 HStack(spacing: 8) {
                     if ascent.attempts > 1 || ascent.result != .top {
                         Text(ascent.result == .top
@@ -40,41 +48,90 @@ struct AscentRowView: View {
                              : "\(ascent.attempts) Versuch\(ascent.attempts == 1 ? "" : "e")")
                             .foregroundStyle(Theme.textSecondary)
                     }
+                    if let dur = ascent.durationSeconds, dur > 0 {
+                        Label(formatDuration(dur), systemImage: "timer")
+                            .foregroundStyle(Theme.textTertiary)
+                    }
                     if ascent.altitudeGain >= 1 {
                         Label(String(format: "%.0f m", ascent.altitudeGain),
                               systemImage: "arrow.up.right")
                             .foregroundStyle(Theme.textTertiary)
                     }
-                    if let project = ascent.project {
-                        HStack(spacing: 3) {
-                            Image(systemName: "target")
-                            Text(project.name)
-                        }
-                        .foregroundStyle(Theme.accent)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Theme.accent.opacity(0.12)))
+                    if let hr = ascent.heartRateAtBanking, hr > 0 {   // RP-6
+                        Label("\(Int(hr)) bpm", systemImage: "heart.fill")
+                            .foregroundStyle(Theme.textTertiary)
                     }
                 }
                 .font(.caption)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+                // FB-4: Projekt-Chip in eigener Zeile (analog Schuh-Zeile), kein Umbruch
+                if let project = ascent.project {
+                    HStack(spacing: 3) {
+                        Image(systemName: "target")
+                        Text(project.name)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Theme.accent.opacity(0.12)))
+                }
+                // SH-10: Schuh in eigener Zeile damit langer Name nicht umbricht
+                if let shoeName = ascent.shoe?.name ?? ascent.shoeName {
+                    HStack(spacing: 3) {
+                        Image(systemName: "shoeprints.fill")
+                        Text(shoeName)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(Theme.accent2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Theme.accent2.opacity(0.12)))
+                }
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            HStack(spacing: 6) {
-                // P3.11: Foto-Thumbnail falls vorhanden
-                if let data = ascent.photoData, let img = UIImage(data: data) {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 36, height: 36)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-                Text(ascent.result.label)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(ascent.result.color)
+            // FB-4: Ergebnis codiert bereits das Icon links (inkl. Farbe) → kein
+            // redundantes Trailing-Label mehr, das der Metrik-Zeile Breite wegfrisst.
+            // P3.11: Foto-Thumbnail bleibt trailing.
+            if let data = ascent.photoData, let img = UIImage(data: data) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 36, height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             }
         }
         .padding(.vertical, 4)
     }
+
+    private func formatDuration(_ t: Double) -> String {
+        let s = Int(t)
+        return String(format: "%d:%02d", s / 60, s % 60)
+    }
+}
+
+// FB-4: Gegentest mit Extremwerten auf iPhone-mini-Breite (320 pt)
+#Preview {
+    let ascent = Ascent(gradeSystem: .fontainebleau, grade: "6C+",
+                        result: .top, style: .flash, attempts: 3)
+    ascent.durationSeconds = 179
+    ascent.altitudeGain = 12
+    ascent.heartRateAtBanking = 168
+    ascent.project = Project(name: "Red Chili Voltage 2")
+    return VStack {
+        AscentRowView(ascent: ascent)
+        Divider()
+        AscentRowView(ascent: Ascent(gradeSystem: .fontainebleau, grade: "?", result: .attempt))
+    }
+    .frame(width: 320)
+    .padding()
+    .background(Theme.bg)
 }

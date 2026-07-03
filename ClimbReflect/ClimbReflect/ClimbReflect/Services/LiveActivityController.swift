@@ -1,15 +1,21 @@
 import ActivityKit
 import Foundation
+import os
 
 @MainActor
 final class LiveActivityController {
     static let shared = LiveActivityController()
 
+    // RP-18: strukturiertes Logging statt print()
+    private let log = Logger(subsystem: "de.dreselbjoern.ClimbReflect", category: "LiveActivity")
+
     private var currentActivity: Activity<ClimbActivityAttributes>?
+    private var lastStatus: WatchLiveStatus?   // C2: Puffer für Vordergrund-Start
 
     private init() {}
 
     func update(with status: WatchLiveStatus?) {
+        lastStatus = status
         if let status {
             let state = ClimbActivityAttributes.ContentState(
                 startedAt: status.startedAt,
@@ -18,7 +24,7 @@ final class LiveActivityController {
                 sessionTypeRaw: status.sessionTypeRaw
             )
             if let activity = currentActivity {
-                Task { await activity.update(using: state) }
+                Task { await activity.update(ActivityContent(state: state, staleDate: nil)) }
             } else {
                 startActivity(state: state, sessionTypeRaw: status.sessionTypeRaw)
             }
@@ -27,8 +33,24 @@ final class LiveActivityController {
         }
     }
 
+    // C2: beim Vordergrund-Werden erneut versuchen, falls kein laufendes Widget
+    func retryIfNeeded() {
+        guard currentActivity == nil, let status = lastStatus else { return }
+        let state = ClimbActivityAttributes.ContentState(
+            startedAt: status.startedAt,
+            isPaused: status.isPaused,
+            pausedElapsed: status.elapsedSeconds,
+            sessionTypeRaw: status.sessionTypeRaw
+        )
+        startActivity(state: state, sessionTypeRaw: status.sessionTypeRaw)
+    }
+
     private func startActivity(state: ClimbActivityAttributes.ContentState, sessionTypeRaw: String) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        let info = ActivityAuthorizationInfo()
+        guard info.areActivitiesEnabled else {
+            log.notice("areActivitiesEnabled=false – in Einstellungen aktivieren")
+            return
+        }
         let attrs = ClimbActivityAttributes(
             sportLabel: label(for: sessionTypeRaw),
             sportSymbol: symbol(for: sessionTypeRaw)
@@ -39,17 +61,19 @@ final class LiveActivityController {
                 content: .init(state: state, staleDate: nil),
                 pushType: nil
             )
+            log.info("gestartet: \(self.currentActivity?.id ?? "?", privacy: .public)")
         } catch {
-            // Live Activity not available in Simulator — silently ignore
+            log.error("start fehlgeschlagen: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     private func endActivity() {
         guard let activity = currentActivity else { return }
         Task {
-            await activity.end(dismissalPolicy: .immediate)
+            await activity.end(nil as ActivityContent<ClimbActivityAttributes.ContentState>?, dismissalPolicy: .immediate)
         }
         currentActivity = nil
+        lastStatus = nil
     }
 
     private func label(for raw: String) -> String {

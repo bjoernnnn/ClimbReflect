@@ -13,10 +13,16 @@ struct WatchSessionDTO: Codable, Sendable {
         let styleRaw: String?
         let attempts: Int
         let altitudeGain: Double
+        let durationSeconds: Double?
+        let heartRateAtBanking: Double?   // RP-6: HF-Snapshot beim Banken (optional → alte DTOs)
         let date: Date
         let sessionTypeRaw: String
         let projectName: String?
         let projectID: UUID?
+        // SH-5: Schuh-Cache (optional → alte DTOs dekodieren weiter)
+        let shoeName: String?
+        let shoeID: UUID?
+        let shoeCondition: String?  // ShoeCondition.rawValue Snapshot
     }
 
     let id: UUID
@@ -29,6 +35,9 @@ struct WatchSessionDTO: Codable, Sendable {
     let activeEnergyKcal: Double?
     let altitudeTotalGain: Double
     let ascents: [AscentDTO]
+
+    // RP-3: Workout-Pausenzeit (optional → alte DTOs dekodieren als nil = 0)
+    let pausedSeconds: Double?
 
     // Fragebogen (optional — fehlende Felder werden als nil dekodiert)
     let rpe: Int?

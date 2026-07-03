@@ -22,6 +22,10 @@ struct AddAscentView: View {
     @State private var selectedProject: Project? = nil
     @State private var newProjectName: String = ""
     @State private var showNewProject: Bool = false
+    @State private var selectedShoe: Shoe? = nil
+
+    @Query(sort: \Shoe.startYear, order: .reverse) private var allShoes: [Shoe]
+    private var activeShoes: [Shoe] { allShoes.filter { !$0.isRetired } }
     @State private var setName: String = ""
     @State private var selectedPhoto: PhotosPickerItem? = nil
     @State private var photoData: Data? = nil
@@ -154,6 +158,23 @@ struct AddAscentView: View {
                     }
                     .listRowBackground(Theme.surface)
 
+                    // MARK: Schuh (SH-3)
+                    if !activeShoes.isEmpty {
+                        Section {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(activeShoes) { s in
+                                        shoeChip(s, label: s.name)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        } header: {
+                            Text("Schuh").foregroundStyle(Theme.textTertiary)
+                        }
+                        .listRowBackground(Theme.surface)
+                    }
+
                     // MARK: Foto/Clip (P3.11)
                     Section {
                         PhotosPicker(selection: $selectedPhoto,
@@ -252,7 +273,36 @@ struct AddAscentView: View {
                 selectedGrade = gradeSystem.grades[min(8, gradeSystem.grades.count - 1)]
             }
             selectedProject = preselectedProject
+            if selectedShoe == nil {
+                // SH-B3: Standard-Schuh für diesen Session-Typ vorauswählen
+                let sessionType = session.sessionType
+                selectedShoe = activeShoes.first(where: { $0.defaultForTypes.contains(sessionType) })
+                    ?? activeShoes.first(where: { $0.isBuiltInDefault })
+                    ?? activeShoes.first
+            }
         }
+    }
+
+    @ViewBuilder
+    private func shoeChip(_ shoe: Shoe?, label: String) -> some View {
+        let selected = selectedShoe?.id == shoe?.id && (shoe != nil || selectedShoe == nil)
+        Button {
+            selectedShoe = shoe
+        } label: {
+            HStack(spacing: 4) {
+                if selected {
+                    Image(systemName: "checkmark")
+                        .font(.caption2.weight(.bold))
+                }
+                Text(label)
+                    .font(.caption.weight(.semibold))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(selected ? Theme.accent2 : Theme.bgElevated))
+            .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -337,6 +387,9 @@ struct AddAscentView: View {
             session: session
         )
         ascent.project = selectedProject
+        ascent.shoe = selectedShoe
+        ascent.shoeName = selectedShoe?.name
+        ascent.shoeCondition = selectedShoe?.conditionRaw
         ascent.setName = setName.isEmpty ? nil : setName
         ascent.photoData = photoData
         context.insert(ascent)

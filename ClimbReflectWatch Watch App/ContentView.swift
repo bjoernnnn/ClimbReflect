@@ -11,7 +11,10 @@ struct ContentView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
 
     var body: some View {
-        if workoutManager.isRunning {
+        if let dto = workoutManager.pendingSummaryDTO {
+            // End-Flow hat Vorrang – unabhängig von isRunning (Blackscreen-Fix)
+            SessionEndFlowView(dto: dto)
+        } else if workoutManager.isRunning {
             LiveSessionView()
         } else {
             SportSelectionView()

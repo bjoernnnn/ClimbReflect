@@ -21,39 +21,20 @@ struct WeeklyPoint: Identifiable {
     let sessions: Int
 
     var label: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "dd.MM."
-        return f.string(from: weekStart)
+        let cal = Calendar.current
+        let kw = cal.component(.weekOfYear, from: weekStart)
+        return "KW \(kw)"
     }
 }
 
-// MARK: - RPE-Datenpunkt
 
-struct RPEPoint: Identifiable {
-    let id = UUID()
-    let date: Date
-    let rpe: Int
-    let sessionType: SessionType
-}
-
-// MARK: - Sessiontyp-Verteilung
-
-struct TypeCount: Identifiable {
-    let id: String
-    let sessionType: SessionType
-    let count: Int
-    let share: Double
-}
-
-// MARK: - Trainings-Schwäche
-
-struct TrainingWeakness {
-    let topLimiter: Limiter?
-    let monthlyTrainingCount: Int
-}
-
-// MARK: - Engine: leitet Statistik, Wochenverlauf und Erfolge aus den Sessions ab
+// MARK: - Engine: Erfolge & Session-Insights
+//
+// StatsEngine = Erfolge (climbAchievements/achievements) & Session-Insights
+// (insights/sessionTimeline) + Wochen-Streak. Fortschritt-Auswertungen
+// (Level/Verlauf/Pyramide/Volumen/Stil) leben in ProgressEngine (FORTSCHRITT-
+// KONZEPT.md). Beide Engines sind überschneidungsfrei: Grad-/Zeitraum-Analytik
+// nur in ProgressEngine, Belohnungs-/Rückblick-Logik nur hier.
 
 enum StatsEngine {
 
@@ -83,10 +64,13 @@ enum StatsEngine {
     }
 
     /// Aufeinanderfolgende Wochen (ab dieser Woche rückwärts) mit ≥1 Session.
+    /// Die laufende Woche zählt mit, bricht den Streak aber nicht ab, solange sie
+    /// noch leer ist (montags stünde sonst jeder Streak sofort auf 0).
     static func weekStreak(_ sessions: [ClimbSession], calendar: Calendar = .current) -> Int {
-        let weeks = weeklyMinutes(sessions, weeks: 26, calendar: calendar)
+        var weeks = Array(weeklyMinutes(sessions, weeks: 26, calendar: calendar).reversed())
+        if weeks.first?.sessions == 0 { weeks.removeFirst() }
         var streak = 0
-        for point in weeks.reversed() {
+        for point in weeks {
             if point.sessions > 0 { streak += 1 } else { break }
         }
         return streak
@@ -95,259 +79,6 @@ enum StatsEngine {
     /// Wie weekStreak, aber nur Klettersessions (Training ausgeschlossen).
     static func climbWeekStreak(_ sessions: [ClimbSession], calendar: Calendar = .current) -> Int {
         weekStreak(climbing(sessions), calendar: calendar)
-    }
-
-    /// RPE-Verlauf der letzten `limit` Sessions mit gesetztem RPE, chronologisch.
-    static func rpeHistory(_ sessions: [ClimbSession], limit: Int = 20) -> [RPEPoint] {
-        sessions
-            .filter { $0.perceivedEffort != nil }
-            .sorted { $0.date < $1.date }
-            .suffix(limit)
-            .compactMap { s in
-                guard let rpe = s.perceivedEffort else { return nil }
-                return RPEPoint(date: s.date, rpe: rpe, sessionType: s.sessionType)
-            }
-    }
-
-    /// Anzahl Sessions pro Typ, absteigend sortiert.
-    static func sessionTypeDistribution(_ sessions: [ClimbSession]) -> [TypeCount] {
-        var counts: [SessionType: Int] = [:]
-        for s in sessions { counts[s.sessionType, default: 0] += 1 }
-        let total = max(1, Double(sessions.count))
-        return counts
-            .map { TypeCount(id: $0.key.rawValue, sessionType: $0.key, count: $0.value, share: Double($0.value) / total) }
-            .sorted { $0.count > $1.count }
-    }
-
-    // MARK: Grad-Pyramide (P3.3)
-
-    struct PyramidEntry: Identifiable {
-        let id: String
-        let grade: String
-        let gradeSystem: GradeSystem
-        let tops: Int
-        let attempts: Int
-        let sortOrder: Int
-    }
-
-    // MARK: Send-Rate & Flash-Quote (P3.4)
-
-    struct SendStats {
-        let totalAscents: Int
-        let tops: Int
-        let flashes: Int
-        let sendRate: Double     // tops / totalAscents
-        let flashRate: Double    // flashes / tops
-    }
-
-    static func sendStats(_ sessions: [ClimbSession]) -> SendStats {
-        let all = climbing(sessions).flatMap(\.ascents)
-        let tops = all.filter { $0.result == .top }
-        let flashes = tops.filter { $0.style == .flash }
-        let total = max(1, all.count)
-        return SendStats(
-            totalAscents: all.count,
-            tops: tops.count,
-            flashes: flashes.count,
-            sendRate: Double(tops.count) / Double(total),
-            flashRate: tops.isEmpty ? 0 : Double(flashes.count) / Double(tops.count)
-        )
-    }
-
-    // MARK: Grad-Pyramide (P3.3)
-
-    static func gradePyramid(_ sessions: [ClimbSession],
-                             system: GradeSystem) -> [PyramidEntry] {
-        let allAscents = climbing(sessions).flatMap(\.ascents).filter {
-            $0.gradeSystem == system
-        }
-        guard !allAscents.isEmpty else { return [] }
-
-        var groups: [String: (tops: Int, attempts: Int)] = [:]
-        for a in allAscents {
-            let key = a.gradeRaw
-            var entry = groups[key, default: (0, 0)]
-            if a.result == .top { entry.tops += 1 } else { entry.attempts += 1 }
-            groups[key] = entry
-        }
-        return groups.compactMap { grade, counts in
-            guard counts.tops > 0 || counts.attempts > 0 else { return nil }
-            return PyramidEntry(
-                id: grade,
-                grade: grade,
-                gradeSystem: system,
-                tops: counts.tops,
-                attempts: counts.attempts,
-                sortOrder: system.sortOrder(of: grade)
-            )
-        }
-        .sorted { $0.sortOrder > $1.sortOrder }
-    }
-
-    static func totalMinutes(_ sessions: [ClimbSession]) -> Int {
-        sessions.reduce(0) { $0 + $1.durationMinutes }
-    }
-
-    /// Häufigster Limiter aus Klettersessions + Trainings dagegen diesen Monat.
-    static func trainingWeakness(_ sessions: [ClimbSession]) -> TrainingWeakness {
-        var limiterCounts: [Limiter: Int] = [:]
-        for s in climbing(sessions) {
-            for l in s.limiters { limiterCounts[l, default: 0] += 1 }
-        }
-        guard let topLimiter = limiterCounts.max(by: { $0.value < $1.value })?.key else {
-            return TrainingWeakness(topLimiter: nil, monthlyTrainingCount: 0)
-        }
-        let monthAgo = Calendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now
-        let count = sessions
-            .filter { !$0.isClimbing && $0.date >= monthAgo && $0.limiters.contains(topLimiter) }
-            .count
-        return TrainingWeakness(topLimiter: topLimiter, monthlyTrainingCount: count)
-    }
-
-    static func sessionsThisWeek(_ sessions: [ClimbSession]) -> Int {
-        weeklyMinutes(sessions, weeks: 1).first?.sessions ?? 0
-    }
-
-    // MARK: Form-/Plateau-Signal (P3.12)
-
-    enum FormSignal: Equatable {
-        case deloadSuggested   // RPE hoch + Send-Rate sinkt
-        case techniqueSuggested // Grad flach + RPE hoch über Zeit
-        case formGood           // alles im grünen Bereich
-    }
-
-    static func formSignal(_ sessions: [ClimbSession]) -> FormSignal {
-        let climbSessions = climbing(sessions)
-        let recent = climbSessions.sorted { $0.date > $1.date }.prefix(6)
-        guard recent.count >= 4 else { return .formGood }
-
-        let avgRPE = recent.compactMap(\.perceivedEffort).map(Double.init)
-        guard !avgRPE.isEmpty else { return .formGood }
-        let rpe = avgRPE.reduce(0, +) / Double(avgRPE.count)
-
-        let recentAscents = recent.flatMap(\.ascents)
-        guard recentAscents.count >= 4 else { return .formGood }
-        let sendRate = Double(recentAscents.filter { $0.result == .top }.count) / Double(recentAscents.count)
-
-        if rpe >= 8.0 && sendRate < 0.35 { return .deloadSuggested }
-
-        let allSorted = climbSessions.sorted { $0.date < $1.date }
-        let half = allSorted.count / 2
-        if half >= 2 {
-            let older = allSorted.prefix(half).flatMap(\.ascents)
-            let newer = allSorted.suffix(half).flatMap(\.ascents)
-            let olderMax = older.filter { $0.result == .top }.map(\.sortOrder).max() ?? 0
-            let newerMax = newer.filter { $0.result == .top }.map(\.sortOrder).max() ?? 0
-            if newerMax <= olderMax && rpe >= 7.5 { return .techniqueSuggested }
-        }
-        return .formGood
-    }
-
-    // MARK: Antistyle-Auswertung (P3.7)
-
-    struct StyleSendRate: Identifiable {
-        let id: String
-        let label: String
-        let category: String   // "Wandwinkel" | "Grifftyp" | "Kletterart"
-        let sendRate: Double   // 0.0–1.0
-        let totalAscents: Int
-    }
-
-    static func antistyleRates(_ sessions: [ClimbSession]) -> [StyleSendRate] {
-        let all = climbing(sessions).flatMap(\.ascents)
-        guard !all.isEmpty else { return [] }
-
-        var result: [StyleSendRate] = []
-
-        for angle in WallAngle.allCases {
-            let group = all.filter { $0.wallAngle == angle }
-            guard !group.isEmpty else { continue }
-            let tops = group.filter { $0.result == .top }.count
-            result.append(StyleSendRate(
-                id: "angle_\(angle.rawValue)",
-                label: angle.label,
-                category: "Wandwinkel",
-                sendRate: Double(tops) / Double(group.count),
-                totalAscents: group.count
-            ))
-        }
-        for hold in HoldType.allCases {
-            let group = all.filter { $0.holdType == hold }
-            guard !group.isEmpty else { continue }
-            let tops = group.filter { $0.result == .top }.count
-            result.append(StyleSendRate(
-                id: "hold_\(hold.rawValue)",
-                label: hold.label,
-                category: "Grifftyp",
-                sendRate: Double(tops) / Double(group.count),
-                totalAscents: group.count
-            ))
-        }
-        for style in ClimbStyle.allCases {
-            let group = all.filter { $0.climbStyle == style }
-            guard !group.isEmpty else { continue }
-            let tops = group.filter { $0.result == .top }.count
-            result.append(StyleSendRate(
-                id: "style_\(style.rawValue)",
-                label: style.label,
-                category: "Kletterart",
-                sendRate: Double(tops) / Double(group.count),
-                totalAscents: group.count
-            ))
-        }
-        return result.sorted { $0.sendRate < $1.sendRate }  // Schwächen zuerst
-    }
-
-    // MARK: Wochen-Recap (P3.10)
-
-    struct WeekRecap {
-        let weekStart: Date
-        let weekEnd: Date
-        let tops: Int
-        let sessions: Int
-        let minutes: Int
-        let avgRPE: Double?
-        let highestGrade: String?
-        let highestGradeSystem: GradeSystem?
-        let newPB: Bool        // neuer Höchstgrad im Vergleich zu Vorwochen
-    }
-
-    static func currentWeekRecap(_ sessions: [ClimbSession]) -> WeekRecap {
-        var cal = Calendar.current
-        cal.firstWeekday = 2
-        let now = Date()
-        guard let interval = cal.dateInterval(of: .weekOfYear, for: now) else {
-            return WeekRecap(weekStart: now, weekEnd: now, tops: 0, sessions: 0,
-                             minutes: 0, avgRPE: nil, highestGrade: nil,
-                             highestGradeSystem: nil, newPB: false)
-        }
-        let thisWeekAll = sessions.filter { $0.date >= interval.start && $0.date < interval.end }
-        let thisWeek = thisWeekAll.filter { $0.isClimbing }
-        let prevSessions = climbing(sessions).filter { $0.date < interval.start }
-
-        let allAscents = thisWeek.flatMap(\.ascents)
-        let tops = allAscents.filter { $0.result == .top }
-        let topsSorted = tops.sorted { $0.sortOrder > $1.sortOrder }
-        let highest = topsSorted.first
-
-        let prevTops = prevSessions.flatMap(\.ascents).filter { $0.result == .top }
-        let prevMaxOrder = prevTops.map(\.sortOrder).max() ?? -1
-        let newPB = (highest?.sortOrder ?? -1) > prevMaxOrder
-
-        let rpes = thisWeekAll.compactMap(\.perceivedEffort).map(Double.init)
-        let avgRPE = rpes.isEmpty ? nil : rpes.reduce(0, +) / Double(rpes.count)
-
-        return WeekRecap(
-            weekStart: interval.start,
-            weekEnd: interval.end,
-            tops: tops.count,
-            sessions: thisWeekAll.count,
-            minutes: thisWeekAll.reduce(0) { $0 + $1.durationMinutes },
-            avgRPE: avgRPE,
-            highestGrade: highest?.gradeRaw,
-            highestGradeSystem: highest?.gradeSystem,
-            newPB: newPB
-        )
     }
 
     // MARK: Adaptive Kletter-Erfolge (P3.9)
@@ -368,19 +99,22 @@ enum StatsEngine {
         let tops = allAscents.filter { $0.result == .top }
         let flashes = tops.filter { $0.style == .flash }
 
-        // Neuer Höchstgrad
-        let maxGrade = tops.max { $0.sortOrder < $1.sortOrder }
+        // Neuer Höchstgrad (canonicalOrder: skalenübergreifend vergleichbar)
+        // RP-5: nur bewertete Tops – "?" darf kein Höchstgrad werden
+        let maxGrade = tops.filter { $0.isGraded }.max { $0.canonicalOrder < $1.canonicalOrder }
 
         // 3 Flashes in einer Session
         let bestFlashSession = climbSessions
             .map { ($0, $0.ascents.filter { $0.style == .flash }.count) }
             .max { $0.1 < $1.1 }
 
-        // Projekt gesendet (> 5 Versuche)
+        // Projekt gesendet (> 5 Versuche) – echte Relation zuerst, Name nur als
+        // Migrations-Fallback (projectName ist nach der Projekt-Migration oft nil)
+        func projectKey(_ a: Ascent) -> String? { a.project?.name ?? a.projectName }
         let projectSent = tops.first { a in
-            guard let name = a.projectName else { return false }
+            guard let name = projectKey(a) else { return false }
             let totalAttempts = allAscents
-                .filter { $0.projectName == name }
+                .filter { projectKey($0) == name }
                 .reduce(0) { $0 + $1.attempts }
             return totalAttempts >= 5
         }
@@ -417,9 +151,8 @@ enum StatsEngine {
             ClimbAchievement(
                 id: "project_done",
                 title: "Hartnäckig",
-                subtitle: projectSent != nil
-                    ? "Projekt \(projectSent!.projectName!) gesendet!"
-                    : "Projekt mit 5+ Versuchen senden",
+                subtitle: projectSent.flatMap(projectKey).map { "Projekt \($0) gesendet!" }
+                    ?? "Projekt mit 5+ Versuchen senden",
                 symbol: "target",
                 isUnlocked: projectSent != nil,
                 color: Theme.accent,
@@ -446,6 +179,94 @@ enum StatsEngine {
                 explanation: "Von mindestens 5 Tops hast du ≥30% im ersten Versuch (Flash) gesendet. Eine hohe Flash-Quote zeigt, dass du Routen gut lesen und direkt umsetzen kannst."
             ),
         ]
+    }
+
+    // MARK: - Session-Insights (SI-1)
+
+    struct SessionInsights {
+        let totalSeconds: Double
+        let activeSeconds: Double
+        var pauseSeconds: Double { max(0, totalSeconds - activeSeconds) }
+        var activeShare: Double { totalSeconds > 0 ? activeSeconds / totalSeconds : 0 }
+        let hasAttemptTimes: Bool
+        let avgAttemptSeconds: Double?
+        let longestAttemptSeconds: Double?
+        let sendsPerHour: Double?
+        let load: Int?
+        let successRate: Double?
+        let attemptsPerSend: Double?
+        let hardestTopGrade: String?
+        let hardestTopGradeSystem: GradeSystem?   // RP-17: für Anzeige-Umrechnung
+        let timedAscentCount: Int                 // FB-10: Ascents mit erfasster Dauer
+        let ascentCount: Int                      // FB-10: alle Ascents
+        // FB-10: Zeitaufteilung nur bei voller Abdeckung sinnvoll (sonst zählen
+        // ungetimte Ascents implizit als Pause und verzerren den Aktiv-Anteil).
+        var hasFullTimeCoverage: Bool { ascentCount > 0 && timedAscentCount == ascentCount }
+    }
+
+    static func insights(for session: ClimbSession) -> SessionInsights {
+        let ascents = session.ascents
+        let timed = ascents.compactMap(\.durationSeconds).filter { $0 > 0 }
+        let activeRaw = timed.reduce(0, +)
+        let active = min(activeRaw, session.durationSeconds)
+        let hasAttemptTimes = !timed.isEmpty
+
+        let tops = ascents.filter { $0.result == .top }
+        let total = session.durationSeconds
+        // RP-3: Trainingslast & Erfolgsrate pro Zeit rechnen mit Aktivzeit (ohne Pausen)
+        let activeTime = session.activeSeconds
+        let sendsPerHour: Double? = activeTime > 0 && !tops.isEmpty
+            ? Double(tops.count) / (activeTime / 3600)
+            : nil
+
+        let load = session.perceivedEffort.map { Int(Double($0) * activeTime / 60) }
+
+        let successRate: Double? = ascents.isEmpty ? nil
+            : Double(tops.count) / Double(ascents.count)
+
+        let attemptsPerSend: Double? = tops.isEmpty ? nil
+            : Double(tops.reduce(0) { $0 + $1.attempts }) / Double(tops.count)
+
+        let hardestTop = tops.filter { $0.isGraded }
+            .max(by: { $0.canonicalOrder < $1.canonicalOrder })  // RP-5
+        let hardestTopGrade = hardestTop?.gradeRaw
+
+        return SessionInsights(
+            totalSeconds: total,
+            activeSeconds: active,
+            hasAttemptTimes: hasAttemptTimes,
+            avgAttemptSeconds: hasAttemptTimes ? activeRaw / Double(timed.count) : nil,
+            longestAttemptSeconds: timed.max(),
+            sendsPerHour: sendsPerHour,
+            load: load,
+            successRate: successRate,
+            attemptsPerSend: attemptsPerSend,
+            hardestTopGrade: hardestTopGrade,
+            hardestTopGradeSystem: hardestTop?.gradeSystem,
+            timedAscentCount: timed.count,   // FB-10
+            ascentCount: ascents.count
+        )
+    }
+
+    // MARK: - A3: Session-Timeline
+
+    struct TimelinePoint: Identifiable {
+        let id = UUID()
+        let index: Int
+        let cumulativeSendRate: Double
+        let isTop: Bool
+    }
+
+    static func sessionTimeline(_ session: ClimbSession) -> [TimelinePoint] {
+        let sorted = session.ascents.sorted { $0.createdAt < $1.createdAt }
+        guard !sorted.isEmpty else { return [] }
+        var tops = 0
+        return sorted.enumerated().map { i, a in
+            if a.result == .top { tops += 1 }
+            return TimelinePoint(index: i + 1,
+                                 cumulativeSendRate: Double(tops) / Double(i + 1),
+                                 isTop: a.result == .top)
+        }
     }
 
     // MARK: Erfolge (nur 2 App-Erfolge behalten; Rest in climbAchievements)

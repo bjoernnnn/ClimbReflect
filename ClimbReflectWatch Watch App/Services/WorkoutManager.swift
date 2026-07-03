@@ -4,8 +4,6 @@ import HealthKit
 import WatchKit
 import WatchConnectivity
 
-// W1.1: HKWorkoutSession + HKLiveWorkoutBuilder für .climbing auf Apple Watch
-
 // D1: State-Machine für den Action Button
 enum AttemptState: Equatable {
     case idle
@@ -16,23 +14,32 @@ enum AttemptState: Equatable {
 @MainActor
 final class WorkoutManager: NSObject, ObservableObject {
 
+    // AB-4: Singleton für Intent-Zugriff ohne App-Context
+    static let shared = WorkoutManager()
+
     // MARK: - Published State
 
     @Published var sessionType: WatchSessionType = .boulder
     @Published var isRunning = false
     @Published var isPaused = false
-    @Published var elapsedSeconds: Int = 0
     @Published var heartRate: Double = 0
     @Published var maxHeartRate: Double = 0
     @Published var activeEnergyKcal: Double = 0
     @Published var attempts: [WatchAttempt] = []
-    @Published var suggestAttempt = false
-    @Published var pendingClassifications: Int = 0
     @Published var attemptState: AttemptState = .idle  // D1
     @Published var trainingTarget: WatchTrainingTarget? = nil  // C5
     @Published var totalAltitudeGain: Double = 0
+    @Published var sessionEndedUnexpectedly = false
+    @Published var lastError: String?
+    @Published var healthKitActive = false
+    @Published var healthKitDenied = false
+    @Published var pendingSummaryDTO: WatchSessionDTO? = nil
+    @Published var isEnding = false   // RP-13: HealthKit-Abschluss läuft (2–5 s) → „Speichern…"-Overlay
     @Published var selectedProject: ProjectInfo? = nil {  // P5.7 / P2-8
         didSet { persistSelectedProject() }
+    }
+    @Published var selectedShoe: ShoeInfo? = nil {        // SH-7
+        didSet { persistSelectedShoe() }
     }
 
     var isTraining: Bool { sessionType == .training }
@@ -42,28 +49,200 @@ final class WorkoutManager: NSObject, ObservableObject {
     private let store = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
+    private var hrQuery: HKAnchoredObjectQuery?
+    private var energyQuery: HKAnchoredObjectQuery?
     private var timer: Timer?
-    private var workoutStartDate: Date?
+    private(set) var workoutStartDate: Date?
+    private var accumulatedPaused: TimeInterval = 0
+    private var pauseStartedAt: Date?
     private var liveStatusTickCount = 0
+    private var memTickCount = 0
+    private var lastMemMB = 0
+    private var lastPublishedAltitudeInt: Int = -1  // A3: throttle altitude publish
+    private var isFinishingIntentionally = false    // P1-2: kein doppeltes Ende
+    private var lastAttemptDurationSeconds: Double? = nil
 
     let altimeter = AltimeterService()
-    private let detector = AttemptDetector()
 
-    // P0-1: Manueller HR-Mittelwert-Akkumulator (Fallback wenn HK-Builder fehlt)
     private var hrSum: Double = 0
     private var hrCount: Int = 0
 
     // P2-8: selectedProject über App-Neustart erhalten
     private static let selectedProjectIDKey  = "selectedProjectID"
     private static let selectedProjectNameKey = "selectedProjectName"
+    private static let selectedProjectGradeKey  = "selectedProjectGrade"        // FB-2
+    private static let selectedProjectSystemKey = "selectedProjectGradeSystem"  // FB-2
+    // SH-7: selectedShoe über App-Neustart erhalten
+    private static let selectedShoeIDKey        = "selectedShoeID"
+    private static let selectedShoeNameKey      = "selectedShoeName"
+    private static let selectedShoeConditionKey = "selectedShoeCondition"
+
+    // MARK: - P0-2: Crash-sichere Persistierung
+
+    private func savePendingSnapshot() {
+        guard let startDate = workoutStartDate else { return }
+        var snapshot = PendingSession(
+            id: UUID(),
+            startDate: startDate,
+            sessionTypeRaw: sessionType.rawValue,
+            projectID: selectedProject?.id,
+            projectName: selectedProject?.name,
+            projectGrade: selectedProject?.grade,             // FB-2
+            projectGradeSystem: selectedProject?.gradeSystem,
+            ascents: attempts.map { $0.toDTO() },
+            accumulatedPaused: accumulatedPaused,
+            maxHeartRate: maxHeartRate > 0 ? maxHeartRate : nil,
+            hrSum: hrSum > 0 ? hrSum : nil,
+            hrCount: hrCount > 0 ? hrCount : nil,
+            activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil,
+            lastHeartRate: heartRate > 0 ? heartRate : nil
+        )
+        snapshot.shoeID = selectedShoe?.id
+        snapshot.shoeName = selectedShoe?.name
+        snapshot.shoeCondition = selectedShoe?.condition
+        PendingSessionStore.save(snapshot)
+    }
+
+    /// Einheitlicher Einstieg beim App-Start (nach requestAuthorization).
+    /// Versucht zuerst eine noch aktive HK-Session wiederherzustellen;
+    /// fällt andernfalls auf den Snapshot-Rettungs-Pfad zurück.
+    /// AB-G: Single-flight – App-.task und Action-Button-Intent können beide (nebenläufig)
+    /// aufrufen; die Recovery läuft trotzdem höchstens einmal pro Prozess.
+    private var recoveryTask: Task<Void, Never>?
+
+    func recoverIfNeeded() async {
+        if recoveryTask == nil {
+            recoveryTask = Task { await self.recoverOnce() }
+        }
+        await recoveryTask?.value
+    }
+
+    private func recoverOnce() async {
+        // P1-3: Nur beim echten Kaltstart ausführen
+        guard !isRunning, session == nil else { return }
+        // P1-2: Alte Fehler aus einer vorherigen Session zurücksetzen
+        lastError = nil
+        sessionEndedUnexpectedly = false
+        if HKHealthStore.isHealthDataAvailable(),
+           let recovered = try? await store.recoverActiveWorkoutSession() {
+            DiagnosticLog.shared.log("recover: hk session state=\(recovered.state.rawValue)")
+            await reattach(to: recovered)
+            return
+        }
+        DiagnosticLog.shared.log("recover: keine HK-Session – finalize")
+        await finalizeUnrecoverableSession()
+    }
+
+    private func reattach(to ws: HKWorkoutSession) async {
+        // P1: beendete Session nicht als laufend reattachen
+        guard ws.state == .running || ws.state == .paused else {
+            DiagnosticLog.shared.log("reattach abgebrochen: state=\(ws.state.rawValue)")
+            await finalizeUnrecoverableSession()
+            return
+        }
+        ws.delegate = self
+        self.session = ws
+        // Builder referenzieren – Collection läuft bereits (S16)
+        self.builder = ws.associatedWorkoutBuilder()
+
+        // Live-State aus Snapshot wiederherstellen
+        if let p = PendingSessionStore.load() {
+            self.sessionType       = WatchSessionType(rawValue: p.sessionTypeRaw) ?? .boulder
+            self.workoutStartDate  = p.startDate
+            self.accumulatedPaused = p.accumulatedPaused
+            if let info = p.projectInfo {   // FB-2: inkl. Grad/System
+                self.selectedProject = info
+            }
+            if let id = p.shoeID, let name = p.shoeName {
+                self.selectedShoe = ShoeInfo(id: id, name: name, condition: p.shoeCondition, defaultForTypes: [])
+            }
+            self.attempts = p.ascents.map { WatchAttempt(fromDTO: $0, sessionType: self.sessionType) }
+            // B3: hrSum/hrCount/activeEnergyKcal werden in startStreamingHR/Energy aus der
+            // kompletten HealthKit-Historie neu aufgebaut – hier nicht restoren (Doppelzählung).
+            // maxHeartRate und lastHeartRate als Anzeige-Seed, damit die UI nicht kurz auf 0 springt.
+            if let max  = p.maxHeartRate   { self.maxHeartRate     = max  }
+            if let hr   = p.lastHeartRate  { self.heartRate        = hr   }
+        } else {
+            // Kein Snapshot – startDate aus dem assoziierten Builder lesen (read-only, kein Collect)
+            self.workoutStartDate = ws.associatedWorkoutBuilder().startDate
+        }
+
+        self.isPaused  = (ws.state == .paused)
+        self.isRunning = true
+        // S14: didChangeTo(.running) feuert bei Recovery nicht → Flag explizit setzen
+        self.healthKitActive = (ws.state == .running || ws.state == .paused)
+
+        await altimeter.start()
+        if !isPaused { startTimer() }
+        startStreamingHeartRate()
+        startStreamingEnergy()
+        DiagnosticLog.shared.log("streaming queries started")
+        DiagnosticLog.shared.log("recoveredActiveSession state=\(ws.state.rawValue) ascents=\(attempts.count)")
+    }
+
+    /// Session kann nicht wieder aufgenommen werden → sauber finalisieren:
+    /// Begehungen ans Handy syncen (falls vorhanden) und Handy-Live-Anzeige in jedem Fall beenden.
+    private func finalizeUnrecoverableSession() async {
+        if let pending = PendingSessionStore.load(), !pending.ascents.isEmpty {
+            let avg: Double? = {
+                guard let sum = pending.hrSum, let cnt = pending.hrCount, cnt > 0 else { return nil }
+                return sum / Double(cnt)
+            }()
+            let dto = WatchSessionDTO(
+                id: pending.id,
+                workoutUUID: nil,
+                date: pending.startDate,
+                // RP-3: brutto (volle Spanne); Pausenzeit separat
+                durationSeconds: Date().timeIntervalSince(pending.startDate),
+                sessionTypeRaw: pending.sessionTypeRaw,
+                avgHeartRate: avg,
+                maxHeartRate: pending.maxHeartRate,
+                activeEnergyKcal: pending.activeEnergyKcal,
+                altitudeTotalGain: 0,
+                ascents: pending.ascents,
+                pausedSeconds: pending.accumulatedPaused,
+                rpe: nil, focusRaw: nil, energyRaw: nil
+            )
+            SyncService.shared.send(dto: dto)
+            DiagnosticLog.shared.log("finalize: DTO gesendet ascents=\(pending.ascents.count)")
+        } else {
+            DiagnosticLog.shared.log("finalize: keine ascents – nur Live-Status löschen")
+        }
+        PendingSessionStore.clear()
+        clearLiveStatus()      // leeres Data → Handy setzt liveStatus = nil (Live-Anzeige aus)
+        isRunning = false
+    }
+
+    func currentElapsed() -> TimeInterval {
+        guard let start = workoutStartDate else { return 0 }
+        if let p = pauseStartedAt {
+            return max(0, p.timeIntervalSince(start) - accumulatedPaused)
+        }
+        return max(0, Date().timeIntervalSince(start) - accumulatedPaused)
+    }
 
     override init() {
         super.init()
         let ud = UserDefaults.standard
         if let id   = ud.string(forKey: Self.selectedProjectIDKey),
            let name = ud.string(forKey: Self.selectedProjectNameKey) {
-            _selectedProject = Published(wrappedValue: ProjectInfo(id: id, name: name))
+            _selectedProject = Published(wrappedValue: ProjectInfo(
+                id: id, name: name,
+                grade: ud.string(forKey: Self.selectedProjectGradeKey),        // FB-2
+                gradeSystem: ud.string(forKey: Self.selectedProjectSystemKey)
+            ))
         }
+        if let id   = ud.string(forKey: Self.selectedShoeIDKey),
+           let name = ud.string(forKey: Self.selectedShoeNameKey) {
+            _selectedShoe = Published(wrappedValue: ShoeInfo(
+                id: id, name: name,
+                condition: ud.string(forKey: Self.selectedShoeConditionKey),
+                defaultForTypes: []
+            ))
+        }
+        let launchCount = ud.integer(forKey: "launchCount") + 1
+        ud.set(launchCount, forKey: "launchCount")
+        DiagnosticLog.shared.log("app launch #\(launchCount) \(AppVersion.short) mem=\(MemoryFootprint.residentMB())MB")
     }
 
     private func persistSelectedProject() {
@@ -71,9 +250,27 @@ final class WorkoutManager: NSObject, ObservableObject {
         if let p = selectedProject {
             ud.set(p.id,   forKey: Self.selectedProjectIDKey)
             ud.set(p.name, forKey: Self.selectedProjectNameKey)
+            ud.set(p.grade, forKey: Self.selectedProjectGradeKey)         // FB-2 (nil löscht)
+            ud.set(p.gradeSystem, forKey: Self.selectedProjectSystemKey)
         } else {
             ud.removeObject(forKey: Self.selectedProjectIDKey)
             ud.removeObject(forKey: Self.selectedProjectNameKey)
+            ud.removeObject(forKey: Self.selectedProjectGradeKey)
+            ud.removeObject(forKey: Self.selectedProjectSystemKey)
+        }
+    }
+
+    private func persistSelectedShoe() {
+        let ud = UserDefaults.standard
+        if let s = selectedShoe {
+            ud.set(s.id,        forKey: Self.selectedShoeIDKey)
+            ud.set(s.name,      forKey: Self.selectedShoeNameKey)
+            if let c = s.condition { ud.set(c, forKey: Self.selectedShoeConditionKey) }
+            else { ud.removeObject(forKey: Self.selectedShoeConditionKey) }
+        } else {
+            ud.removeObject(forKey: Self.selectedShoeIDKey)
+            ud.removeObject(forKey: Self.selectedShoeNameKey)
+            ud.removeObject(forKey: Self.selectedShoeConditionKey)
         }
     }
 
@@ -81,7 +278,10 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     func requestAuthorization() async {
         guard HKHealthStore.isHealthDataAvailable() else { return }
-        let share: Set<HKSampleType> = [HKObjectType.workoutType()]
+        let share: Set<HKSampleType> = [
+            HKObjectType.workoutType(),
+            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!
+        ]
         let read: Set<HKObjectType> = [
             HKObjectType.quantityType(forIdentifier: .heartRate)!,
             HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!
@@ -89,20 +289,42 @@ final class WorkoutManager: NSObject, ObservableObject {
         try? await store.requestAuthorization(toShare: share, read: read)
     }
 
+    // MARK: - P2-7.3: Resync beim Aufwachen (isLuminanceReduced → false)
+
+    func resyncSensors() {
+        Task { [weak self] in
+            guard let self else { return }
+            let alt = await self.altimeter.totalGain
+            await MainActor.run { self.totalAltitudeGain = alt }
+        }
+    }
+
     // MARK: - Session Start (W1.2)
 
     func startWorkout(type: WatchSessionType, target: WatchTrainingTarget? = nil) async {
+        // P2-7.1: Sicherstellen, dass Authorization abgeschlossen ist.
+        await requestAuthorization()
+
         sessionType = type
         trainingTarget = target
         attemptState = .idle
+        lastPublishedAltitudeInt = -1  // force first publish
+
+        // SH-13: Automatische Schuh-Vorauswahl anhand des Standard-für-Typ-Flags.
+        // Training (Krafttraining) hat keine Kletterschuh-Zuordnung → dort keine
+        // automatische Auswahl/Reset.
+        if type != .training {
+            selectedShoe = SyncService.shared.knownShoes.first {
+                $0.defaultForTypes.contains(type.rawValue)
+            }
+        }
 
         // Timer und UI-State sofort starten – unabhängig von HealthKit.
-        // HealthKit kann beim ersten Start Permission-Dialog zeigen oder fehlschlagen;
-        // der Timer läuft dadurch auch ohne HK-Session korrekt.
         let startDate = Date()
         workoutStartDate = startDate
         isRunning = true
         isPaused = false
+        DiagnosticLog.shared.log("start sessionType=\(type.rawValue)")
         startTimer()
 
         // HealthKit-Session aufsetzen (best-effort)
@@ -110,43 +332,55 @@ final class WorkoutManager: NSObject, ObservableObject {
         config.activityType = type == .training ? .functionalStrengthTraining : .climbing
         config.locationType = .indoor
 
-        do {
-            let ws = try HKWorkoutSession(healthStore: store, configuration: config)
-            let wb = ws.associatedWorkoutBuilder()
-            wb.dataSource = HKLiveWorkoutDataSource(healthStore: store, workoutConfiguration: config)
-            ws.delegate = self
-            wb.delegate = self
-            self.session = ws
-            self.builder = wb
-            ws.startActivity(with: startDate)
-            try await wb.beginCollection(at: startDate)
-        } catch {
-            // HK-Fehler: Timer läuft weiter, DTO wird aus lokalen Daten erstellt
-            print("[WorkoutManager] HealthKit-Setup fehlgeschlagen: \(error)")
+        if store.authorizationStatus(for: HKObjectType.workoutType()) == .sharingDenied {
+            healthKitDenied = true
+            healthKitActive = false
+        } else {
+            do {
+                let ws = try HKWorkoutSession(healthStore: store, configuration: config)
+                ws.delegate = self
+                self.session = ws
+                ws.startActivity(with: startDate)
+                // S16: Builder NUR für Session-Preservation – KEINE DataSource, keine Samples
+                let wb = ws.associatedWorkoutBuilder()
+                try await wb.beginCollection(at: startDate)
+                self.builder = wb
+                startStreamingHeartRate()
+                startStreamingEnergy()
+                healthKitActive = true
+                DiagnosticLog.shared.log("beginCollection ok")
+                DiagnosticLog.shared.log("streaming queries started")
+            } catch {
+                healthKitActive = false
+                DiagnosticLog.shared.log("HK setup failed: \(error.localizedDescription)")
+            }
         }
 
+        savePendingSnapshot()
         await altimeter.start()
-
-        // C5: Im Trainingsmodus kein Auto-Detektor
-        if !isTraining {
-            detector.onSuggestion = { [weak self] in
-                Task { @MainActor in
-                    self?.suggestAttempt = true
-                    self?.pendingClassifications += 1
-                }
-            }
-            if type.usesBarometer {
-                // Seil: AltimeterService-Feedback an AttemptDetector via Barometer-Poll
-            } else {
-                // P1-4: ohne HR-Parameter – detector.currentHR wird im Timer-Tick gesetzt
-                detector.startMotionDetection()
-            }
-        }
     }
 
     // MARK: - D1: Action Button State Machine
 
+    /// AB-G: Idle-Druck auf den Action Button startet die Session direkt im Intent-Kontext.
+    /// Ersetzt den PendingStart-Umweg: dessen Flag wurde nur im `.task` beim Kaltstart
+    /// konsumiert – lebte der Prozess bereits im Hintergrund, verpuffte der Druck.
+    /// Reihenfolge: erst Recovery (Jetsam-Kill, S21), nur wenn danach keine Session läuft
+    /// wirklich neu starten.
+    func startFromActionButton(type: WatchSessionType) async {
+        await recoverIfNeeded()
+        guard !isRunning else {
+            DiagnosticLog.shared.log("startFromActionButton: Session recovered – kein Neustart")
+            return
+        }
+        await startWorkout(type: type)
+    }
+
     func handleActionButton() {
+        guard isRunning else {
+            DiagnosticLog.shared.log("handleActionButton ignoriert: keine aktive Session")
+            return
+        }
         if isTraining {
             // Im Training: Pause/Resume
             if isPaused { resumeWorkout() } else { pauseWorkout() }
@@ -154,37 +388,47 @@ final class WorkoutManager: NSObject, ObservableObject {
         }
         switch attemptState {
         case .idle:
-            // Versuch starten
             attemptState = .active(startTime: .now)
             WKInterfaceDevice.current().play(.start)
+            DiagnosticLog.shared.log("ascentTracking start mem=\(MemoryFootprint.residentMB())MB")
             Task { await altimeter.startAscentTracking() }
 
-        case .active:
-            // Versuch beenden → Ergebnis abfragen
+        case .active(let startTime):
+            lastAttemptDurationSeconds = Date().timeIntervalSince(startTime)
             attemptState = .awaitingResult
-            WKInterfaceDevice.current().play(.click)
+            WKInterfaceDevice.current().play(.stop)
 
         case .awaitingResult:
             break
         }
+        DiagnosticLog.shared.log("actionButton -> \(String(describing: attemptState)) mem=\(MemoryFootprint.residentMB())MB")
     }
 
     /// Schnelles Banken aus dem Action-Button-Flow (ohne Grad-Auswahl)
     func quickBank(result: WatchAscentResult) async {
+        DiagnosticLog.shared.log("ascentTracking stop mem=\(MemoryFootprint.residentMB())MB")
         let gain = await altimeter.stopAscentTracking()
+        let duration = lastAttemptDurationSeconds
+        lastAttemptDurationSeconds = nil
+        // FB-2: Aktives Projekt mit bekanntem Grad → Grad + System übernehmen
+        // (kein „?"-/Unbewertet-Fall mehr für Projektversuche).
+        let projectSystem = selectedProject?.gradeSystem.flatMap(WatchGradeSystem.init(rawValue:))
         let attempt = WatchAttempt(
-            gradeSystem: WatchGradeSystem(rawValue: UserDefaults.standard.string(forKey: "watchGradeSystem") ?? "fontainebleau") ?? sessionType.defaultGradeSystem,
-            grade: nil,
+            // RP-4: sonst Grad-System aus dem Session-Typ (Seil → french, Boulder → fontainebleau).
+            gradeSystem: projectSystem ?? sessionType.defaultGradeSystem,
+            grade: selectedProject?.grade,
             result: result,
-            style: result == .top ? nil : nil,
+            style: nil,
             altitudeGain: gain,
+            durationSeconds: duration,
             heartRateAtBanking: heartRate > 0 ? heartRate : nil,
             sessionType: sessionType,
-            projectInfo: selectedProject
+            projectInfo: selectedProject,
+            shoeInfo: selectedShoe
         )
         attempts.append(attempt)
+        savePendingSnapshot()
         attemptState = .idle
-        await altimeter.startAscentTracking()
         switch result {
         case .top:     WKInterfaceDevice.current().play(.success)
         case .attempt: WKInterfaceDevice.current().play(.click)
@@ -197,11 +441,16 @@ final class WorkoutManager: NSObject, ObservableObject {
     func pauseWorkout() {
         session?.pause()
         isPaused = true
+        pauseStartedAt = Date()
         timer?.invalidate()
         broadcastLiveStatus()
     }
 
     func resumeWorkout() {
+        if let p = pauseStartedAt {
+            accumulatedPaused += Date().timeIntervalSince(p)
+            pauseStartedAt = nil
+        }
         session?.resume()
         isPaused = false
         startTimer()
@@ -212,13 +461,7 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     func removeAttempt(id: UUID) {
         attempts.removeAll { $0.id == id }
-    }
-
-    // MARK: - Fehlhafte Erkennung verwerfen
-
-    func dismissSuggestion() {
-        if pendingClassifications > 0 { pendingClassifications -= 1 }
-        suggestAttempt = pendingClassifications > 0
+        savePendingSnapshot()
     }
 
     // MARK: - Versuch banken (W3.2)
@@ -227,22 +470,24 @@ final class WorkoutManager: NSObject, ObservableObject {
                      grade: String?,
                      result: WatchAscentResult?,
                      style: WatchAscentStyle?) async {
+        DiagnosticLog.shared.log("ascentTracking stop mem=\(MemoryFootprint.residentMB())MB")
         let gain = await altimeter.stopAscentTracking()
+        let duration = lastAttemptDurationSeconds
+        lastAttemptDurationSeconds = nil
         let attempt = WatchAttempt(
             gradeSystem: gradeSystem,
             grade: grade,
             result: result,
             style: style,
             altitudeGain: gain,
+            durationSeconds: duration,
             heartRateAtBanking: heartRate > 0 ? heartRate : nil,
             sessionType: sessionType,
-            projectInfo: selectedProject
+            projectInfo: selectedProject,
+            shoeInfo: selectedShoe
         )
         attempts.append(attempt)
-        await altimeter.startAscentTracking()
-        if pendingClassifications > 0 { pendingClassifications -= 1 }
-        suggestAttempt = pendingClassifications > 0
-        // Falls aus Action-Button-Flow → State zurücksetzen
+        savePendingSnapshot()
         if attemptState == .awaitingResult { attemptState = .idle }
         switch result {
         case .top:     WKInterfaceDevice.current().play(.success)
@@ -255,33 +500,42 @@ final class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Session beenden (W7)
 
     func endWorkout() async -> WatchSessionDTO? {
-        detector.stopMotionDetection()
+        // S4: Guard gegen Doppelaufruf (z. B. UI + Delegate parallel)
+        guard !isFinishingIntentionally else { return nil }
+        isFinishingIntentionally = true
+        // RP-13: sofort sichtbares Feedback (Overlay + Haptik von hinten nach vorn
+        // gezogen), bevor die 2–5 s HealthKit-Roundtrips laufen → keine eingefrorene Uhr.
+        isEnding = true
+        WKInterfaceDevice.current().play(.stop)
         await altimeter.stop()
         timer?.invalidate()
         timer = nil
+        stopStreamingQueries()
+        DiagnosticLog.shared.flush()
 
         let endDate = Date()
 
-        // HK-Session beenden (best-effort – kann nil sein wenn HK-Setup fehlschlug)
         var resolvedUUID: UUID? = nil
-        var avgHR: Double? = nil
-        var maxHRfromHK: Double? = nil
-        if let ws = session, let wb = builder {
-            ws.end()
+        if let ws = session, let wb = builder, let startDate = workoutStartDate {
+            if ws.state != .ended && ws.state != .stopped { ws.end() }
+            // Energie-Sample hinzufügen, dann Builder abschließen (S16: kein neuer Builder nötig)
+            if activeEnergyKcal > 0 {
+                let qty = HKQuantity(unit: .kilocalorie(), doubleValue: activeEnergyKcal)
+                let s = HKQuantitySample(type: HKQuantityType(.activeEnergyBurned),
+                                         quantity: qty, start: startDate, end: endDate)
+                try? await wb.addSamples([s])
+            }
             try? await wb.endCollection(at: endDate)
-            // P0-1: Ø-HF aus HK-Stats lesen (discreteAverage), nicht Momentanwert
-            let bpmUnit = HKUnit.count().unitDivided(by: .minute())
-            let hrStats = wb.statistics(for: HKQuantityType(.heartRate))
-            avgHR = hrStats?.averageQuantity()?.doubleValue(for: bpmUnit)
-            maxHRfromHK = hrStats?.maximumQuantity()?.doubleValue(for: bpmUnit)
-            let finishedWorkout = try? await wb.finishWorkout()
-            resolvedUUID = finishedWorkout?.uuid
+            resolvedUUID = try? await wb.finishWorkout()?.uuid
         }
-        // Fallback: manueller Akkumulator (wenn HK-Builder nie gestartet)
-        let finalAvgHR = avgHR ?? (hrCount > 0 ? hrSum / Double(hrCount) : nil)
-        let finalMaxHR = maxHRfromHK ?? (maxHeartRate > 0 ? maxHeartRate : nil)
+        let finalAvgHR = hrCount > 0 ? hrSum / Double(hrCount) : nil
+        let finalMaxHR = maxHeartRate > 0 ? maxHeartRate : nil
 
+        // RP-3: durationSeconds = brutto (volle Session-Spanne). Pausenzeit separat:
+        // akkumulierte Pausen + eine ggf. beim Beenden noch laufende Pause.
         let duration = workoutStartDate.map { endDate.timeIntervalSince($0) } ?? 0
+        var paused = accumulatedPaused
+        if let p = pauseStartedAt { paused += endDate.timeIntervalSince(p) }
         let altTotal = await altimeter.totalGain
 
         let dto = WatchSessionDTO(
@@ -295,46 +549,75 @@ final class WorkoutManager: NSObject, ObservableObject {
             activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil,
             altitudeTotalGain: altTotal,
             ascents: attempts.map { $0.toDTO() },
+            pausedSeconds: paused,
             rpe: nil,
             focusRaw: trainingTarget?.rawValue,
             energyRaw: nil
         )
 
+        DiagnosticLog.shared.log("end ascents=\(attempts.count) duration=\(Int(duration))s")
         clearLiveStatus()
-        WKInterfaceDevice.current().play(.stop)
+        // Haptik bereits zu Beginn gespielt (RP-13)
 
+        // RP-1: Basis-DTO SOFORT senden (vor finishSession/PendingSessionStore.clear),
+        // damit die Session inkl. aller Begehungen auch dann auf dem iPhone landet,
+        // wenn watchOS die App vor dem Fragebogen terminiert. SessionEndFlowView
+        // sendet später das angereicherte DTO – der iPhone-Upsert (Match über
+        // watchSessionID) aktualisiert dann nur RPE/Fokus auf derselben Session.
+        SyncService.shared.send(dto: dto)
+
+        // End-Flow in ContentView treiben; finishSession() setzt isRunning=false
+        // (pendingSummaryDTO bleibt bis der Nutzer in SessionEndFlowView „Fertig" tippt)
+        pendingSummaryDTO = dto
+        finishSession()
         return dto
     }
 
     /// Session verwerfen – kein HKWorkout wird gespeichert, kein DTO gesendet.
     func discardWorkout() {
-        detector.stopMotionDetection()
+        isFinishingIntentionally = true  // P1-2
         timer?.invalidate()
         timer = nil
-        session?.end()  // end() ohne finishWorkout() → HKWorkout wird nicht geschrieben
+        stopStreamingQueries()
+        session?.end()
         Task { await altimeter.stop() }
+        DiagnosticLog.shared.flush()
         clearLiveStatus()
         WKInterfaceDevice.current().play(.failure)
         finishSession()
     }
 
-    /// Reset erst NACH Fragebogen + Zusammenfassung aufrufen,
-    /// damit LiveSessionView nicht vorzeitig abgebaut wird.
+    /// Reset erst NACH Fragebogen + Zusammenfassung aufrufen.
     func finishSession() {
         isRunning = false
         isPaused = false
+        isEnding = false   // RP-13
         session = nil
         builder = nil
+        hrQuery = nil
+        energyQuery = nil
         attempts = []
-        elapsedSeconds = 0
         heartRate = 0
         maxHeartRate = 0
         activeEnergyKcal = 0
+        totalAltitudeGain = 0
+        lastPublishedAltitudeInt = -1
         attemptState = .idle
+        lastAttemptDurationSeconds = nil
         trainingTarget = nil
         selectedProject = nil
+        selectedShoe = nil
         hrSum = 0
         hrCount = 0
+        accumulatedPaused = 0
+        pauseStartedAt = nil
+        workoutStartDate = nil
+        healthKitActive = false
+        healthKitDenied = false
+        sessionEndedUnexpectedly = false
+        lastError = nil
+        isFinishingIntentionally = false
+        PendingSessionStore.clear()
     }
 
     // MARK: - E1: Live-Status an iPhone senden
@@ -342,11 +625,14 @@ final class WorkoutManager: NSObject, ObservableObject {
     private func broadcastLiveStatus() {
         guard WCSession.default.activationState == .activated else { return }
         let status = WatchLiveStatus(
-            elapsedSeconds: elapsedSeconds,
+            elapsedSeconds: Int(currentElapsed()),  // A1: direkt berechnet, kein @Published-Tick
             sessionTypeRaw: sessionType.rawValue,
             attemptCount: attempts.count,
             isPaused: isPaused,
-            startedAt: workoutStartDate ?? Date()
+            startedAt: workoutStartDate ?? Date(),
+            heartRate: heartRate > 0 ? heartRate : nil,
+            activeEnergyKcal: activeEnergyKcal > 0 ? activeEnergyKcal : nil,
+            accumulatedPausedSeconds: accumulatedPaused   // RP-15
         )
         guard let data = try? JSONEncoder().encode(status) else { return }
         try? WCSession.default.updateApplicationContext([WatchLiveStatus.key: data])
@@ -357,28 +643,111 @@ final class WorkoutManager: NSObject, ObservableObject {
         try? WCSession.default.updateApplicationContext([WatchLiveStatus.key: Data()])
     }
 
+    // MARK: - Streaming Queries (A3)
+
+    private func startStreamingHeartRate() {
+        // C: laufende Query stoppen bevor neue gestartet wird (kein paralleler Doppel-Stream)
+        if let q = hrQuery { store.stop(q); hrQuery = nil }
+        let hrType = HKQuantityType(.heartRate)
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        let startDate = workoutStartDate ?? Date()
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil,
+                                                     options: .strictStartDate)
+        // B1: Ø-Akkumulatoren vor Start zurücksetzen – anchor:nil liefert die komplette Historie,
+        // also wird Ø vollständig aus dem Stream neu aufgebaut (keine Doppelzählung nach Relaunch).
+        hrSum = 0
+        hrCount = 0
+        let handler: @Sendable (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = {
+            [weak self] _, samples, _, _, _ in
+            guard let quantitySamples = samples as? [HKQuantitySample], !quantitySamples.isEmpty
+            else { return }
+            let bpms = quantitySamples.map { $0.quantity.doubleValue(for: unit) }
+            let lastBpm = bpms.last ?? 0
+            let batchMax = bpms.max() ?? 0
+            let batchSum = bpms.reduce(0, +)
+            let batchCount = bpms.count
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.heartRate = lastBpm
+                if batchMax > self.maxHeartRate { self.maxHeartRate = batchMax }
+                self.hrSum += batchSum
+                self.hrCount += batchCount
+            }
+        }
+        let q = HKAnchoredObjectQuery(type: hrType, predicate: predicate, anchor: nil,
+                                       limit: HKObjectQueryNoLimit, resultsHandler: handler)
+        q.updateHandler = handler
+        store.execute(q)
+        hrQuery = q
+    }
+
+    private func startStreamingEnergy() {
+        // C: laufende Query stoppen bevor neue gestartet wird (kein paralleler Doppel-Stream)
+        if let q = energyQuery { store.stop(q); energyQuery = nil }
+        let energyType = HKQuantityType(.activeEnergyBurned)
+        let startDate = workoutStartDate ?? Date()
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil,
+                                                     options: .strictStartDate)
+        // B2: Akkumulator zurücksetzen – anchor:nil liefert die komplette Historie, die Summe
+        // wird vollständig neu aufgebaut (keine Doppelzählung nach Relaunch).
+        activeEnergyKcal = 0
+        let handler: @Sendable (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = {
+            [weak self] _, samples, _, _, _ in
+            let delta = (samples as? [HKQuantitySample])?.reduce(0.0) {
+                $0 + $1.quantity.doubleValue(for: .kilocalorie())
+            } ?? 0
+            guard delta > 0 else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.activeEnergyKcal += delta
+            }
+        }
+        let q = HKAnchoredObjectQuery(type: energyType, predicate: predicate, anchor: nil,
+                                       limit: HKObjectQueryNoLimit, resultsHandler: handler)
+        q.updateHandler = handler
+        store.execute(q)
+        energyQuery = q
+    }
+
+    private func stopStreamingQueries() {
+        if let q = hrQuery { store.stop(q); hrQuery = nil }
+        if let q = energyQuery { store.stop(q); energyQuery = nil }
+        DiagnosticLog.shared.log("streaming queries stopped")
+    }
+
     // MARK: - Timer
 
     private func startTimer() {
         timer?.invalidate()
-        // RunLoop.main + .common: Timer feuert auch während UI-Scrolling/Interaktion.
-        // Timer.scheduledTimer würde im async-Kontext ggf. auf falschem RunLoop landen.
-        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+        memTickCount = 0
+        // A4: 2s-Intervall – TimelineView treibt die Uhranzeige, Timer nur für Sensoren + Broadcast.
+        let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
-                self.elapsedSeconds += 1
+                // A1: kein elapsedSeconds-Update – TimelineView + currentElapsed() genügen
                 let alt = await self.altimeter.totalGain
-                self.totalAltitudeGain = alt
-                if self.sessionType.usesBarometer {
-                    self.detector.updateAltitude(alt)
+                // A3: Altitude nur publizieren wenn gerundeter Meterwert sich ändert
+                let altInt = Int(alt)
+                if altInt != self.lastPublishedAltitudeInt {
+                    self.lastPublishedAltitudeInt = altInt
+                    self.totalAltitudeGain = alt
                 }
-                // P1-4: aktuelle HF an Detector weitergeben (war vorher eingefrorener Wert)
-                self.detector.currentHR = self.heartRate
-                // E1: Live-Status alle 5 Sekunden senden
+                // A4+A5: Broadcast alle 5 Ticks × 2s = 10s
                 self.liveStatusTickCount += 1
                 if self.liveStatusTickCount >= 5 {
                     self.liveStatusTickCount = 0
                     self.broadcastLiveStatus()
+                }
+                // Memory-Log + Snapshot alle 30 Ticks × 2s = 60s
+                self.memTickCount += 1
+                if self.memTickCount >= 30 {
+                    self.memTickCount = 0
+                    let m = MemoryFootprint.residentMB()
+                    let d = m - self.lastMemMB
+                    self.lastMemMB = m
+                    let sign = d >= 0 ? "+" : ""
+                    DiagnosticLog.shared.logVerbose("tick mem=\(m)MB \u{0394}=\(sign)\(d) hr=\(Int(self.heartRate)) max=\(Int(self.maxHeartRate))")
+                    self.savePendingSnapshot()
                 }
             }
         }
@@ -393,38 +762,55 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession,
                                     didChangeTo toState: HKWorkoutSessionState,
                                     from fromState: HKWorkoutSessionState,
-                                    date: Date) {}
+                                    date: Date) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            DiagnosticLog.shared.log("didChangeTo \(toState.rawValue)")
+            switch toState {
+            case .paused:
+                if !self.isPaused {
+                    self.isPaused = true
+                    self.pauseStartedAt = Date()
+                    self.timer?.invalidate()
+                }
+            case .running:
+                self.healthKitActive = true
+                if self.isPaused {
+                    if let p = self.pauseStartedAt {
+                        self.accumulatedPaused += Date().timeIntervalSince(p)
+                        self.pauseStartedAt = nil
+                    }
+                    self.isPaused = false
+                    self.startTimer()
+                }
+            case .ended, .stopped:
+                if self.isRunning {
+                    // A7: Sensoren sofort stoppen, nicht erst wenn View reagiert
+                    self.timer?.invalidate()
+                    self.timer = nil
+                    Task { await self.altimeter.stop() }
+                    // P1-2: sessionEndedUnexpectedly nur bei unerwartetem Ende setzen
+                    if !self.isFinishingIntentionally {
+                        self.sessionEndedUnexpectedly = true
+                    }
+                }
+            default:
+                break
+            }
+        }
+    }
 
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession,
                                     didFailWithError error: Error) {
-        print("[WorkoutManager] session error: \(error)")
-    }
-}
-
-// MARK: - HKLiveWorkoutBuilderDelegate
-
-extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
-    nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}
-
-    nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder,
-                                    didCollectDataOf collectedTypes: Set<HKSampleType>) {
-        for type in collectedTypes {
-            guard let quantityType = type as? HKQuantityType else { continue }
-            let stats = workoutBuilder.statistics(for: quantityType)
-
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                switch quantityType {
-                case HKQuantityType.quantityType(forIdentifier: .heartRate)!:
-                    let bpm = stats?.mostRecentQuantity()?.doubleValue(for: .count().unitDivided(by: .minute())) ?? 0
-                    self.heartRate = bpm
-                    if bpm > self.maxHeartRate { self.maxHeartRate = bpm }
-                    if bpm > 0 { self.hrSum += bpm; self.hrCount += 1 }
-                case HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!:
-                    self.activeEnergyKcal = stats?.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
-                default: break
-                }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            DiagnosticLog.shared.log("didFailWithError \(error.localizedDescription)")
+            // P1-2: Fehler beim absichtlichen Beenden nicht als unerwartetes Ende werten
+            if !self.isFinishingIntentionally {
+                self.lastError = error.localizedDescription
+                self.sessionEndedUnexpectedly = true
             }
         }
     }
 }
+

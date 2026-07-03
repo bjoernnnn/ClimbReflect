@@ -1,57 +1,60 @@
 import CoreMotion
 import Foundation
 
-// Kumuliert relative Höhenmeter via CMAltimeter (W1.2)
-// totalGain: laufend (positive Deltas immer, unabhängig von Versuchs-Klammer)
-// stopAscentTracking: gibt Netto-Höhe pro Versuch zurück (max − base)
+// Höhenmessung via CMAltimeter.
+// LEAK-FIX: Die Relative-Altitude-Subscription läuft NUR während eines aktiven Versuchs
+// (startAscentTracking … stopAscentTracking) – nicht über die ganze Session. Damit kann
+// CoreMotion keine Daten über Minuten/Stunden akkumulieren.
+// totalGain: Netto-Höhe des aktuellen Versuchs (0 außerhalb eines Versuchs).
 
 actor AltimeterService {
     private let altimeter = CMAltimeter()
     private(set) var totalGain: Double = 0
-
-    // Pro Versuch (Netto-Messung)
-    private var ascentBaseAltitude: Double? = nil
+    private var tracking = false
     private var ascentMaxAltitude: Double = 0
-    private var lastAltitude: Double = 0
 
-    func start() {
+    /// No-op: Subscription wird erst in startAscentTracking() gestartet.
+    /// (Aufrufe in startWorkout()/reattach() bleiben unschädlich.)
+    func start() {}
+
+    /// Hartstopp bei Session-Ende: sicherstellen, dass keine Updates mehr laufen.
+    func stop() {
+        if tracking { altimeter.stopRelativeAltitudeUpdates() }
+        tracking = false
+        totalGain = 0
+        ascentMaxAltitude = 0
+    }
+
+    /// Beginnt einen Versuch: startet Höhen-Updates und misst die Netto-Höhe.
+    func startAscentTracking() {
         guard CMAltimeter.isRelativeAltitudeAvailable() else { return }
+        ascentMaxAltitude = 0
+        totalGain = 0
+        guard !tracking else { return }      // doppelten Start vermeiden
+        tracking = true
         let queue = OperationQueue()
         queue.qualityOfService = .utility
-        altimeter.startRelativeAltitudeUpdates(to: queue) { [self] data, _ in
-            guard let data else { return }
+        queue.maxConcurrentOperationCount = 1
+        altimeter.startRelativeAltitudeUpdates(to: queue) { [weak self] data, _ in
+            guard let self, let data else { return }
             let rel = data.relativeAltitude.doubleValue
-            Task { [self] in self.handleAltitude(rel) }
+            Task { [weak self] in await self?.handleAltitude(rel) }
         }
     }
 
-    func stop() {
-        altimeter.stopRelativeAltitudeUpdates()
-    }
-
-    func startAscentTracking() {
-        ascentBaseAltitude = lastAltitude
-        ascentMaxAltitude = lastAltitude
-    }
-
-    /// Gibt Netto-Höhe des Versuchs zurück (max − base).
-    /// totalGain wird hier NICHT verändert (läuft bereits live via handleAltitude).
+    /// Beendet den Versuch, stoppt Höhen-Updates, gibt Netto-Höhe (max − 0) zurück.
     func stopAscentTracking() -> Double {
-        guard let base = ascentBaseAltitude else { return 0 }
-        let gain = max(0, ascentMaxAltitude - base)
-        ascentBaseAltitude = nil
+        let gain = max(0, ascentMaxAltitude)   // base = 0, da relativeAltitude bei Start = 0
+        if tracking { altimeter.stopRelativeAltitudeUpdates() }
+        tracking = false
+        totalGain = 0
+        ascentMaxAltitude = 0
         return gain
     }
 
-    // Signifikantes Höhendelta; darunter = Sensorrauschen / Druckdrift
-    private let noiseFloor = 0.3
-
     private func handleAltitude(_ rel: Double) {
-        let delta = rel - lastAltitude
-        if delta > noiseFloor { totalGain += delta }
-        if ascentBaseAltitude != nil, rel > ascentMaxAltitude {
-            ascentMaxAltitude = rel
-        }
-        lastAltitude = rel
+        guard tracking else { return }
+        if rel > ascentMaxAltitude { ascentMaxAltitude = rel }
+        totalGain = ascentMaxAltitude
     }
 }

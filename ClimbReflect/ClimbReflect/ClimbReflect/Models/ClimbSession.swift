@@ -9,7 +9,8 @@ final class ClimbSession {
     var workoutUUID: UUID?            // HKWorkout.uuid → Dedupe gegen Doppel-Import aus Redpoint
     var watchSessionID: UUID?         // WatchSessionDTO.id → Dedupe gegen Doppel-Zustellung
     var date: Date
-    var durationSeconds: Double
+    var durationSeconds: Double         // RP-3: brutto (volle Session-Spanne inkl. Pausen)
+    var pausedSeconds: Double = 0       // RP-3: Workout-Pausenzeit (Aktivzeit = duration − paused)
     var sessionTypeRaw: String
     var sourceRaw: String
 
@@ -34,9 +35,20 @@ final class ClimbSession {
     // Technik-Fokus (P3.6) – Mehrfachauswahl
     var techniqueFocusRaw: String?         // legacy (single), nicht mehr beschrieben
     var techniqueFocusesRaw: [String] = [] // aktuell: Array der TechniqueFocus.rawValues
-    var focusRating: Int?                  // 1–5 Selbstbewertung (reserviert)
+    var focusRating: Int?                  // 1–5 Selbstbewertung (A7)
+
+    // Outdoor-Bedingungen (A8)
+    var conditionsRaw: String?
+    var temperatureC: Double?
+
+    // Watch-Fragebogen (RP-2): Klettersession-Schwerpunkt (WatchSessionFocus:
+    // power/endurance/technique/project/casual) + Zustand (fresh/normal/tired).
+    // Bei Training trägt focusRaw stattdessen die Zielkapazität → limiterRaw.
+    var sessionFocusRaw: String?
+    var energyRaw: String?
 
     @Relationship(deleteRule: .cascade, inverse: \Ascent.session) var ascents: [Ascent] = []
+    @Relationship(deleteRule: .cascade, inverse: \TrainingSet.session) var trainingSets: [TrainingSet] = []
 
     var createdAt: Date
     var updatedAt: Date
@@ -91,6 +103,9 @@ extension ClimbSession {
     var source: SessionSource { SessionSource(rawValue: sourceRaw) ?? .manual }
     var limiters: [Limiter] { limiterRaw.compactMap(Limiter.init(rawValue:)) }
     var durationMinutes: Int { Int(durationSeconds / 60) }
+    // RP-3: Aktivzeit ohne Workout-Pausen – Basis der Trainingslast (sRPE/ACWR/sends).
+    var activeSeconds: Double { max(0, durationSeconds - pausedSeconds) }
+    var activeMinutes: Int { Int(activeSeconds / 60) }
     var techniqueFocus: TechniqueFocus? { techniqueFocusRaw.flatMap(TechniqueFocus.init(rawValue:)) } // legacy
     var techniqueFocuses: [TechniqueFocus] {
         let fromNew = techniqueFocusesRaw.compactMap(TechniqueFocus.init(rawValue:))
@@ -99,4 +114,26 @@ extension ClimbSession {
         return techniqueFocus.map { [$0] } ?? []
     }
     var isClimbing: Bool { sessionType != .training }
+    var conditions: OutdoorConditions? { conditionsRaw.flatMap(OutdoorConditions.init(rawValue:)) }
+
+    // RP-2: Deutsche Anzeige-Labels für den Watch-Fragebogen (Watch-Enums liegen
+    // nicht im iPhone-Target → Mapping hier). nil, wenn kein/unbekannter Wert.
+    var sessionFocusLabel: String? {
+        switch sessionFocusRaw {
+        case "power":     return "Kraft"
+        case "endurance": return "Ausdauer"
+        case "technique": return "Technik"
+        case "project":   return "Projekt"
+        case "casual":    return "Spaß"
+        default:          return nil
+        }
+    }
+    var energyLabel: String? {
+        switch energyRaw {
+        case "fresh":  return "Frisch"
+        case "normal": return "Normal"
+        case "tired":  return "Müde"
+        default:       return nil
+        }
+    }
 }

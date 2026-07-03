@@ -60,10 +60,10 @@ struct BetaLibraryView: View {
     private func betaRow(_ ascent: Ascent, session: ClimbSession) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(ascent.gradeRaw)
+                Text(GradeConverter.display(grade: ascent.gradeRaw, storedIn: ascent.gradeSystem))  // RP-17
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(Theme.textPrimary)
-                Text(ascent.gradeSystem.label)
+                Text(GradeConverter.displaySystem(for: ascent.gradeSystem).label)
                     .font(.caption2)
                     .foregroundStyle(Theme.textTertiary)
                     .padding(.horizontal, 6).padding(.vertical, 2)

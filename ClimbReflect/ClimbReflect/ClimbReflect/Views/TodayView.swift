@@ -1,8 +1,5 @@
 import SwiftUI
 import SwiftData
-#if canImport(HealthKit)
-import HealthKit
-#endif
 
 struct TodayView: View {
     @Environment(\.modelContext) private var context
@@ -10,33 +7,17 @@ struct TodayView: View {
     @Query(sort: \Project.name) private var allProjects: [Project]
     @ObservedObject private var watchReceiver = WatchSessionReceiver.shared
 
-    @State private var importMessage: String?
-    @State private var isImporting = false
     @State private var showAddSession = false
     @State private var showSettings = false
 
-    private var healthKitAvailable: Bool {
-        #if canImport(HealthKit)
-        return HKHealthStore.isHealthDataAvailable()
-        #else
-        return false
-        #endif
+    // FO-12: Bestleistungen kommen aus der ProgressEngine (eine Quelle der Wahrheit,
+    // identisch zum Level-Block im Fortschritt-Tab). Grad bereits in Anzeige-Skala.
+    private var heroBoulder: String? {
+        ProgressEngine.personalBests(sessions, discipline: .boulder).send?.grade
     }
 
-    private var formSignal: StatsEngine.FormSignal { StatsEngine.formSignal(sessions) }
-
-    private var heroBoulder: (grade: String, system: GradeSystem)? {
-        let tops = sessions.filter { $0.sessionType == .boulder }
-            .flatMap(\.ascents).filter { $0.result == .top }
-        guard let best = tops.max(by: { $0.sortOrder < $1.sortOrder }) else { return nil }
-        return (best.gradeRaw, best.gradeSystem)
-    }
-
-    private var heroRoute: (grade: String, system: GradeSystem)? {
-        let tops = sessions.filter { [.lead, .topRope, .autoBelay].contains($0.sessionType) }
-            .flatMap(\.ascents).filter { $0.result == .top }
-        guard let best = tops.max(by: { $0.sortOrder < $1.sortOrder }) else { return nil }
-        return (best.gradeRaw, best.gradeSystem)
+    private var heroRoute: String? {
+        ProgressEngine.personalBests(sessions, discipline: .rope).send?.grade
     }
 
     var body: some View {
@@ -59,10 +40,6 @@ struct TodayView: View {
 
                         pinnedProjectsCard
 
-                        trainingWeaknessCard
-
-                        FormSignalView(signal: formSignal)
-
                         recentSessions
                     }
                     .padding(.horizontal, 20)
@@ -73,39 +50,21 @@ struct TodayView: View {
             .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    HStack(spacing: 16) {
-                        Button { showAddSession = true } label: {
-                            Image(systemName: "plus")
-                        }
-                        Button { showSettings = true } label: {
-                            Image(systemName: "gearshape")
-                        }
+                    Button { showAddSession = true } label: {
+                        Image(systemName: "plus")
                     }
                     .tint(Theme.accent)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    if healthKitAvailable {
-                        Button {
-                            Task { await importFromRedpoint() }
-                        } label: {
-                            Image(systemName: isImporting ? "arrow.triangle.2.circlepath" : "heart.text.square")
-                        }
-                        .accessibilityLabel("Aus Apple Health importieren")
-                        .tint(Theme.accent)
-                        .disabled(isImporting)
+                    Button { showSettings = true } label: {
+                        Image(systemName: "gearshape")
                     }
+                    .tint(Theme.accent)
                 }
             }
             .sheet(isPresented: $showAddSession) { ManualSessionView() }
             .sheet(isPresented: $showSettings) { SettingsView() }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .alert("Apple Health / Redpoint",
-                   isPresented: .constant(importMessage != nil),
-                   presenting: importMessage) { _ in
-                Button("OK") { importMessage = nil }
-            } message: { msg in
-                Text(msg)
-            }
         }
     }
 
@@ -131,7 +90,9 @@ struct TodayView: View {
         HStack(spacing: 12) {
             StatTile(value: "\(sessions.filter(\.isClimbing).count)", label: "Sessions", symbol: "figure.climbing")
             StatTile(value: "\(StatsEngine.climbWeekStreak(sessions))", label: "Streak", symbol: "flame.fill")
-            StatTile(value: "\(StatsEngine.sessionsThisWeek(sessions))", label: "Diese Woche", symbol: "calendar")
+            // Klettersessions wie die Nachbar-Kacheln ("Sessions"/"Streak") – sonst
+            // zählt "Diese Woche" Trainings mit und widerspricht der Zeile
+            StatTile(value: "\(ProgressEngine.sessionsThisWeek(sessions))", label: "Diese Woche", symbol: "calendar")
         }
     }
 
@@ -173,47 +134,16 @@ struct TodayView: View {
         }
     }
 
-    private var trainingWeaknessCard: some View {
-        let weakness = StatsEngine.trainingWeakness(sessions)
-        return Group {
-            if let limiter = weakness.topLimiter {
-                HStack(spacing: 12) {
-                    ZStack {
-                        Circle().fill(Theme.danger.opacity(0.12)).frame(width: 40, height: 40)
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(Theme.danger)
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Häufigste Schwäche: \(limiter.label)")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Theme.textPrimary)
-                        if weakness.monthlyTrainingCount > 0 {
-                            Label("\(weakness.monthlyTrainingCount)× diesen Monat trainiert", systemImage: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(Theme.accent)
-                        } else {
-                            Text("Noch kein gezieltes Training diesen Monat")
-                                .font(.caption)
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                    }
-                    Spacer()
-                }
-                .padding(14)
-                .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
-            }
-        }
-    }
-
     private var heroTrophyRow: some View {
+        // fixedSize: beide Karten strecken sich auf die Höhe der höheren
         HStack(spacing: 12) {
             heroCard(title: "Bouldern", hero: heroBoulder)
             heroCard(title: "Klettern", hero: heroRoute)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func heroCard(title: String, hero: (grade: String, system: GradeSystem)?) -> some View {
+    private func heroCard(title: String, hero: String?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: "trophy.fill")
@@ -224,7 +154,7 @@ struct TodayView: View {
                     .foregroundStyle(Theme.textSecondary)
             }
             if let h = hero {
-                Text(GradeConverter.display(grade: h.grade, storedIn: h.system))
+                Text(h)
                     .font(.system(size: 30, weight: .black, design: .rounded))
                     .foregroundStyle(Theme.gold)
                     .lineLimit(1)
@@ -238,7 +168,7 @@ struct TodayView: View {
                     .foregroundStyle(Theme.textTertiary)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 16)
@@ -292,18 +222,4 @@ struct TodayView: View {
         }
     }
 
-    // MARK: - Import
-
-    private func importFromRedpoint() async {
-        isImporting = true
-        defer { isImporting = false }
-        do {
-            let imported = try await RedpointHealthService.shared.importNewSessions(into: context)
-            importMessage = imported > 0
-                ? "\(imported) neue Session(s) aus Redpoint importiert."
-                : "Keine neuen Kletter-Workouts in Apple Health gefunden.\n\nFalls du Redpoint nutzt, überprüfe ob ClimbReflect Zugriff auf Health hat: Einstellungen → Datenschutz → Health → ClimbReflect."
-        } catch {
-            importMessage = "Import nicht möglich: \(error.localizedDescription)\n\nLäuft die App auf einem echten iPhone mit erlaubtem Health-Zugriff?"
-        }
-    }
 }

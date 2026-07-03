@@ -20,6 +20,15 @@ enum ChartPeriod: String, CaseIterable, Identifiable {
         guard let since = sinceDate else { return sessions }
         return sessions.filter { $0.date >= since }
     }
+
+    /// RP-16: Monatszahl für Monats-Trend-Charts, damit die Periode auch dort greift.
+    var trendMonths: Int {
+        switch self {
+        case .fourWeeks:   return 2
+        case .threeMonths: return 3
+        case .all:         return 12
+        }
+    }
 }
 
 /// Kompakte Pill-Segment-Auswahl – sitzt oben rechts im Karten-Header.

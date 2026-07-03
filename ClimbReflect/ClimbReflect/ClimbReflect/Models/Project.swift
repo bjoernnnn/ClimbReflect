@@ -33,13 +33,22 @@ final class Project {
     }
     var bestTopGrade: String? {
         ascents.filter { $0.result == .top }
-            .max { $0.sortOrder < $1.sortOrder }?.gradeRaw
+            .max { $0.canonicalOrder < $1.canonicalOrder }?.gradeRaw
     }
     var sentOn: Date? {
         ascents.filter { $0.result == .top }.map(\.date).min()
     }
     var lastAttempt: Date {
         ascents.map(\.date).max() ?? .distantPast
+    }
+
+    // FB-1: Projekt-Grad als Stammdatum
+    var gradeSystem: GradeSystem? { gradeSystemRaw.flatMap(GradeSystem.init(rawValue:)) }
+    var hasTargetGrade: Bool { targetGradeRaw != nil && gradeSystem != nil }
+    /// Ziel-Grad ins Anzeige-System umgerechnet (nil, wenn kein Grad festgelegt).
+    var displayTargetGrade: String? {
+        guard let raw = targetGradeRaw, let sys = gradeSystem else { return nil }
+        return GradeConverter.display(grade: raw, storedIn: sys)
     }
 
     init(name: String, betaNotes: String = "", statusRaw: String? = nil, isPinned: Bool = false) {

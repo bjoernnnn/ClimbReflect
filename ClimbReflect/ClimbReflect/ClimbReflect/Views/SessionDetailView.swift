@@ -8,6 +8,15 @@ struct SessionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
     @State private var showAddAscent = false
+    @State private var showAddTrainingSet = false
+    @State private var showLocationEditor = false
+    @State private var editedShoe: Ascent? = nil
+
+    // ST-2: distinct gymNames aus allen Sessions
+    @Query(sort: \ClimbSession.date, order: .reverse) private var allSessions: [ClimbSession]
+    private var knownGymNames: [String] {
+        Array(Set(allSessions.compactMap(\.gymName).filter { !$0.isEmpty })).sorted()
+    }
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -26,6 +35,9 @@ struct SessionDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     overviewSection
+                    if session.sessionType == .training {
+                        trainingSetsCard
+                    }
                     ascentsSection
                     reflectionCard
                 }
@@ -101,8 +113,78 @@ struct SessionDetailView: View {
                 .font(.subheadline.weight(.semibold))
                 .card()
             }
+            // SI-2/SI-3: Session-Insights
+            insightsSection
         }
         .padding(.top, 8)
+    }
+
+    // MARK: - Session-Insights (SI-2 / SI-3)
+
+    @ViewBuilder
+    private var insightsSection: some View {
+        let insights = StatsEngine.insights(for: session)
+        if session.isClimbing {
+            if insights.hasFullTimeCoverage {
+                SessionTimeDonut(insights: insights)
+                insightsMetrics(insights: insights)
+            } else if insights.hasAttemptTimes {
+                // FB-10: nur Teil-Abdeckung → Donut verzerrt (ungetimte Ascents = Pause) → ausblenden
+                Text("Aktivzeit aus \(insights.timedAscentCount) von \(insights.ascentCount) Versuchen erfasst — Zeitaufteilung dafür ausgeblendet.")
+                    .font(.caption).foregroundStyle(Theme.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card()
+                insightsMetrics(insights: insights)
+            } else if session.durationSeconds > 0 {
+                Text("Zur Zeitaufteilung gibt es für diese Session keine Daten – Aktivzeit wird nur bei Watch-Sessions mit Start/Stopp pro Versuch gemessen.")
+                    .font(.caption).foregroundStyle(Theme.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card()
+                insightsMetrics(insights: insights)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func insightsMetrics(insights: StatsEngine.SessionInsights) -> some View {
+        let items: [(label: String, value: String, symbol: String, color: Color)?] = [
+            insights.hasAttemptTimes ? ("Aktivzeit (erfasst)",
+                formatMinutes(insights.activeSeconds),
+                "figure.climbing", Theme.accent) : nil,
+            insights.avgAttemptSeconds.map { ("Ø Versuch",
+                formatSeconds($0), "timer", Theme.accent2) },
+            insights.load.map { ("Belastung (sRPE)",
+                "\($0)", "gauge.medium", Theme.gold) },
+            insights.successRate.map { ("Erfolgsquote",
+                "\(Int($0 * 100))%", "percent", Theme.textSecondary) },
+            insights.hardestTopGrade.map { ("Top-Grad",
+                GradeConverter.display(grade: $0, storedIn: insights.hardestTopGradeSystem ?? .fontainebleau),
+                "trophy", Theme.gold) },   // RP-17
+        ]
+        let valid = items.compactMap { $0 }
+        if !valid.isEmpty {
+            let cols = valid.count >= 4
+                ? [GridItem(.flexible()), GridItem(.flexible())]
+                : [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+            VStack(alignment: .leading, spacing: 14) {
+                LazyVGrid(columns: cols, spacing: 10) {
+                    ForEach(Array(valid.enumerated()), id: \.offset) { _, item in
+                        metricTile(item.label, value: item.value, symbol: item.symbol, color: item.color)
+                    }
+                }
+            }
+            .card()
+        }
+    }
+
+    private func formatMinutes(_ seconds: Double) -> String {
+        let m = Int(seconds / 60)
+        return "\(m) Min"
+    }
+
+    private func formatSeconds(_ t: Double) -> String {
+        let s = Int(t)
+        return String(format: "%d:%02d", s / 60, s % 60)
     }
 
     // MARK: - Begehungen-Sektion (zweiter Screen)
@@ -142,10 +224,146 @@ struct SessionDetailView: View {
                 }
                 .font(.caption)
                 .foregroundStyle(Theme.textSecondary)
+                // ST-1: Standort-Chip
+                if session.outdoor {
+                    Label("Outdoor", systemImage: "mountain.2.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.accent2)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Theme.accent2.opacity(0.12)))
+                } else if let gym = session.gymName, !gym.isEmpty {
+                    Label(gym, systemImage: "building.2.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.accent2)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Theme.accent2.opacity(0.12)))
+                }
             }
             Spacer()
+            // ST-2: Standort-Editor öffnen
+            Button {
+                showLocationEditor.toggle()
+            } label: {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 16))
+                    .foregroundStyle(session.outdoor || (session.gymName != nil) ? Theme.accent2 : Theme.textTertiary)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.top, 8)
+        .sheet(isPresented: $showLocationEditor) {
+            locationEditorSheet
+        }
+    }
+
+    // MARK: - ST-2: Standort-Editor
+
+    private var locationEditorSheet: some View {
+        NavigationStack {
+            ZStack {
+                Theme.bg.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 20) {
+                    Toggle("Outdoor", isOn: Binding(
+                        get: { session.outdoor },
+                        set: { session.outdoor = $0; session.updatedAt = .now }
+                    ))
+                    .tint(Theme.accent)
+                    .foregroundStyle(Theme.textPrimary)
+
+                    if session.outdoor {
+                        // A8: Outdoor-Bedingungen
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Bedingungen")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Theme.textSecondary)
+                            HStack(spacing: 8) {
+                                ForEach(OutdoorConditions.allCases) { c in
+                                    let sel = session.conditions == c
+                                    Button {
+                                        session.conditionsRaw = sel ? nil : c.rawValue
+                                        session.updatedAt = .now
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: c.symbol).font(.system(size: 12))
+                                            Text(c.rawValue).font(.caption.weight(.semibold))
+                                        }
+                                        .padding(.horizontal, 12).padding(.vertical, 6)
+                                        .background(Capsule().fill(sel ? Theme.accent : Theme.bgElevated))
+                                        .foregroundStyle(sel ? Theme.bg : Theme.textSecondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            HStack(spacing: 8) {
+                                Image(systemName: "thermometer.medium").foregroundStyle(Theme.textTertiary)
+                                TextField("Temperatur (°C)", value: Binding(
+                                    get: { session.temperatureC },
+                                    set: { session.temperatureC = $0; session.updatedAt = .now }
+                                ), format: .number)
+                                .foregroundStyle(Theme.textPrimary)
+                                .keyboardType(.decimalPad)
+                                Text("°C").foregroundStyle(Theme.textTertiary)
+                            }
+                            .padding(12)
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
+                        }
+                    } else if !session.outdoor {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Halle")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Theme.textSecondary)
+
+                            TextField("Hallenname", text: Binding(
+                                get: { session.gymName ?? "" },
+                                set: { session.gymName = $0.isEmpty ? nil : $0; session.updatedAt = .now }
+                            ))
+                            .foregroundStyle(Theme.textPrimary)
+                            .padding(12)
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
+
+                            // Quick-Pick aus bekannten Hallen
+                            if !knownGymNames.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(knownGymNames, id: \.self) { gym in
+                                            Button {
+                                                session.gymName = gym
+                                                session.updatedAt = .now
+                                            } label: {
+                                                Text(gym)
+                                                    .font(.caption.weight(.semibold))
+                                                    .padding(.horizontal, 12)
+                                                    .padding(.vertical, 6)
+                                                    .background(Capsule().fill(
+                                                        session.gymName == gym ? Theme.accent : Theme.bgElevated
+                                                    ))
+                                                    .foregroundStyle(session.gymName == gym ? Theme.bg : Theme.textSecondary)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer()
+                }
+                .padding(20)
+            }
+            .navigationTitle("Standort")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Fertig") { showLocationEditor = false }
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 
     // MARK: - Vitalwerte
@@ -199,12 +417,17 @@ struct SessionDetailView: View {
             Image(systemName: symbol)
                 .foregroundStyle(color)
                 .font(.system(size: 15))
+            // lineLimit(1) + Skalierung: kein Umbruch → alle Kacheln einer Reihe gleich hoch
             Text(value)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(Theme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
@@ -241,10 +464,15 @@ struct SessionDetailView: View {
                 VStack(spacing: 0) {
                     ForEach(sorted) { ascent in
                         AscentRowView(ascent: ascent)
+                            .contentShape(Rectangle())
+                            .onTapGesture { editedShoe = ascent }
                         if ascent.id != sorted.last?.id {
                             Divider().background(Theme.surfaceStroke)
                         }
                     }
+                }
+                .sheet(item: $editedShoe) { ascent in
+                    EditAscentAssociationsSheet(ascent: ascent)
                 }
 
                 let tops = sorted.filter { $0.result == .top }
@@ -267,6 +495,98 @@ struct SessionDetailView: View {
         .card()
     }
 
+    // MARK: - T2: Trainings-Sets
+
+    private var trainingSetsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("Training", systemImage: "dumbbell.fill")
+                    .font(.headline)
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Button {
+                    showAddTrainingSet = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+
+            let sorted = session.trainingSets.sorted { $0.date < $1.date }
+            if sorted.isEmpty {
+                Text("Noch keine Übungen erfasst.\nTippe auf + um Sets hinzuzufügen.")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(sorted) { t in
+                        trainingSetRow(t)
+                        if t.id != sorted.last?.id {
+                            Divider().background(Theme.surfaceStroke)
+                        }
+                    }
+                }
+            }
+        }
+        .card()
+        .sheet(isPresented: $showAddTrainingSet) {
+            AddTrainingSetView(session: session)
+        }
+    }
+
+    private func trainingSetRow(_ t: TrainingSet) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: t.kind.symbol)
+                .font(.system(size: 16))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 22)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(t.kind.rawValue)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                HStack(spacing: 8) {
+                    if let mm = t.edgeMM {
+                        Text("\(mm) mm").font(.caption2).foregroundStyle(Theme.textTertiary)
+                    }
+                    if let dur = t.durationSeconds {
+                        Text("\(Int(dur)) s").font(.caption2).foregroundStyle(Theme.textTertiary)
+                    }
+                    if let r = t.reps {
+                        Text("\(r)×").font(.caption2).foregroundStyle(Theme.textTertiary)
+                    }
+                    if let note = t.note, !note.isEmpty {
+                        Text(note).font(.caption2).foregroundStyle(Theme.textTertiary).lineLimit(1)
+                    }
+                }
+            }
+
+            Spacer()
+
+            if let kg = t.addedWeightKg, kg != 0 {
+                Text(kg > 0 ? "+\(formatKg(kg)) kg" : "\(formatKg(kg)) kg")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(kg > 0 ? Theme.gold : Theme.accent2)
+            }
+
+            Button(role: .destructive) {
+                context.delete(t)
+            } label: {
+                Image(systemName: "trash").font(.caption).foregroundStyle(Theme.danger.opacity(0.7))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func formatKg(_ kg: Double) -> String {
+        kg.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(kg))" : String(format: "%.2g", kg)
+    }
+
     // MARK: - Tagebuch / Reflexion
 
     private var reflectionCard: some View {
@@ -277,6 +597,11 @@ struct SessionDetailView: View {
 
             typePicker
 
+            if session.sessionFocusLabel != nil || session.energyLabel != nil {
+                Divider().background(Theme.surfaceStroke)
+                watchQuestionnaireChips
+            }
+
             Divider().background(Theme.surfaceStroke)
 
             rpePicker
@@ -285,16 +610,25 @@ struct SessionDetailView: View {
 
             limiterPicker
 
-            Divider().background(Theme.surfaceStroke)
+            // FB-6: Technik-/Fokus-Picker sind kletterspezifisch → bei Training aus
+            if session.isClimbing {
+                Divider().background(Theme.surfaceStroke)
 
-            techniqueFocusPicker
+                techniqueFocusPicker
+
+                Divider().background(Theme.surfaceStroke)
+
+                focusRatingPicker
+            }
 
             Divider().background(Theme.surfaceStroke)
 
             reflectionField(
                 "Was habe ich gelernt?",
                 icon: "lightbulb.fill",
-                placeholder: "z. B. Hüfteinsatz beim Überhang verbessert…",
+                placeholder: session.isClimbing
+                    ? "z. B. Hüfteinsatz beim Überhang verbessert…"
+                    : "z. B. Max-Hangs erstmals an 10 mm gehalten…",
                 text: Binding(
                     get: { session.learned ?? "" },
                     set: { session.learned = $0.isEmpty ? nil : $0 }
@@ -304,7 +638,9 @@ struct SessionDetailView: View {
             reflectionField(
                 "Was war am schwersten?",
                 icon: "exclamationmark.triangle.fill",
-                placeholder: "z. B. Fingerkraft am Ende der Session…",
+                placeholder: session.isClimbing
+                    ? "z. B. Fingerkraft am Ende der Session…"
+                    : "z. B. Letzter Satz Repeaters…",
                 text: Binding(
                     get: { session.hardestPart ?? "" },
                     set: { session.hardestPart = $0.isEmpty ? nil : $0 }
@@ -314,7 +650,9 @@ struct SessionDetailView: View {
             reflectionField(
                 "Was will ich verbessern?",
                 icon: "arrow.up.circle.fill",
-                placeholder: "z. B. Mehr Fokus auf Füße und Balance…",
+                placeholder: session.isClimbing
+                    ? "z. B. Mehr Fokus auf Füße und Balance…"
+                    : "z. B. Nächstes Mal 2 kg mehr Zusatzlast…",
                 text: Binding(
                     get: { session.improveNext ?? "" },
                     set: { session.improveNext = $0.isEmpty ? nil : $0 }
@@ -405,9 +743,49 @@ struct SessionDetailView: View {
 
     // MARK: - Limiter
 
+    // RP-2: Auf der Watch erfasster Schwerpunkt + Zustand (read-only Chips)
+    private var watchQuestionnaireChips: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Auf der Uhr erfasst")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.textSecondary)
+
+            HStack(spacing: 8) {
+                if let focus = session.sessionFocusLabel {
+                    readOnlyChip("Schwerpunkt", value: focus, icon: "scope")
+                }
+                if let energy = session.energyLabel {
+                    readOnlyChip("Zustand", value: energy, icon: "bolt.heart.fill")
+                }
+            }
+        }
+    }
+
+    private func readOnlyChip(_ title: String, value: String, icon: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(Theme.accent2)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.textSecondary)
+                Text(value)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8).fill(Theme.bgElevated)
+        )
+    }
+
     private var limiterPicker: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Limitierende Faktoren")
+            // FB-6: bei Training ist es die Zielkapazität, nicht der limitierende Faktor
+            Text(session.isClimbing ? "Limitierende Faktoren" : "Trainiert")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.textSecondary)
 
@@ -453,7 +831,9 @@ struct SessionDetailView: View {
         session.reflectionCompleted =
             session.perceivedEffort != nil ||
             !session.limiterRaw.isEmpty ||
-            !session.techniqueFocusesRaw.isEmpty ||
+            // FB-6: Technik/Fokus zählen nur bei Klettersessions (Picker bei Training aus)
+            (session.isClimbing && !session.techniqueFocusesRaw.isEmpty) ||
+            (session.isClimbing && session.focusRating != nil) ||
             session.learned != nil ||
             session.hardestPart != nil ||
             session.improveNext != nil
@@ -509,6 +889,61 @@ struct SessionDetailView: View {
                     .buttonStyle(.plain)
                 }
             }
+        }
+    }
+
+    // MARK: - Fokus-Bewertung (A7)
+
+    private var focusRatingPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Fokus-Bewertung")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textSecondary)
+                Spacer()
+                if session.focusRating != nil {
+                    Button("Löschen") {
+                        session.focusRating = nil
+                        updateReflectionCompleted()
+                        session.updatedAt = .now
+                    }
+                    .font(.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                }
+            }
+
+            HStack(spacing: 8) {
+                ForEach(1...5, id: \.self) { star in
+                    let active = (session.focusRating ?? 0) >= star
+                    Button {
+                        session.focusRating = session.focusRating == star ? nil : star
+                        updateReflectionCompleted()
+                        session.updatedAt = .now
+                    } label: {
+                        Image(systemName: active ? "star.fill" : "star")
+                            .font(.system(size: 26))
+                            .foregroundStyle(active ? Theme.gold : Theme.bgElevated)
+                    }
+                    .buttonStyle(.plain)
+                    .animation(.easeInOut(duration: 0.1), value: session.focusRating)
+                }
+                Spacer()
+                if let r = session.focusRating {
+                    Text(focusRatingLabel(r))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+        }
+    }
+
+    private func focusRatingLabel(_ r: Int) -> String {
+        switch r {
+        case 1: return "Abgelenkt"
+        case 2: return "Wenig Fokus"
+        case 3: return "Okay"
+        case 4: return "Fokussiert"
+        default: return "Im Flow"
         }
     }
 

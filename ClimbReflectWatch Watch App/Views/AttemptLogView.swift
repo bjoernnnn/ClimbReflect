@@ -1,17 +1,27 @@
 import SwiftUI
 
 // Versuch klassifizieren — Grad wählen + Ergebnis antippen = sofort banken
-// Grad-Skala kommt aus App-Einstellungen (kein Wechsel während der Session)
+// RP-4: Grad-Skala leitet sich aus dem Session-Typ ab (Seil → french, Boulder →
+// fontainebleau), nicht aus einer App-Einstellung.
 
 struct AttemptLogView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     let onBank: () -> Void
 
-    @AppStorage("watchGradeSystem") private var storedSystem: String = ""
     @State private var gradeIndex: Int = 0
 
+    // FB-2: aktives Projekt mit Grad → dessen System (sonst Session-Default, RP-4)
     private var gradeSystem: WatchGradeSystem {
-        WatchGradeSystem(rawValue: storedSystem) ?? workoutManager.sessionType.defaultGradeSystem
+        if let raw = workoutManager.selectedProject?.gradeSystem,
+           let sys = WatchGradeSystem(rawValue: raw) { return sys }
+        return workoutManager.sessionType.defaultGradeSystem
+    }
+
+    // FB-2: gradeIndex auf den Projekt-Grad vorbelegen (Nutzer kann per Crown abweichen)
+    private func prefillFromProject() {
+        guard let grade = workoutManager.selectedProject?.grade,
+              let idx = gradeSystem.grades.firstIndex(of: grade) else { return }
+        gradeIndex = idx
     }
 
     private struct Outcome: Identifiable {
@@ -32,21 +42,29 @@ struct AttemptLogView: View {
         Outcome(label: "Abbruch",  symbol: "xmark.circle.fill",      color: WatchTheme.danger, result: .quit,    style: nil),
     ]
 
-    private let columns = [GridItem(.flexible(), spacing: 5), GridItem(.flexible(), spacing: 5)]
+    private let columns = [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)]
 
     var body: some View {
         VStack(spacing: 6) {
-            // Grad-Wheel
-            Picker("Grad", selection: $gradeIndex) {
-                ForEach(0..<gradeSystem.grades.count, id: \.self) { i in
-                    Text(gradeSystem.grades[i]).tag(i)
-                }
+            // Grad per Digital Crown
+            HStack {
+                Text(gradeSystem.grades[gradeIndex])
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(WatchTheme.accent)
+                    .padding(.leading, 12)
+                    .padding(.vertical, 4)
+                    .focusable(true)
+                    .digitalCrownRotation(
+                        Binding(get: { Double(gradeIndex) },
+                                set: { gradeIndex = min(max(Int($0.rounded()), 0), gradeSystem.grades.count - 1) }),
+                        from: 0, through: Double(gradeSystem.grades.count - 1), by: 1,
+                        sensitivity: .low, isContinuous: false)
+                Spacer(minLength: 0)
             }
-            .pickerStyle(.wheel)
-            .frame(height: 60)
+            .padding(.top, -6)
 
             // Outcome-Grid
-            LazyVGrid(columns: columns, spacing: 5) {
+            LazyVGrid(columns: columns, spacing: 6) {
                 ForEach(outcomes) { outcome in
                     Button {
                         let grade = gradeSystem.grades[gradeIndex]
@@ -62,18 +80,18 @@ struct AttemptLogView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: outcome.symbol)
-                                .font(.system(size: 12))
+                                .font(.system(size: 15))
                                 .foregroundStyle(outcome.color)
-                                .frame(width: 14)
+                                .frame(width: 18)
                             Text(outcome.label)
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(WatchTheme.textPrimary)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.7)
                                 .truncationMode(.tail)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 9)
+                        .padding(.vertical, 14)
                         .padding(.horizontal, 8)
                         .background(WatchTheme.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 9))
@@ -82,33 +100,21 @@ struct AttemptLogView: View {
                 }
             }
 
-            // Fehlhafte Erkennung verwerfen (nur wenn auto-erkannt)
-            if workoutManager.pendingClassifications > 0 {
-                Button {
-                    workoutManager.dismissSuggestion()
-                    onBank()
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "xmark.circle")
-                            .font(.system(size: 11))
-                            .foregroundStyle(WatchTheme.textTert)
-                        Text("Erkennungsfehler – Ignorieren")
-                            .font(.system(size: 10))
-                            .foregroundStyle(WatchTheme.textTert)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 7)
-                    .background(WatchTheme.surface.opacity(0.5))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-            }
         }
-        .padding(.horizontal, 7)
+        .padding(.horizontal, 3)
         .padding(.top, 4)
         .background(WatchTheme.bg)
         .onAppear {
-            gradeIndex = gradeSystem.grades.count / 2
+            // FB-2: Projekt-Grad vorbelegen, sonst Mitte der Skala
+            if workoutManager.selectedProject?.grade != nil {
+                prefillFromProject()
+            } else {
+                gradeIndex = gradeSystem.grades.count / 2
+            }
+            DiagnosticLog.shared.logVerbose("AttemptLogView appear mem=\(MemoryFootprint.residentMB())MB")
+        }
+        .onDisappear {
+            DiagnosticLog.shared.logVerbose("AttemptLogView disappear mem=\(MemoryFootprint.residentMB())MB")
         }
     }
 }

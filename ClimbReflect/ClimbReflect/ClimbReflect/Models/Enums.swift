@@ -70,6 +70,9 @@ enum GradeSystem: String, Codable, CaseIterable, Identifiable {
     func sortOrder(of grade: String) -> Int {
         grades.firstIndex(of: grade) ?? 0
     }
+
+    /// Disziplin der Skala: Fb/V-Scale = Boulder, French/UIAA = Seil.
+    var isBoulder: Bool { self == .fontainebleau || self == .vScale }
 }
 
 // MARK: - Begehungsergebnis
@@ -164,6 +167,24 @@ enum AscentStyle: String, Codable, CaseIterable, Identifiable {
         case .onsight:  "eye.fill"
         case .redpoint: "star.fill"
         case .project:  "target"
+        }
+    }
+}
+
+// MARK: - Outdoor-Bedingungen (A8)
+
+enum OutdoorConditions: String, Codable, CaseIterable, Identifiable {
+    case poor = "Schlecht"
+    case ok   = "Ok"
+    case good = "Gut"
+
+    var id: String { rawValue }
+
+    var symbol: String {
+        switch self {
+        case .poor: return "cloud.rain.fill"
+        case .ok:   return "cloud.sun.fill"
+        case .good: return "sun.max.fill"
         }
     }
 }

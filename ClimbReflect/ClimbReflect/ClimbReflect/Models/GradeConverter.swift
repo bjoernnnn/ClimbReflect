@@ -19,12 +19,15 @@ enum GradeConverter {
         "VB", "V0", "V0+", "V1", "V2",
         "V3", "V3", "V4", "V4", "V5", "V5",
         "V6", "V7", "V8", "V8", "V9", "V10",
-        "V11", "V12", "V13", "V13", "V14", "V15", "V17"
+        "V11", "V12", "V13", "V14", "V15", "V16", "V17"
     ]
 
     // MARK: - Routen-Leiter (gemeinsamer Index 0…)
 
+    // RP-18: "III" (im UIAA-Picker wählbar) vorn ergänzt, damit display() nicht still
+    // auf den Rohwert zurückfällt. Paarung French "4" ↔ UIAA "IV" bleibt erhalten.
     private static let routeFrench: [String] = [
+        "3+",
         "4", "4+", "5a", "5b", "5c",
         "6a", "6a+", "6b", "6b+", "6c", "6c+",
         "7a", "7a+", "7b", "7b+", "7c", "7c+",
@@ -32,6 +35,7 @@ enum GradeConverter {
     ]
 
     private static let routeUIAA: [String] = [
+        "III",
         "IV", "IV+", "V-", "V", "V+",
         "VI-", "VI", "VI+", "VII-", "VII", "VII+",
         "VIII-", "VIII", "VIII+", "IX-", "IX", "IX+",
@@ -65,12 +69,41 @@ enum GradeConverter {
     /// Konvertiert zum Anzeige-System das in AppStorage gespeichert ist.
     /// Liest `boulderScale` / `routeScale` aus UserDefaults.
     static func display(grade: String, storedIn system: GradeSystem) -> String {
+        let target = displaySystem(for: system)
+        return convert(grade: grade, from: system, to: target) ?? grade
+    }
+
+    /// RP-17: Anzeige-System (boulderScale/routeScale aus AppStorage) zur gespeicherten
+    /// Disziplin – für Grad-Labels, die die gewählte Skala benennen sollen.
+    static func displaySystem(for system: GradeSystem) -> GradeSystem {
         let isBoulder = (system == .fontainebleau || system == .vScale)
         let targetRaw = isBoulder
             ? (UserDefaults.standard.string(forKey: "boulderScale") ?? GradeSystem.fontainebleau.rawValue)
             : (UserDefaults.standard.string(forKey: "routeScale") ?? GradeSystem.french.rawValue)
-        guard let target = GradeSystem(rawValue: targetRaw) else { return grade }
-        return convert(grade: grade, from: system, to: target) ?? grade
+        return GradeSystem(rawValue: targetRaw) ?? (isBoulder ? .fontainebleau : .french)
+    }
+
+    /// Kanonischer Schwierigkeits-Index innerhalb der Disziplin (gemeinsame Leiter).
+    /// Nur damit sind Grade über Skalen hinweg vergleichbar – der rohe
+    /// `GradeSystem.sortOrder` ist ein Index in die *eigene* Picker-Leiter und
+    /// zwischen Fb/V-Scale bzw. French/UIAA NICHT vergleichbar.
+    /// nil, wenn der Grad nicht in der Umrechnungs-Leiter liegt (z. B. UIAA "III").
+    static func canonicalIndex(grade: String, system: GradeSystem) -> Int? {
+        switch system {
+        case .fontainebleau: boulderFb.firstIndex(of: grade)
+        case .vScale:        boulderV.firstIndex(of: grade)
+        case .french:        routeFrench.firstIndex(of: grade)
+        case .uiaa:          routeUIAA.firstIndex(of: grade)
+        }
+    }
+
+    /// FO-2: Umkehrung von `canonicalIndex` – Grad-String (Referenz-Skala Fb bzw.
+    /// French) zum kanonischen Index einer Disziplin. Für Y-Achsen-Labels des
+    /// Verlauf-Charts. nil außerhalb der Leiter.
+    static func canonicalGrade(order: Int, boulder: Bool) -> String? {
+        let ladder = boulder ? boulderFb : routeFrench
+        guard order >= 0, order < ladder.count else { return nil }
+        return ladder[order]
     }
 
     // MARK: - Intern

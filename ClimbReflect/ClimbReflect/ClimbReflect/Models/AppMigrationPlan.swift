@@ -2,6 +2,14 @@ import SwiftData
 
 // V1 → V2: additive Änderungen (neue Tabellen Project/ProjectMedia, neue optionale
 // Relationship Ascent.project). Lightweight migration genügt – kein Custom-Code nötig.
+// V2 → V3: additive Änderungen (neue Tabelle Shoe, neue optionale Felder Ascent.shoe/shoeName).
+// V3 → V4: additive Änderungen (Shoe.conditionRaw, Ascent.shoeCondition).
+// V4 → V5: additive Änderungen (ClimbSession.conditionsRaw/temperatureC A8;
+//           Shoe.isBuiltInDefault/defaultForTypesRaw SH-A/SH-B).
+// V5 → V6: additive Änderungen (neue Tabelle TrainingSet + Relation ClimbSession.trainingSets T1).
+// V6 → V7: additive Änderungen (ClimbSession.sessionFocusRaw/energyRaw RP-2).
+// V7 → V8: additive Änderungen (ClimbSession.pausedSeconds RP-3).
+// V8 → V9: additive Änderungen (Ascent.heartRateAtBanking RP-6).
 
 enum SchemaV1: VersionedSchema {
     static var versionIdentifier = Schema.Version(1, 0, 0)
@@ -17,13 +25,90 @@ enum SchemaV2: VersionedSchema {
     }
 }
 
+enum SchemaV3: VersionedSchema {
+    static var versionIdentifier = Schema.Version(3, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, Shoe.self]
+    }
+}
+
+enum SchemaV4: VersionedSchema {
+    static var versionIdentifier = Schema.Version(4, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, Shoe.self]
+    }
+}
+
+enum SchemaV5: VersionedSchema {
+    static var versionIdentifier = Schema.Version(5, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, Shoe.self]
+    }
+}
+
+enum SchemaV6: VersionedSchema {
+    static var versionIdentifier = Schema.Version(6, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, Shoe.self, TrainingSet.self]
+    }
+}
+
+enum SchemaV7: VersionedSchema {
+    static var versionIdentifier = Schema.Version(7, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, Shoe.self, TrainingSet.self]
+    }
+}
+
+enum SchemaV8: VersionedSchema {
+    static var versionIdentifier = Schema.Version(8, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, Shoe.self, TrainingSet.self]
+    }
+}
+
+enum SchemaV9: VersionedSchema {
+    static var versionIdentifier = Schema.Version(9, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, Shoe.self, TrainingSet.self]
+    }
+}
+
 enum AppMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self, SchemaV2.self]
+        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self]
     }
-    static var stages: [MigrationStage] { [v1ToV2] }
+    static var stages: [MigrationStage] { [v1ToV2, v2ToV3, v3ToV4, v4ToV5, v5ToV6, v6ToV7, v7ToV8, v8ToV9] }
     static let v1ToV2 = MigrationStage.lightweight(
         fromVersion: SchemaV1.self,
         toVersion: SchemaV2.self
+    )
+    static let v2ToV3 = MigrationStage.lightweight(
+        fromVersion: SchemaV2.self,
+        toVersion: SchemaV3.self
+    )
+    static let v3ToV4 = MigrationStage.lightweight(
+        fromVersion: SchemaV3.self,
+        toVersion: SchemaV4.self
+    )
+    static let v4ToV5 = MigrationStage.lightweight(
+        fromVersion: SchemaV4.self,
+        toVersion: SchemaV5.self
+    )
+    static let v5ToV6 = MigrationStage.lightweight(
+        fromVersion: SchemaV5.self,
+        toVersion: SchemaV6.self
+    )
+    static let v6ToV7 = MigrationStage.lightweight(
+        fromVersion: SchemaV6.self,
+        toVersion: SchemaV7.self
+    )
+    static let v7ToV8 = MigrationStage.lightweight(
+        fromVersion: SchemaV7.self,
+        toVersion: SchemaV8.self
+    )
+    static let v8ToV9 = MigrationStage.lightweight(
+        fromVersion: SchemaV8.self,
+        toVersion: SchemaV9.self
     )
 }

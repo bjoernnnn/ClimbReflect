@@ -92,76 +92,7 @@ final class StatsEngineTests: XCTestCase {
         XCTAssertEqual(StatsEngine.weekStreak([session]), 0)
     }
 
-    // MARK: - sessionsThisWeek
-
-    func testSessionsThisWeek_noSessions_isZero() {
-        XCTAssertEqual(StatsEngine.sessionsThisWeek([]), 0)
-    }
-
-    func testSessionsThisWeek_sessionToday_isOne() {
-        let session = makeSession(daysAgo: 0)
-        XCTAssertEqual(StatsEngine.sessionsThisWeek([session]), 1)
-    }
-
-    func testSessionsThisWeek_sessionLastWeek_isZero() {
-        let session = makeSession(daysAgo: 10)
-        XCTAssertEqual(StatsEngine.sessionsThisWeek([session]), 0)
-    }
-
-    // MARK: - rpeHistory
-
-    func testRPEHistory_noRPE_returnsEmpty() {
-        let sessions = [makeSession(rpe: nil), makeSession(rpe: nil)]
-        XCTAssertTrue(StatsEngine.rpeHistory(sessions).isEmpty)
-    }
-
-    func testRPEHistory_withRPE_returnsPoints() {
-        let sessions = [makeSession(daysAgo: 5, rpe: 6), makeSession(daysAgo: 1, rpe: 8)]
-        let points = StatsEngine.rpeHistory(sessions)
-        XCTAssertEqual(points.count, 2)
-        XCTAssertEqual(points.first?.rpe, 6)
-        XCTAssertEqual(points.last?.rpe, 8)
-    }
-
-    func testRPEHistory_respectsLimit() {
-        let sessions = (1...25).map { makeSession(daysAgo: $0, rpe: 5) }
-        let points = StatsEngine.rpeHistory(sessions, limit: 10)
-        XCTAssertEqual(points.count, 10)
-    }
-
-    // MARK: - sessionTypeDistribution
-
-    func testSessionTypeDistribution_empty_returnsEmpty() {
-        XCTAssertTrue(StatsEngine.sessionTypeDistribution([]).isEmpty)
-    }
-
-    func testSessionTypeDistribution_allSameType_shareIsOne() {
-        let sessions = [makeSession(type: .boulder), makeSession(type: .boulder)]
-        let dist = StatsEngine.sessionTypeDistribution(sessions)
-        XCTAssertEqual(dist.count, 1)
-        XCTAssertEqual(dist.first?.share, 1.0)
-    }
-
-    func testSessionTypeDistribution_twoTypes_sharesAddUpToOne() {
-        let sessions = [makeSession(type: .boulder), makeSession(type: .lead)]
-        let dist = StatsEngine.sessionTypeDistribution(sessions)
-        XCTAssertEqual(dist.count, 2)
-        let totalShare = dist.map(\.share).reduce(0, +)
-        XCTAssertEqual(totalShare, 1.0, accuracy: 0.001)
-    }
-
-    func testSessionTypeDistribution_sortedByCountDescending() {
-        let sessions = [
-            makeSession(type: .boulder),
-            makeSession(type: .boulder),
-            makeSession(type: .lead),
-        ]
-        let dist = StatsEngine.sessionTypeDistribution(sessions)
-        XCTAssertEqual(dist.first?.sessionType, .boulder)
-        XCTAssertEqual(dist.first?.count, 2)
-    }
-
-    // MARK: - achievements
+    // MARK: - achievements (aktuell: nur "first" und "streak")
 
     func testAchievements_noSessions_allLocked() {
         let achievements = StatsEngine.achievements(for: [])
@@ -174,41 +105,85 @@ final class StatsEngineTests: XCTestCase {
         XCTAssertTrue(first?.isUnlocked == true)
     }
 
-    func testAchievements_fiveSessions_unlocksWarmgeklettert() {
-        let sessions = (0..<5).map { makeSession(daysAgo: $0) }
+    func testAchievements_fourWeekStreak_unlocksStreak() {
+        let sessions = [0, 7, 14, 21].map { makeSession(daysAgo: $0) }
         let achievements = StatsEngine.achievements(for: sessions)
-        let five = achievements.first { $0.id == "five" }
-        XCTAssertTrue(five?.isUnlocked == true)
-    }
-
-    func testAchievements_fourSessions_doesNotUnlockWarmgeklettert() {
-        let sessions = (0..<4).map { makeSession(daysAgo: $0) }
-        let achievements = StatsEngine.achievements(for: sessions)
-        let five = achievements.first { $0.id == "five" }
-        XCTAssertFalse(five?.isUnlocked == true)
-    }
-
-    func testAchievements_120MinSession_unlocksMarathon() {
-        let session = makeSession(durationMinutes: 120)
-        let achievements = StatsEngine.achievements(for: [session])
-        let marathon = achievements.first { $0.id == "marathon" }
-        XCTAssertTrue(marathon?.isUnlocked == true)
-    }
-
-    func testAchievements_threeDistinctTypes_unlocksVielseitig() {
-        let sessions = [
-            makeSession(type: .boulder),
-            makeSession(type: .lead),
-            makeSession(type: .topRope),
-        ]
-        let achievements = StatsEngine.achievements(for: sessions)
-        let versatile = achievements.first { $0.id == "versatile" }
-        XCTAssertTrue(versatile?.isUnlocked == true)
+        let streak = achievements.first { $0.id == "streak" }
+        XCTAssertTrue(streak?.isUnlocked == true)
     }
 
     func testAchievements_progressIsClampedToOne() {
         let sessions = (0..<30).map { makeSession(daysAgo: $0) }
         let achievements = StatsEngine.achievements(for: sessions)
         XCTAssertTrue(achievements.allSatisfy { $0.progress <= 1.0 })
+    }
+
+    // MARK: - Kanonische Grad-Ordnung (skalenübergreifend)
+
+    func testCanonicalOrder_vScaleVsFontainebleau_comparable() {
+        // V5 ≈ 6C/6C+ ist schwerer als 6B+ – roher sortOrder (6 vs. 8) sagt das Gegenteil
+        let v5   = Ascent(gradeSystem: .vScale, grade: "V5", result: .top)
+        let f6bp = Ascent(gradeSystem: .fontainebleau, grade: "6B+", result: .top)
+        XCTAssertGreaterThan(v5.canonicalOrder, f6bp.canonicalOrder)
+    }
+
+    func testCanonicalOrder_uiaaVsFrench_comparable() {
+        // UIAA VII ≈ 6a+/6b ist schwerer als French 5c
+        let uiaa7 = Ascent(gradeSystem: .uiaa, grade: "VII", result: .top)
+        let f5c   = Ascent(gradeSystem: .french, grade: "5c", result: .top)
+        XCTAssertGreaterThan(uiaa7.canonicalOrder, f5c.canonicalOrder)
+    }
+
+    func testGradeConverter_v16_convertsTo8Cplus() {
+        XCTAssertEqual(GradeConverter.convert(grade: "V16", from: .vScale, to: .fontainebleau), "8C+")
+    }
+
+    // MARK: - insights(for:) – SI-1
+
+    private func makeSessionWithAscents(durationMinutes: Int = 90,
+                                        rpe: Int? = nil,
+                                        ascents: [(result: AscentResult, durationSec: Double?)] = []) -> ClimbSession {
+        let s = makeSession(durationMinutes: durationMinutes, rpe: rpe)
+        for a in ascents {
+            let ascent = Ascent(gradeSystem: .fontainebleau, grade: "6A", result: a.result)
+            ascent.durationSeconds = a.durationSec
+            ascent.session = s
+            s.ascents.append(ascent)
+        }
+        return s
+    }
+
+    func testInsights_noAscents_hasNoAttemptTimes() {
+        let s = makeSessionWithAscents()
+        let i = StatsEngine.insights(for: s)
+        XCTAssertFalse(i.hasAttemptTimes)
+        XCTAssertNil(i.avgAttemptSeconds)
+        XCTAssertEqual(i.activeSeconds, 0)
+    }
+
+    func testInsights_sumExceedsTotal_isClamped() {
+        // total = 60 min = 3600s; two 40-min timed attempts → sum 4800 s > 3600
+        let s = makeSessionWithAscents(durationMinutes: 60, ascents: [
+            (.top, 2400),
+            (.attempt, 2400),
+        ])
+        let i = StatsEngine.insights(for: s)
+        XCTAssertTrue(i.hasAttemptTimes)
+        XCTAssertEqual(i.activeSeconds, 3600, accuracy: 1)
+    }
+
+    func testInsights_rpe7_60min_load420() {
+        let s = makeSessionWithAscents(durationMinutes: 60, rpe: 7)
+        let i = StatsEngine.insights(for: s)
+        XCTAssertEqual(i.load, 420)
+    }
+
+    func testInsights_3tops_90min_sendsPerHour2() {
+        let s = makeSessionWithAscents(durationMinutes: 90, ascents: [
+            (.top, 600), (.top, 600), (.top, 600),
+        ])
+        let i = StatsEngine.insights(for: s)
+        XCTAssertNotNil(i.sendsPerHour)
+        XCTAssertEqual(i.sendsPerHour!, 2.0, accuracy: 0.01)
     }
 }
