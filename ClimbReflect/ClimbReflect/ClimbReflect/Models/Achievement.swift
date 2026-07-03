@@ -28,7 +28,13 @@ struct WeeklyPoint: Identifiable {
 }
 
 
-// MARK: - Engine: leitet Statistik, Wochenverlauf und Erfolge aus den Sessions ab
+// MARK: - Engine: Erfolge & Session-Insights
+//
+// StatsEngine = Erfolge (climbAchievements/achievements) & Session-Insights
+// (insights/sessionTimeline) + Wochen-Streak. Fortschritt-Auswertungen
+// (Level/Verlauf/Pyramide/Volumen/Stil) leben in ProgressEngine (FORTSCHRITT-
+// KONZEPT.md). Beide Engines sind überschneidungsfrei: Grad-/Zeitraum-Analytik
+// nur in ProgressEngine, Belohnungs-/Rückblick-Logik nur hier.
 
 enum StatsEngine {
 
@@ -73,30 +79,6 @@ enum StatsEngine {
     /// Wie weekStreak, aber nur Klettersessions (Training ausgeschlossen).
     static func climbWeekStreak(_ sessions: [ClimbSession], calendar: Calendar = .current) -> Int {
         weekStreak(climbing(sessions), calendar: calendar)
-    }
-
-    // MARK: Send-Rate & Flash-Quote (P3.4)
-
-    struct SendStats {
-        let totalAscents: Int
-        let tops: Int
-        let flashes: Int
-        let sendRate: Double     // tops / totalAscents
-        let flashRate: Double    // flashes / tops
-    }
-
-    static func sendStats(_ sessions: [ClimbSession]) -> SendStats {
-        let all = climbing(sessions).flatMap(\.ascents)
-        let tops = all.filter { $0.result == .top }
-        let flashes = tops.filter { $0.style == .flash }
-        let total = max(1, all.count)
-        return SendStats(
-            totalAscents: all.count,
-            tops: tops.count,
-            flashes: flashes.count,
-            sendRate: Double(tops.count) / Double(total),
-            flashRate: tops.isEmpty ? 0 : Double(flashes.count) / Double(tops.count)
-        )
     }
 
     // MARK: Adaptive Kletter-Erfolge (P3.9)
