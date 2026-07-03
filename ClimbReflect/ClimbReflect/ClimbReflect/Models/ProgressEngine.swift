@@ -139,6 +139,41 @@ enum ProgressEngine {
         calendar.date(from: calendar.dateComponents([.year, .month], from: date)) ?? date
     }
 
+    // MARK: - FO-3: Pyramide (Zeitraum + Disziplin)
+
+    struct PyramidRow: Equatable, Identifiable {
+        let grade: String       // Anzeige-Skala
+        let sends: Int
+        let failedTries: Int    // Begehungen ohne Send desselben Anzeige-Grads
+        let sortOrder: Int
+        var id: String { grade }
+    }
+
+    /// Sends je Grad (ins Anzeige-System konvertiert), plus Begehungen ohne Send.
+    /// isGraded-Filter (RP-5), disziplin-konvertierend, zeitraum-gefiltert.
+    static func pyramid(_ sessions: [ClimbSession], discipline: Discipline,
+                        monthsBack: Int?, calendar: Calendar = .current,
+                        now: Date = Date()) -> [PyramidRow] {
+        let target = discipline.displaySystem
+        let scoped = sessionsInPeriod(sessions, monthsBack: monthsBack, calendar: calendar, now: now)
+        let ascents = scoped.flatMap(\.ascents).filter { discipline.matches($0) && $0.isGraded }
+
+        var groups: [String: (sends: Int, failed: Int)] = [:]
+        for a in ascents {
+            guard let key = GradeConverter.convert(grade: a.gradeRaw, from: a.gradeSystem, to: target)
+            else { continue }   // nicht konvertierbar → ausschließen
+            var e = groups[key] ?? (0, 0)
+            if a.result == .top { e.sends += 1 } else { e.failed += 1 }
+            groups[key] = e
+        }
+        return groups.compactMap { grade, c -> PyramidRow? in
+            guard c.sends > 0 || c.failed > 0 else { return nil }
+            let order = GradeConverter.canonicalIndex(grade: grade, system: target) ?? 0
+            return PyramidRow(grade: grade, sends: c.sends, failedTries: c.failed, sortOrder: order)
+        }
+        .sorted { $0.sortOrder > $1.sortOrder }
+    }
+
     // MARK: - Zeitraum-Filter
 
     /// Sessions ab `monthsBack` Monaten (nil = gesamte Historie).

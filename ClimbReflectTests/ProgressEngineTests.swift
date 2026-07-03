@@ -102,4 +102,30 @@ final class ProgressEngineTests: XCTestCase {
         // canonical 11 = Fb "7A" (Standard-Anzeige = Fb)
         XCTAssertEqual(ProgressEngine.gradeLabel(forOrder: 11, discipline: .boulder), "7A")
     }
+
+    // MARK: - pyramid
+
+    func testPyramid_vScaleAscentLandsInFbBucket() {
+        // V4 (~6B+) in Standard-Anzeige Fb → landet als Fb-Grad, nicht als eigener V-Balken
+        let s = session([ascent(.vScale, "V4", day: 0)])
+        let rows = ProgressEngine.pyramid([s], discipline: .boulder, monthsBack: nil)
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertFalse(rows[0].grade.hasPrefix("V"))   // ins Fb-System konvertiert
+        XCTAssertEqual(rows[0].sends, 1)
+    }
+
+    func testPyramid_sendVsFailedSplit() {
+        let s = session([
+            ascent(.fontainebleau, "6A", result: .top, day: 0),
+            ascent(.fontainebleau, "6A", result: .attempt, day: 0)
+        ])
+        let row = ProgressEngine.pyramid([s], discipline: .boulder, monthsBack: nil).first!
+        XCTAssertEqual(row.sends, 1)
+        XCTAssertEqual(row.failedTries, 1)
+    }
+
+    func testPyramid_ungradedExcluded() {
+        let s = session([ascent(.fontainebleau, Ascent.ungraded, result: .top)])
+        XCTAssertTrue(ProgressEngine.pyramid([s], discipline: .boulder, monthsBack: nil).isEmpty)
+    }
 }
