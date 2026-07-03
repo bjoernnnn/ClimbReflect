@@ -34,6 +34,14 @@ struct FortschrittView: View {
         ProgressEngine.pyramid(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
 
+    private var monthlyDays: [(month: Date, days: Int)] {
+        ProgressEngine.climbDaysPerMonth(sessions, discipline: discipline, monthsBack: 6)
+    }
+
+    private var totals: (sends: Int, climbDays: Int) {
+        ProgressEngine.periodTotals(sessions, discipline: discipline, monthsBack: period.monthsBack)
+    }
+
     /// Für die Empty-State-Entscheidung: gibt es überhaupt Begehungen der Disziplin?
     private var hasData: Bool {
         sessions.contains { s in s.ascents.contains { discipline.matches($0) } }
@@ -67,6 +75,9 @@ struct FortschrittView: View {
                                     comfortGrade: comfortGrade, discipline: discipline)
                     GradeTimelineChart(points: timeline, discipline: discipline)
                     PyramidChart(rows: pyramidRows)
+                    ClimbDaysCard(monthlyDays: monthlyDays, sends: totals.sends,
+                                  climbDays: totals.climbDays, discipline: discipline)
+                    styleLink
                 } else {
                     emptyState
                 }
@@ -75,6 +86,27 @@ struct FortschrittView: View {
             .padding(.top, 8)
             .padding(.bottom, 40)
         }
+    }
+
+    private var styleLink: some View {
+        NavigationLink {
+            StyleProfileView(discipline: discipline, monthsBack: period.monthsBack)
+        } label: {
+            HStack {
+                Image(systemName: "chart.bar.doc.horizontal")
+                    .foregroundStyle(Theme.accent)
+                Text("Stil & Limiter")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 16).fill(Theme.bgElevated))
+        }
+        .buttonStyle(.plain)
     }
 
     private var emptyState: some View {
