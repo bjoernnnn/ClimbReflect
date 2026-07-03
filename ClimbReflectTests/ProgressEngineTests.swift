@@ -156,4 +156,46 @@ final class ProgressEngineTests: XCTestCase {
         )
         XCTAssertEqual(ProgressEngine.comfortGrade([s], discipline: .boulder, monthsBack: nil), "6B")
     }
+
+    // MARK: - climbDaysPerMonth / periodTotals
+
+    func testClimbDaysPerMonth_sameDayCountedOnce() {
+        // zwei Sessions am selben Tag → 1 Klettertag
+        let s1 = session([ascent(.fontainebleau, "6A")], day: 0)
+        let s2 = session([ascent(.fontainebleau, "6B")], day: 0)
+        let months = ProgressEngine.climbDaysPerMonth([s1, s2], discipline: .boulder,
+                                                       monthsBack: 1, now: date(0))
+        XCTAssertEqual(months.last?.days, 1)
+    }
+
+    func testClimbDaysPerMonth_disciplineSeparated() {
+        // Boulder + Seil am selben Tag → je Disziplin 1 Tag
+        let b = session([ascent(.fontainebleau, "6A")], type: .boulder, day: 0)
+        let r = session([ascent(.french, "6a")], type: .lead, day: 0)
+        let boulder = ProgressEngine.climbDaysPerMonth([b, r], discipline: .boulder,
+                                                        monthsBack: 1, now: date(0))
+        let rope = ProgressEngine.climbDaysPerMonth([b, r], discipline: .rope,
+                                                     monthsBack: 1, now: date(0))
+        XCTAssertEqual(boulder.last?.days, 1)
+        XCTAssertEqual(rope.last?.days, 1)
+    }
+
+    func testClimbDaysPerMonth_emptyMonthIsZero() {
+        // keine Sessions → alle Monate 0 (Nullen sind hier echt)
+        let months = ProgressEngine.climbDaysPerMonth([], discipline: .boulder,
+                                                       monthsBack: 3, now: date(0))
+        XCTAssertEqual(months.count, 3)
+        XCTAssertTrue(months.allSatisfy { $0.days == 0 })
+    }
+
+    func testPeriodTotals_sendsAndDays() {
+        let s1 = session([
+            ascent(.fontainebleau, "6A", result: .top),
+            ascent(.fontainebleau, "6B", result: .attempt)   // kein Send
+        ], day: 0)
+        let s2 = session([ascent(.fontainebleau, "6C", result: .top)], day: 1)
+        let totals = ProgressEngine.periodTotals([s1, s2], discipline: .boulder, monthsBack: nil)
+        XCTAssertEqual(totals.sends, 2)      // nur Tops
+        XCTAssertEqual(totals.climbDays, 2)  // zwei verschiedene Tage
+    }
 }

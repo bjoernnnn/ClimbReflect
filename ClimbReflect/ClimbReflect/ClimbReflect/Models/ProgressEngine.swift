@@ -190,6 +190,38 @@ enum ProgressEngine {
         return candidates.max(by: { $0.sortOrder < $1.sortOrder })?.grade
     }
 
+    // MARK: - FO-5: Klettertage & Zeitraum-Kennzahlen
+
+    /// Eindeutige Klettertage je Monat (letzte `monthsBack` Monate inkl. aktuellem),
+    /// disziplin-gefiltert. Monate ohne Tage = 0 (hier sind Nullen eine echte Aussage).
+    static func climbDaysPerMonth(_ sessions: [ClimbSession], discipline: Discipline,
+                                  monthsBack: Int = 6, calendar: Calendar = .current,
+                                  now: Date = Date()) -> [(month: Date, days: Int)] {
+        var result: [(month: Date, days: Int)] = []
+        for offset in stride(from: monthsBack - 1, through: 0, by: -1) {
+            guard let ref = calendar.date(byAdding: .month, value: -offset, to: now) else { continue }
+            let monthStart = startOfMonth(ref, calendar)
+            guard let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart) else { continue }
+            let days = Set(sessions
+                .filter { discipline.matches($0) && $0.date >= monthStart && $0.date < monthEnd }
+                .map { calendar.startOfDay(for: $0.date) })
+            result.append((monthStart, days.count))
+        }
+        return result
+    }
+
+    /// Sends (Tops der Disziplin) + eindeutige Klettertage im Zeitraum.
+    static func periodTotals(_ sessions: [ClimbSession], discipline: Discipline,
+                             monthsBack: Int?, calendar: Calendar = .current,
+                             now: Date = Date()) -> (sends: Int, climbDays: Int) {
+        let scoped = sessionsInPeriod(sessions, monthsBack: monthsBack, calendar: calendar, now: now)
+            .filter { discipline.matches($0) }
+        let sends = scoped.flatMap(\.ascents)
+            .filter { discipline.matches($0) && $0.result == .top }.count
+        let days = Set(scoped.map { calendar.startOfDay(for: $0.date) }).count
+        return (sends, days)
+    }
+
     // MARK: - Zeitraum-Filter
 
     /// Sessions ab `monthsBack` Monaten (nil = gesamte Historie).
