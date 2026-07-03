@@ -30,6 +30,10 @@ struct FortschrittView: View {
         ProgressEngine.gradeTimeline(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
 
+    private var pyramidRows: [ProgressEngine.PyramidRow] {
+        ProgressEngine.pyramid(sessions, discipline: discipline, monthsBack: period.monthsBack)
+    }
+
     /// Für die Empty-State-Entscheidung: gibt es überhaupt Begehungen der Disziplin?
     private var hasData: Bool {
         sessions.contains { s in s.ascents.contains { discipline.matches($0) } }
@@ -62,6 +66,7 @@ struct FortschrittView: View {
                     LevelHeaderView(send: bests.send, flash: bests.flash,
                                     comfortGrade: comfortGrade, discipline: discipline)
                     GradeTimelineChart(points: timeline, discipline: discipline)
+                    PyramidChart(rows: pyramidRows)
                 } else {
                     emptyState
                 }
