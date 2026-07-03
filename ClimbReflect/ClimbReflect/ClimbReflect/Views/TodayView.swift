@@ -10,8 +10,6 @@ struct TodayView: View {
     @State private var showAddSession = false
     @State private var showSettings = false
 
-    private var formSignal: StatsEngine.FormSignal { StatsEngine.formSignal(sessions) }
-
     // FO-12: Bestleistungen kommen aus der ProgressEngine (eine Quelle der Wahrheit,
     // identisch zum Level-Block im Fortschritt-Tab). Grad bereits in Anzeige-Skala.
     private var heroBoulder: String? {
@@ -43,8 +41,6 @@ struct TodayView: View {
                         pinnedProjectsCard
 
                         trainingWeaknessCard
-
-                        FormSignalView(signal: formSignal)
 
                         recentSessions
                     }

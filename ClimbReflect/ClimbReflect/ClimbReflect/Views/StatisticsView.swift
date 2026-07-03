@@ -35,8 +35,6 @@ struct StatisticsView: View {
                             // attempts=1 → „Ø Versuche bis Top" irreführend; View+Engine bleiben)
                             GradeProgressView(sessions: sessions)
                             FingerStrengthTrendView(sessions: sessions)
-                            RPETrendView(sessions: sessions)
-                            LoadManagementView(sessions: sessions)
                             GradePyramidView(sessions: sessions)
                             TerrainHeatmapView(sessions: sessions)
                             FocusPerformanceView(sessions: sessions)

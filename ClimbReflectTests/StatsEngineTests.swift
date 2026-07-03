@@ -131,27 +131,6 @@ final class StatsEngineTests: XCTestCase {
         XCTAssertEqual(StatsEngine.sessionsThisWeek([session]), 0)
     }
 
-    // MARK: - rpeHistory
-
-    func testRPEHistory_noRPE_returnsEmpty() {
-        let sessions = [makeSession(rpe: nil), makeSession(rpe: nil)]
-        XCTAssertTrue(StatsEngine.rpeHistory(sessions).isEmpty)
-    }
-
-    func testRPEHistory_withRPE_returnsPoints() {
-        let sessions = [makeSession(daysAgo: 5, rpe: 6), makeSession(daysAgo: 1, rpe: 8)]
-        let points = StatsEngine.rpeHistory(sessions)
-        XCTAssertEqual(points.count, 2)
-        XCTAssertEqual(points.first?.rpe, 6)
-        XCTAssertEqual(points.last?.rpe, 8)
-    }
-
-    func testRPEHistory_respectsLimit() {
-        let sessions = (1...25).map { makeSession(daysAgo: $0, rpe: 5) }
-        let points = StatsEngine.rpeHistory(sessions, limit: 10)
-        XCTAssertEqual(points.count, 10)
-    }
-
     // MARK: - sessionTypeDistribution
 
     func testSessionTypeDistribution_empty_returnsEmpty() {
@@ -250,45 +229,6 @@ final class StatsEngineTests: XCTestCase {
         s.ascents.append(a)
         XCTAssertTrue(StatsEngine.gradePyramid([s], system: .fontainebleau).isEmpty)
         XCTAssertEqual(StatsEngine.gradePyramid([s], system: .french).count, 1)
-    }
-
-    // MARK: - trainingLoad (kein RPE-Default, ACWR = Woche / 4-Wochen-Ø)
-
-    func testTrainingLoad_sessionWithoutRPE_contributesZero() {
-        let sessions = [makeSession(daysAgo: 0, durationMinutes: 60, rpe: nil)]
-        let points = StatsEngine.trainingLoad(sessions)
-        XCTAssertTrue(points.allSatisfy { $0.load == 0 })
-    }
-
-    func testTrainingLoad_currentWeek_isRPETimesMinutes() {
-        let sessions = [makeSession(daysAgo: 0, durationMinutes: 60, rpe: 7)]
-        let points = StatsEngine.trainingLoad(sessions)
-        XCTAssertEqual(points.last?.load, 420)
-    }
-
-    // FB-9: ACWR = akute Woche / rollierender 4-Wochen-Ø; nil vor 4 Wochen Historie
-    func testTrainingLoad_constantLoadFourWeeks_acwrIsOne() {
-        // 4 aufeinanderfolgende Wochen mit identischer Last (aktuelle Woche = daysAgo 0)
-        let sessions = (0..<4).map { makeSession(daysAgo: $0 * 7, durationMinutes: 60, rpe: 5) }
-        let points = StatsEngine.trainingLoad(sessions)
-        XCTAssertEqual(points.last?.acwr ?? 0, 1.0, accuracy: 0.01)
-    }
-
-    func testTrainingLoad_doublingInLatestWeek_acwrInRedZone() {
-        // 4 Wochen Grundlast + Verdopplung in der aktuellen Woche → ACWR ≈ 1,6
-        var sessions = (1...4).map { makeSession(daysAgo: $0 * 7, durationMinutes: 60, rpe: 5) }
-        sessions.append(makeSession(daysAgo: 0, durationMinutes: 60, rpe: 10))
-        let points = StatsEngine.trainingLoad(sessions)
-        let acwr = points.last?.acwr ?? 0
-        XCTAssertEqual(acwr, 1.6, accuracy: 0.05)
-        XCTAssertGreaterThan(acwr, 1.5)   // Risiko-Zone
-    }
-
-    func testTrainingLoad_lessThanFourWeeksHistory_acwrNil() {
-        // Nur 3 belastete Wochen → noch kein valider ACWR
-        let sessions = (0..<3).map { makeSession(daysAgo: $0 * 7, durationMinutes: 60, rpe: 5) }
-        let points = StatsEngine.trainingLoad(sessions)
-        XCTAssertTrue(points.allSatisfy { $0.acwr == nil })
     }
 
     // MARK: - insights(for:) – SI-1

@@ -115,11 +115,6 @@ struct SessionDetailView: View {
             }
             // SI-2/SI-3: Session-Insights
             insightsSection
-
-            // A3: Session-Verlauf
-            if session.isClimbing {
-                SessionFatigueView(session: session)
-            }
         }
         .padding(.top, 8)
     }

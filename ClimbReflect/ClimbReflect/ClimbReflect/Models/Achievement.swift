@@ -27,14 +27,6 @@ struct WeeklyPoint: Identifiable {
     }
 }
 
-// MARK: - RPE-Datenpunkt
-
-struct RPEPoint: Identifiable {
-    let id = UUID()
-    let date: Date
-    let rpe: Int
-    let sessionType: SessionType
-}
 
 // MARK: - Sessiontyp-Verteilung
 
@@ -97,18 +89,6 @@ enum StatsEngine {
     /// Wie weekStreak, aber nur Klettersessions (Training ausgeschlossen).
     static func climbWeekStreak(_ sessions: [ClimbSession], calendar: Calendar = .current) -> Int {
         weekStreak(climbing(sessions), calendar: calendar)
-    }
-
-    /// RPE-Verlauf der letzten `limit` Sessions mit gesetztem RPE, chronologisch.
-    static func rpeHistory(_ sessions: [ClimbSession], limit: Int = 20) -> [RPEPoint] {
-        sessions
-            .filter { $0.perceivedEffort != nil }
-            .sorted { $0.date < $1.date }
-            .suffix(limit)
-            .compactMap { s in
-                guard let rpe = s.perceivedEffort else { return nil }
-                return RPEPoint(date: s.date, rpe: rpe, sessionType: s.sessionType)
-            }
     }
 
     /// Anzahl Sessions pro Typ, absteigend sortiert.
@@ -214,43 +194,6 @@ enum StatsEngine {
         weeklyMinutes(sessions, weeks: 1).first?.sessions ?? 0
     }
 
-    // MARK: Form-/Plateau-Signal (P3.12)
-
-    enum FormSignal: Equatable {
-        case deloadSuggested   // RPE hoch + Send-Rate sinkt
-        case techniqueSuggested // Grad flach + RPE hoch über Zeit
-        case formGood           // alles im grünen Bereich
-    }
-
-    static func formSignal(_ sessions: [ClimbSession]) -> FormSignal {
-        let climbSessions = climbing(sessions)
-        let recent = climbSessions.sorted { $0.date > $1.date }.prefix(6)
-        guard recent.count >= 4 else { return .formGood }
-
-        let avgRPE = recent.compactMap(\.perceivedEffort).map(Double.init)
-        guard !avgRPE.isEmpty else { return .formGood }
-        let rpe = avgRPE.reduce(0, +) / Double(avgRPE.count)
-
-        let recentAscents = recent.flatMap(\.ascents)
-        guard recentAscents.count >= 4 else { return .formGood }
-        let sendRate = Double(recentAscents.filter { $0.result == .top }.count) / Double(recentAscents.count)
-
-        if rpe >= 8.0 && sendRate < 0.35 { return .deloadSuggested }
-
-        // Plateau: die letzten 12 Sessions in zwei Hälften vergleichen (nicht die
-        // gesamte Historie – sonst gälte "Plateau", solange ein Alt-PB unerreicht ist).
-        // canonicalOrder statt sortOrder: über Grad-Skalen hinweg vergleichbar.
-        let windowed = climbSessions.sorted { $0.date < $1.date }.suffix(12)
-        let half = windowed.count / 2
-        if half >= 2 {
-            let older = windowed.prefix(half).flatMap(\.ascents)
-            let newer = windowed.suffix(half).flatMap(\.ascents)
-            let olderMax = older.filter { $0.result == .top }.map(\.canonicalOrder).max() ?? 0
-            let newerMax = newer.filter { $0.result == .top }.map(\.canonicalOrder).max() ?? 0
-            if newerMax <= olderMax && rpe >= 7.5 { return .techniqueSuggested }
-        }
-        return .formGood
-    }
 
     // MARK: Antistyle-Auswertung (P3.7)
 
@@ -640,73 +583,6 @@ enum StatsEngine {
         }
     }
 
-    // MARK: - A5: Trainingsbelastung & ACWR
-
-    struct WeekLoad: Identifiable {
-        let id = UUID()
-        let weekStart: Date
-        let load: Int
-        let acwr: Double?
-
-        var label: String {
-            let f = DateFormatter()
-            f.locale = Locale(identifier: "de_DE")
-            f.dateFormat = "dd.MM."
-            return f.string(from: weekStart)
-        }
-    }
-
-    static func trainingLoad(_ sessions: [ClimbSession], weeks: Int = 8,
-                             calendar: Calendar = .current) -> [WeekLoad] {
-        var cal = calendar
-        cal.firstWeekday = 2
-        let now = Date()
-        guard let thisWeekStart = cal.dateInterval(of: .weekOfYear, for: now)?.start
-        else { return [] }
-
-        // FB-9: interne Historie um 4 Wochen erweitern, damit die sichtbaren `weeks`
-        // vorn bereits valide ACWR-Werte haben (chronisches 4-Wochen-Fenster gefüllt).
-        let historyWeeks = weeks + 4
-        var rawLoads: [Int] = []
-        var weekStarts: [Date] = []
-        for offset in stride(from: historyWeeks - 1, through: 0, by: -1) {
-            guard let start = cal.date(byAdding: .weekOfYear, value: -offset, to: thisWeekStart),
-                  let end = cal.date(byAdding: .weekOfYear, value: 1, to: start)
-            else { continue }
-            let inWeek = sessions.filter { $0.date >= start && $0.date < end }
-            // sRPE nur aus Sessions MIT erfasstem RPE – kein Default-RPE
-            // unterschieben (S27: gemessen, nie geschätzt).
-            let load = inWeek.reduce(0) { acc, s in
-                guard let rpe = s.perceivedEffort else { return acc }
-                return acc + rpe * s.activeMinutes   // RP-3: Aktivzeit ohne Pausen
-            }
-            rawLoads.append(load)
-            weekStarts.append(start)
-        }
-
-        // FB-9: ACWR erst ab 4 Wochen echter Historie (seit erster belasteter Woche)
-        // → keine Fenster-Artefakte am Rand. Wochen ohne genug Vorlauf: acwr = nil.
-        let firstLoadedIndex = rawLoads.firstIndex(where: { $0 > 0 })
-
-        let showFrom = max(0, rawLoads.count - weeks)
-        var result: [WeekLoad] = []
-        for i in showFrom..<rawLoads.count {
-            // ACWR nach Konvention: Akutlast = aktuelle Woche,
-            // chronische Last = Ø der letzten 4 Wochen (inkl. aktueller).
-            let chronicRange = max(0, i - 3)...i
-            let acute = Double(rawLoads[i])
-            let chronic = Double(rawLoads[chronicRange].reduce(0, +)) / Double(rawLoads[chronicRange].count)
-            // Genug Vorlauf = mind. 4 Wochen seit der ersten belasteten Woche
-            let hasEnoughHistory = firstLoadedIndex.map { i - $0 >= 3 } ?? false
-            result.append(WeekLoad(
-                weekStart: weekStarts[i],
-                load: rawLoads[i],
-                acwr: (hasEnoughHistory && chronic > 0) ? acute / chronic : nil
-            ))
-        }
-        return result
-    }
-
     // MARK: - W1: Start-Karten
 
     struct InsightCard: Identifiable {
@@ -737,22 +613,6 @@ enum StatsEngine {
             subtitle: streak >= 4 ? "Starke Kontinuität!" : streak > 0 ? "Weiter so!" : "Erste Session starten",
             color: streak >= 4 ? Theme.gold : Theme.accent
         ))
-
-        if sessions.count >= 4 {
-            let signal = formSignal(sessions)
-            var sym = "checkmark.seal.fill"; var title2 = "Gute Form"
-            var sub2 = "Belastung und Send-Rate passen gut"; var col2 = Theme.accent
-            switch signal {
-            case .deloadSuggested:
-                sym = "battery.0percent"; title2 = "Erholung"
-                sub2 = "RPE hoch – leichter trainieren"; col2 = Theme.danger
-            case .techniqueSuggested:
-                sym = "figure.mind.and.body"; title2 = "Technik-Fokus"
-                sub2 = "Plateau erkannt – Qualität vor Grad"; col2 = Theme.gold
-            case .formGood: break
-            }
-            cards.append(InsightCard(id: "form", symbol: sym, title: title2, value: "", subtitle: sub2, color: col2))
-        }
 
         let weakness = trainingWeakness(sessions)
         if let limiter = weakness.topLimiter {
