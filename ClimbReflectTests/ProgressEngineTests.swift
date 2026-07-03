@@ -128,4 +128,32 @@ final class ProgressEngineTests: XCTestCase {
         let s = session([ascent(.fontainebleau, Ascent.ungraded, result: .top)])
         XCTAssertTrue(ProgressEngine.pyramid([s], discipline: .boulder, monthsBack: nil).isEmpty)
     }
+
+    // MARK: - comfortGrade
+
+    private func repeated(_ system: GradeSystem, _ grade: String,
+                          sends: Int, fails: Int) -> [Ascent] {
+        (0..<sends).map { _ in ascent(system, grade, result: .top) }
+        + (0..<fails).map { _ in ascent(system, grade, result: .attempt) }
+    }
+
+    func testComfortGrade_exactly60PercentQualifies() {
+        // 3 Sends / 5 Begehungen = 60 %
+        let s = session(repeated(.fontainebleau, "6A", sends: 3, fails: 2))
+        XCTAssertEqual(ProgressEngine.comfortGrade([s], discipline: .boulder, monthsBack: nil), "6A")
+    }
+
+    func testComfortGrade_belowSampleSizeIgnored() {
+        // 4 Begehungen auf hohem Grad (unter n=5) → ignoriert
+        let s = session(repeated(.fontainebleau, "7A", sends: 4, fails: 0))
+        XCTAssertNil(ProgressEngine.comfortGrade([s], discipline: .boulder, monthsBack: nil))
+    }
+
+    func testComfortGrade_highestQualifyingWins() {
+        let s = session(
+            repeated(.fontainebleau, "6A", sends: 5, fails: 0)   // 100 %
+            + repeated(.fontainebleau, "6B", sends: 4, fails: 1) // 80 %, höher
+        )
+        XCTAssertEqual(ProgressEngine.comfortGrade([s], discipline: .boulder, monthsBack: nil), "6B")
+    }
 }

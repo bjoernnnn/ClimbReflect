@@ -174,6 +174,22 @@ enum ProgressEngine {
         .sorted { $0.sortOrder > $1.sortOrder }
     }
 
+    // MARK: - FO-4: Wohlfühl-Grad
+
+    /// Höchster Anzeige-Grad mit Begehungen ≥ minSampleSize und Send-Quote ≥
+    /// comfortSendQuote im Zeitraum. Begehung = jeder gebankte Ascent (isGraded).
+    static func comfortGrade(_ sessions: [ClimbSession], discipline: Discipline,
+                             monthsBack: Int?, calendar: Calendar = .current,
+                             now: Date = Date()) -> String? {
+        let rows = pyramid(sessions, discipline: discipline, monthsBack: monthsBack,
+                           calendar: calendar, now: now)
+        let candidates = rows.filter {
+            let total = $0.sends + $0.failedTries
+            return total >= minSampleSize && Double($0.sends) / Double(total) >= comfortSendQuote
+        }
+        return candidates.max(by: { $0.sortOrder < $1.sortOrder })?.grade
+    }
+
     // MARK: - Zeitraum-Filter
 
     /// Sessions ab `monthsBack` Monaten (nil = gesamte Historie).
