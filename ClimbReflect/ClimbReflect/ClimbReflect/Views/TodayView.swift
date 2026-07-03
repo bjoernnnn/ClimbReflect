@@ -12,19 +12,14 @@ struct TodayView: View {
 
     private var formSignal: StatsEngine.FormSignal { StatsEngine.formSignal(sessions) }
 
-    // canonicalOrder: Höchstgrad auch bei gemischten Skalen (Fb/V bzw. French/UIAA) korrekt
-    private var heroBoulder: (grade: String, system: GradeSystem)? {
-        let tops = sessions.filter { $0.sessionType == .boulder }
-            .flatMap(\.ascents).filter { $0.result == .top }
-        guard let best = tops.max(by: { $0.canonicalOrder < $1.canonicalOrder }) else { return nil }
-        return (best.gradeRaw, best.gradeSystem)
+    // FO-12: Bestleistungen kommen aus der ProgressEngine (eine Quelle der Wahrheit,
+    // identisch zum Level-Block im Fortschritt-Tab). Grad bereits in Anzeige-Skala.
+    private var heroBoulder: String? {
+        ProgressEngine.personalBests(sessions, discipline: .boulder).send?.grade
     }
 
-    private var heroRoute: (grade: String, system: GradeSystem)? {
-        let tops = sessions.filter { [.lead, .topRope, .autoBelay].contains($0.sessionType) }
-            .flatMap(\.ascents).filter { $0.result == .top }
-        guard let best = tops.max(by: { $0.canonicalOrder < $1.canonicalOrder }) else { return nil }
-        return (best.gradeRaw, best.gradeSystem)
+    private var heroRoute: String? {
+        ProgressEngine.personalBests(sessions, discipline: .rope).send?.grade
     }
 
     var body: some View {
@@ -187,7 +182,7 @@ struct TodayView: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func heroCard(title: String, hero: (grade: String, system: GradeSystem)?) -> some View {
+    private func heroCard(title: String, hero: String?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: "trophy.fill")
@@ -198,7 +193,7 @@ struct TodayView: View {
                     .foregroundStyle(Theme.textSecondary)
             }
             if let h = hero {
-                Text(GradeConverter.display(grade: h.grade, storedIn: h.system))
+                Text(h)
                     .font(.system(size: 30, weight: .black, design: .rounded))
                     .foregroundStyle(Theme.gold)
                     .lineLimit(1)
