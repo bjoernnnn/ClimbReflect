@@ -13,12 +13,14 @@ final class ProgressEngineTests: XCTestCase {
 
     private func ascent(_ system: GradeSystem, _ grade: String,
                         result: AscentResult = .top, style: AscentStyle? = nil,
-                        day: Int = 0) -> Ascent {
-        Ascent(gradeSystem: system, grade: grade, result: result, style: style, date: date(day))
+                        angle: WallAngle? = nil, day: Int = 0) -> Ascent {
+        Ascent(gradeSystem: system, grade: grade, result: result, style: style,
+               wallAngle: angle, date: date(day))
     }
 
-    private func session(_ ascents: [Ascent], type: SessionType = .boulder, day: Int = 0) -> ClimbSession {
-        let s = ClimbSession(date: date(day), durationSeconds: 3600, sessionType: type)
+    private func session(_ ascents: [Ascent], type: SessionType = .boulder,
+                         limiters: [Limiter] = [], day: Int = 0) -> ClimbSession {
+        let s = ClimbSession(date: date(day), durationSeconds: 3600, sessionType: type, limiters: limiters)
         for a in ascents { a.session = s; s.ascents.append(a) }
         return s
     }
@@ -186,6 +188,28 @@ final class ProgressEngineTests: XCTestCase {
                                                        monthsBack: 3, now: date(0))
         XCTAssertEqual(months.count, 3)
         XCTAssertTrue(months.allSatisfy { $0.days == 0 })
+    }
+
+    // MARK: - styleRates / limiterCounts
+
+    func testStyleRates_belowSampleSizeOmitted_atSampleSizeAppears() {
+        // Overhang: 4 Begehungen (unter n=5) → fehlt; Slab: 5 → erscheint
+        let over = (0..<4).map { _ in ascent(.fontainebleau, "6A", angle: .overhang) }
+        let slab = (0..<5).map { _ in ascent(.fontainebleau, "6A", angle: .slab) }
+        let s = session(over + slab)
+        let rates = ProgressEngine.styleRates([s], discipline: .boulder, monthsBack: nil)
+        let angles = rates.filter { $0.category == "Wandwinkel" }
+        XCTAssertEqual(angles.count, 1)
+        XCTAssertEqual(angles.first?.sample, 5)
+    }
+
+    func testLimiterCounts_periodBoundary() {
+        // Session vor dem Fenster fällt raus, Session im Fenster zählt
+        let inside = session([ascent(.fontainebleau, "6A")], limiters: [.fingerStrength], day: 0)
+        let old = session([ascent(.fontainebleau, "6A")], limiters: [.fingerStrength], day: -400)
+        let counts = ProgressEngine.limiterCounts([inside, old], monthsBack: 6, now: date(0))
+        XCTAssertEqual(counts.first?.limiter, .fingerStrength)
+        XCTAssertEqual(counts.first?.count, 1)   // nur die Session im Zeitraum
     }
 
     func testPeriodTotals_sendsAndDays() {

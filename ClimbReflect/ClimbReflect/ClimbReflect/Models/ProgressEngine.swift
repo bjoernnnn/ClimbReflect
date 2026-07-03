@@ -222,6 +222,56 @@ enum ProgressEngine {
         return (sends, days)
     }
 
+    // MARK: - FO-6: Stil-Quoten & Limiter (mit Mindest-n)
+
+    struct StyleRate: Equatable, Identifiable {
+        let label: String
+        let category: String   // "Wandwinkel" | "Grifftyp" | "Kletterart"
+        let sendRate: Double   // 0…1
+        let sample: Int
+        var id: String { "\(category)_\(label)" }
+    }
+
+    /// Send-Quoten je Stil-Merkmal der Disziplin. Nur Gruppen mit Stichprobe
+    /// ≥ minSampleSize (S32: keine Ein-Begehung-Quoten), schwächste zuerst.
+    static func styleRates(_ sessions: [ClimbSession], discipline: Discipline,
+                           monthsBack: Int?, calendar: Calendar = .current,
+                           now: Date = Date()) -> [StyleRate] {
+        let scoped = sessionsInPeriod(sessions, monthsBack: monthsBack, calendar: calendar, now: now)
+            .filter { $0.isClimbing }
+        let ascents = scoped.flatMap(\.ascents).filter { discipline.matches($0) }
+
+        func rates<T: Hashable>(_ cases: [T], _ category: String,
+                                key: (Ascent) -> T?, label: (T) -> String) -> [StyleRate] {
+            cases.compactMap { c in
+                let group = ascents.filter { key($0) == c }
+                guard group.count >= minSampleSize else { return nil }
+                let tops = group.filter { $0.result == .top }.count
+                return StyleRate(label: label(c), category: category,
+                                 sendRate: Double(tops) / Double(group.count), sample: group.count)
+            }
+        }
+
+        var result: [StyleRate] = []
+        result += rates(WallAngle.allCases, "Wandwinkel", key: { $0.wallAngle }, label: { $0.label })
+        result += rates(HoldType.allCases, "Grifftyp", key: { $0.holdType }, label: { $0.label })
+        result += rates(ClimbStyle.allCases, "Kletterart", key: { $0.climbStyle }, label: { $0.label })
+        return result.sorted { $0.sendRate < $1.sendRate }   // Schwächen zuerst
+    }
+
+    /// Häufigste Limiter über alle Kletter-Sessions im Zeitraum. Disziplin-übergreifend
+    /// (Limiter hängen an der Session, nicht am Grad), absteigend nach Anzahl.
+    static func limiterCounts(_ sessions: [ClimbSession], monthsBack: Int?,
+                              calendar: Calendar = .current,
+                              now: Date = Date()) -> [(limiter: Limiter, count: Int)] {
+        let scoped = sessionsInPeriod(sessions, monthsBack: monthsBack, calendar: calendar, now: now)
+            .filter { $0.isClimbing }
+        var counts: [Limiter: Int] = [:]
+        for s in scoped { for l in s.limiters { counts[l, default: 0] += 1 } }
+        return counts.map { (limiter: $0.key, count: $0.value) }
+            .sorted { $0.count > $1.count }
+    }
+
     // MARK: - Zeitraum-Filter
 
     /// Sessions ab `monthsBack` Monaten (nil = gesamte Historie).
