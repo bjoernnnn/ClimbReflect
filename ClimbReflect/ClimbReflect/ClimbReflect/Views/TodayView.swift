@@ -40,8 +40,6 @@ struct TodayView: View {
 
                         pinnedProjectsCard
 
-                        trainingWeaknessCard
-
                         recentSessions
                     }
                     .padding(.horizontal, 20)
@@ -94,7 +92,7 @@ struct TodayView: View {
             StatTile(value: "\(StatsEngine.climbWeekStreak(sessions))", label: "Streak", symbol: "flame.fill")
             // Klettersessions wie die Nachbar-Kacheln ("Sessions"/"Streak") – sonst
             // zählt "Diese Woche" Trainings mit und widerspricht der Zeile
-            StatTile(value: "\(StatsEngine.sessionsThisWeek(sessions.filter(\.isClimbing)))", label: "Diese Woche", symbol: "calendar")
+            StatTile(value: "\(ProgressEngine.sessionsThisWeek(sessions))", label: "Diese Woche", symbol: "calendar")
         }
     }
 
@@ -133,39 +131,6 @@ struct TodayView: View {
                 }
             }
             .card()
-        }
-    }
-
-    private var trainingWeaknessCard: some View {
-        let weakness = StatsEngine.trainingWeakness(sessions)
-        return Group {
-            if let limiter = weakness.topLimiter {
-                HStack(spacing: 12) {
-                    ZStack {
-                        Circle().fill(Theme.danger.opacity(0.12)).frame(width: 40, height: 40)
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(Theme.danger)
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Häufigste Schwäche: \(limiter.label)")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Theme.textPrimary)
-                        if weakness.monthlyTrainingCount > 0 {
-                            Label("\(weakness.monthlyTrainingCount)× diesen Monat trainiert", systemImage: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(Theme.accent)
-                        } else {
-                            Text("Noch kein gezieltes Training diesen Monat")
-                                .font(.caption)
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                    }
-                    Spacer()
-                }
-                .padding(14)
-                .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
-            }
         }
     }
 

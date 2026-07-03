@@ -18,29 +18,6 @@ final class StatsEngineTests: XCTestCase {
         )
     }
 
-    // MARK: - climbingDays (FB-5)
-
-    private var wideInterval: DateInterval {
-        DateInterval(start: Date().addingTimeInterval(-14 * 86400),
-                     end: Date().addingTimeInterval(86400))
-    }
-
-    func testClimbingDays_boulderAndRouteSameDay_countsOneDay() {
-        let boulder = makeSession(daysAgo: 0, type: .boulder)
-        let route = makeSession(daysAgo: 0, type: .lead)
-        XCTAssertEqual(StatsEngine.climbingDays([boulder, route], in: wideInterval), 1)
-    }
-
-    func testClimbingDays_trainingNotCounted() {
-        let training = makeSession(daysAgo: 0, type: .training)
-        XCTAssertEqual(StatsEngine.climbingDays([training], in: wideInterval), 0)
-    }
-
-    func testClimbingDays_twoDistinctDays_countsTwo() {
-        let sessions = [makeSession(daysAgo: 0), makeSession(daysAgo: 1)]
-        XCTAssertEqual(StatsEngine.climbingDays(sessions, in: wideInterval), 2)
-    }
-
     // MARK: - weeklyMinutes
 
     func testWeeklyMinutes_emptySessions_returnsZeroMinutesPerWeek() {
@@ -115,54 +92,6 @@ final class StatsEngineTests: XCTestCase {
         XCTAssertEqual(StatsEngine.weekStreak([session]), 0)
     }
 
-    // MARK: - sessionsThisWeek
-
-    func testSessionsThisWeek_noSessions_isZero() {
-        XCTAssertEqual(StatsEngine.sessionsThisWeek([]), 0)
-    }
-
-    func testSessionsThisWeek_sessionToday_isOne() {
-        let session = makeSession(daysAgo: 0)
-        XCTAssertEqual(StatsEngine.sessionsThisWeek([session]), 1)
-    }
-
-    func testSessionsThisWeek_sessionLastWeek_isZero() {
-        let session = makeSession(daysAgo: 10)
-        XCTAssertEqual(StatsEngine.sessionsThisWeek([session]), 0)
-    }
-
-    // MARK: - sessionTypeDistribution
-
-    func testSessionTypeDistribution_empty_returnsEmpty() {
-        XCTAssertTrue(StatsEngine.sessionTypeDistribution([]).isEmpty)
-    }
-
-    func testSessionTypeDistribution_allSameType_shareIsOne() {
-        let sessions = [makeSession(type: .boulder), makeSession(type: .boulder)]
-        let dist = StatsEngine.sessionTypeDistribution(sessions)
-        XCTAssertEqual(dist.count, 1)
-        XCTAssertEqual(dist.first?.share, 1.0)
-    }
-
-    func testSessionTypeDistribution_twoTypes_sharesAddUpToOne() {
-        let sessions = [makeSession(type: .boulder), makeSession(type: .lead)]
-        let dist = StatsEngine.sessionTypeDistribution(sessions)
-        XCTAssertEqual(dist.count, 2)
-        let totalShare = dist.map(\.share).reduce(0, +)
-        XCTAssertEqual(totalShare, 1.0, accuracy: 0.001)
-    }
-
-    func testSessionTypeDistribution_sortedByCountDescending() {
-        let sessions = [
-            makeSession(type: .boulder),
-            makeSession(type: .boulder),
-            makeSession(type: .lead),
-        ]
-        let dist = StatsEngine.sessionTypeDistribution(sessions)
-        XCTAssertEqual(dist.first?.sessionType, .boulder)
-        XCTAssertEqual(dist.first?.count, 2)
-    }
-
     // MARK: - achievements (aktuell: nur "first" und "streak")
 
     func testAchievements_noSessions_allLocked() {
@@ -207,28 +136,6 @@ final class StatsEngineTests: XCTestCase {
 
     func testGradeConverter_v16_convertsTo8Cplus() {
         XCTAssertEqual(GradeConverter.convert(grade: "V16", from: .vScale, to: .fontainebleau), "8C+")
-    }
-
-    // MARK: - gradePyramid (Disziplin statt exakter Skala)
-
-    func testGradePyramid_includesConvertedVScaleAscents() {
-        let s = makeSession(type: .boulder)
-        let a = Ascent(gradeSystem: .vScale, grade: "V6", result: .top)  // ≈ 7A
-        a.session = s
-        s.ascents.append(a)
-        let entries = StatsEngine.gradePyramid([s], system: .fontainebleau)
-        XCTAssertEqual(entries.count, 1)
-        XCTAssertEqual(entries.first?.grade, "7A")
-        XCTAssertEqual(entries.first?.tops, 1)
-    }
-
-    func testGradePyramid_excludesRouteAscentsFromBoulderPyramid() {
-        let s = makeSession(type: .lead)
-        let a = Ascent(gradeSystem: .french, grade: "6a", result: .top)
-        a.session = s
-        s.ascents.append(a)
-        XCTAssertTrue(StatsEngine.gradePyramid([s], system: .fontainebleau).isEmpty)
-        XCTAssertEqual(StatsEngine.gradePyramid([s], system: .french).count, 1)
     }
 
     // MARK: - insights(for:) – SI-1

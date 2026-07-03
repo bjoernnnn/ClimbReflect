@@ -212,6 +212,15 @@ final class ProgressEngineTests: XCTestCase {
         XCTAssertEqual(counts.first?.count, 1)   // nur die Session im Zeitraum
     }
 
+    func testSessionsThisWeek_onlyClimbingInCurrentWeek() {
+        let now = date(0)
+        let today = session([ascent(.fontainebleau, "6A")], day: 0)
+        let lastWeek = session([ascent(.fontainebleau, "6A")], day: -10)
+        let training = session([], type: .training, day: 0)
+        XCTAssertEqual(
+            ProgressEngine.sessionsThisWeek([today, lastWeek, training], now: now), 1)
+    }
+
     func testPeriodTotals_sendsAndDays() {
         let s1 = session([
             ascent(.fontainebleau, "6A", result: .top),

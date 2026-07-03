@@ -272,6 +272,18 @@ enum ProgressEngine {
             .sorted { $0.count > $1.count }
     }
 
+    // MARK: - FO-14: Wochen-Zählung (entkoppelt von weeklyMinutes)
+
+    /// Anzahl Kletter-Sessions in der laufenden Kalenderwoche (Montag-Start).
+    /// Ersetzt die Kopplung der Today-Kachel an die gelöschte `weeklyMinutes`.
+    static func sessionsThisWeek(_ sessions: [ClimbSession], calendar: Calendar = .current,
+                                 now: Date = Date()) -> Int {
+        var cal = calendar
+        cal.firstWeekday = 2
+        guard let week = cal.dateInterval(of: .weekOfYear, for: now) else { return 0 }
+        return sessions.filter { $0.isClimbing && week.contains($0.date) }.count
+    }
+
     // MARK: - Zeitraum-Filter
 
     /// Sessions ab `monthsBack` Monaten (nil = gesamte Historie).
