@@ -336,6 +336,26 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   sRPE ohne erfasstes RPE zählt 0 (S27: nie schätzen – gilt auch für Körpergewicht beim
   Fingerkraft-Trend → Chart zeigt Zusatzgewicht).
 
+**S31 – Fortschritt statt Belastung.**
+  Die Auswertung beantwortet „Werde ich besser?", nicht „Bin ich überlastet?". **Keine**
+  ACWR-/Deload-/Form-/Fatigue-Deutungsschicht und keine RPE-/Minuten-Trend-Charts mehr
+  (in TODO12/FO-13 entfernt). RPE, HF und Dauer werden weiterhin **erfasst** und als
+  **Rohwerte** im Session-Detail gezeigt – aber nicht mehr in Belastungs-Kennzahlen
+  gedeutet. Neue Auswertungen leben in `ProgressEngine` (rein funktional, `Discipline`
+  boulder/rope, nie gemischt); `StatsEngine` bleibt ausschließlich Erfolge + Session-
+  Insights. Referenz: `FORTSCHRITT-KONZEPT.md`.
+
+**S32 – Ehrliche Statistik oder gar keine.**
+  Quoten (Send-Rate, Stil-Quoten, Wohlfühl-Grad) werden erst ab `minSampleSize = 5`
+  Begehungen gezeigt und tragen die Stichprobe sichtbar mit; darunter: nichts, kein
+  Ein-Begehung-Prozentwert. In Zeitreihen sind Monate ohne Daten **Lücken**, keine
+  Nullen (Ausnahme: Klettertage/Volumen, wo 0 eine echte Aussage ist). **Kein
+  `attempts`-basierter Wert** (z. B. „Ø Versuche bis Top") bis es eine echte Route-
+  Identität gibt – Watch-Ascents haben `attempts = 1`, das verfälscht jede Quote
+  (FB-8). Schwellen (`comfortSendQuote = 0.6`, `minSampleSize = 5`) zentral in
+  `ProgressEngine`. Grad-Vergleiche über `canonicalOrder` (S30), Anzeige in der
+  eingestellten Skala. Referenz: `FORTSCHRITT-KONZEPT.md` Abschnitt 4.
+
 ---
 
 *Dieses Dokument bei jeder größeren Entscheidung/jedem Fix aktualisieren, damit der rote Faden
