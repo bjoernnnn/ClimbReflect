@@ -7,8 +7,8 @@ struct DashboardView: View {
             TodayView()
                 .tabItem { Label("Heute", systemImage: "house.fill") }
 
-            StatisticsView()
-                .tabItem { Label("Statistik", systemImage: "chart.bar.xaxis") }
+            FortschrittView()
+                .tabItem { Label("Fortschritt", systemImage: "chart.line.uptrend.xyaxis") }
 
             NavigationStack { ProjectsView() }
                 .tabItem { Label("Projekte", systemImage: "target") }
