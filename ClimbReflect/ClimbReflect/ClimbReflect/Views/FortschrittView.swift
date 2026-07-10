@@ -86,19 +86,17 @@ struct FortschrittView: View {
     @ViewBuilder private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                ProgressDisciplinePicker(discipline: disciplineBinding)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                if hasData {
-                    HStack {
-                        Spacer()
+                // DS-1: eine Kopfzeile statt drei Ausrichtungen — Disziplin führend,
+                // Zeitraum rechts. Kein Element zentriert außer dem Nav-Titel.
+                HStack {
+                    ProgressDisciplinePicker(discipline: disciplineBinding)
+                    Spacer()
+                    if hasData {
                         ProgressPeriodPicker(selection: $period)
                     }
-                    // „Alles" neutralisiert Erst-Sends (Konsens-Punkt 2) → nur bei
-                    // endlichem Zeitraum zeigen.
-                    if period != .all {
-                        PeriodHighlightsRow(highlights: highlights)
-                    }
+                }
+
+                if hasData {
                     LevelHeaderView(send: bests.send, flash: bests.flash,
                                     comfortGrade: comfortGrade, discipline: discipline,
                                     nextGrade: nextGrade, nextGradeTries: nextGradeTries,
