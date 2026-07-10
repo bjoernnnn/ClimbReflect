@@ -163,8 +163,15 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     /// gerade nicht läuft).
     private func requestListSyncIfEmpty() {
         guard knownProjects.isEmpty && knownShoes.isEmpty else { return }
+        requestListSync()
+    }
+
+    /// W-1: manueller Re-Sync (Uhr-Button bei leerer Liste) – im Gegensatz zu
+    /// requestListSyncIfEmpty() unbedingt, damit der Nutzer eine hängende Sync-
+    /// Lücke selbst auflösen kann statt auf den nächsten App-Start zu warten.
+    func requestListSync() {
         WCSession.default.transferUserInfo(["requestShoeProjectSync": true])
-        DiagnosticLog.shared.log("sync: Projekt-/Schuh-Liste leer – Re-Push angefordert")
+        DiagnosticLog.shared.log("sync: Projekt-/Schuh-Re-Push manuell angefordert")
     }
 
     func session(_ session: WCSession,

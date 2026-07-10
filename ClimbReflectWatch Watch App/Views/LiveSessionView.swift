@@ -205,9 +205,16 @@ struct LiveSessionView: View {
 
             // B1: pendingBanner entfernt (kein Auto-Detektor mehr)
 
-            // Kombinierter Kontext-Button: Projekt + Schuh in einem
-            if !syncService.knownProjects.isEmpty || !syncService.knownShoes.isEmpty {
-                Button { showContextPicker = true } label: {
+            // Kombinierter Kontext-Button: Projekt + Schuh in einem. W-1: bleibt
+            // immer sichtbar (Grundsatz 6 – Sichtbarkeit statt stiller
+            // Degradierung) – bei leerer Sync-Liste öffnet der Tap keinen leeren
+            // Picker, sondern stößt aktiv einen Re-Sync vom iPhone an.
+            let hasSyncData = !syncService.knownProjects.isEmpty || !syncService.knownShoes.isEmpty
+            Button {
+                if hasSyncData { showContextPicker = true }
+                else { syncService.requestListSync() }
+            } label: {
+                if hasSyncData {
                     VStack(spacing: 0) {
                         HStack(spacing: 5) {
                             Image(systemName: "target")
@@ -244,9 +251,24 @@ struct LiveSessionView: View {
                     .frame(maxWidth: .infinity)
                     .background(WatchTheme.elevated)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
+                } else {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 10))
+                            .foregroundStyle(WatchTheme.textTert)
+                        Text("Projekt/Schuh synchronisieren")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(WatchTheme.textTert)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .frame(maxWidth: .infinity)
+                    .background(WatchTheme.elevated)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
-                .buttonStyle(.plain)
             }
+            .buttonStyle(.plain)
 
             Spacer(minLength: 0)
         }
