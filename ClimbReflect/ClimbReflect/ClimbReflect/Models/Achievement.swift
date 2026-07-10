@@ -81,6 +81,33 @@ enum StatsEngine {
         weekStreak(climbing(sessions), calendar: calendar)
     }
 
+    /// Längster Kletter-Wochen-Streak der Gesamthistorie (Montag-Wochen).
+    /// Unverlierbarer Rekord (MO-5): entkoppelt von `weeklyMinutes` (dessen
+    /// 26-Wochen-Fenster reicht für die volle Historie nicht). Über die Menge der
+    /// Wochen-Startdaten, längster Lauf aufeinanderfolgender Wochen per Datums-
+    /// (nicht KW-)Arithmetik → ein Jahreswechsel-Lauf (KW 52 → KW 1) bleibt ein Lauf.
+    static func bestClimbWeekStreak(_ sessions: [ClimbSession],
+                                    calendar: Calendar = .current) -> Int {
+        var cal = calendar
+        cal.firstWeekday = 2 // Montag
+        let weekStarts = Set(climbing(sessions).compactMap {
+            cal.dateInterval(of: .weekOfYear, for: $0.date)?.start
+        }).sorted()
+        guard !weekStarts.isEmpty else { return 0 }
+
+        var best = 1, run = 1
+        for i in 1..<weekStarts.count {
+            if let next = cal.date(byAdding: .weekOfYear, value: 1, to: weekStarts[i - 1]),
+               cal.isDate(next, inSameDayAs: weekStarts[i]) {
+                run += 1
+                best = max(best, run)
+            } else {
+                run = 1
+            }
+        }
+        return best
+    }
+
     // MARK: Adaptive Kletter-Erfolge (P3.9)
 
     struct ClimbAchievement: Identifiable {

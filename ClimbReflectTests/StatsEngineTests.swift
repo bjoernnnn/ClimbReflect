@@ -92,6 +92,41 @@ final class StatsEngineTests: XCTestCase {
         XCTAssertEqual(StatsEngine.weekStreak([session]), 0)
     }
 
+    // MARK: - bestClimbWeekStreak (MO-5)
+
+    func testBestClimbWeekStreak_gapPattern_takesLongestRun() {
+        // 4 zusammenhängende Wochen, Lücke, dann 2 → Rekord = 4
+        let days = [0, 7, 14, 21, 42, 49]
+        let sessions = days.map { makeSession(daysAgo: $0) }
+        XCTAssertEqual(StatsEngine.bestClimbWeekStreak(sessions), 4)
+    }
+
+    func testBestClimbWeekStreak_singleWeek_isOne() {
+        XCTAssertEqual(StatsEngine.bestClimbWeekStreak([makeSession(daysAgo: 3)]), 1)
+    }
+
+    func testBestClimbWeekStreak_empty_isZero() {
+        XCTAssertEqual(StatsEngine.bestClimbWeekStreak([]), 0)
+    }
+
+    func testBestClimbWeekStreak_trainingExcluded() {
+        let climb = makeSession(daysAgo: 0, type: .boulder)
+        let training = makeSession(daysAgo: 7, type: .training)
+        // nur die Kletter-Session zählt → Rekord 1 (kein Lauf über das Training)
+        XCTAssertEqual(StatsEngine.bestClimbWeekStreak([climb, training]), 1)
+    }
+
+    func testBestClimbWeekStreak_yearBoundaryStaysOneRun() {
+        let cal = Calendar(identifier: .gregorian)
+        func d(_ y: Int, _ m: Int, _ day: Int) -> Date {
+            cal.date(from: DateComponents(year: y, month: m, day: day))!
+        }
+        // Vier Mittwoche in Folge über den Jahreswechsel (KW 51→52→1→2)
+        let sessions = [d(2023, 12, 20), d(2023, 12, 27), d(2024, 1, 3), d(2024, 1, 10)]
+            .map { ClimbSession(date: $0, durationSeconds: 3600, sessionType: .boulder) }
+        XCTAssertEqual(StatsEngine.bestClimbWeekStreak(sessions), 4)
+    }
+
     // MARK: - achievements (aktuell: nur "first" und "streak")
 
     func testAchievements_noSessions_allLocked() {
