@@ -292,6 +292,49 @@ final class ProgressEngineTests: XCTestCase {
         XCTAssertEqual(angles.first?.sample, 5)
     }
 
+    // MARK: - stylePendingGroups / comfortCandidate (MO-4)
+
+    func testStylePendingGroups_belowThresholdAppears_atThresholdMovesToRates() {
+        let over = (0..<4).map { _ in ascent(.fontainebleau, "6A", angle: .overhang) }
+        let slab = (0..<5).map { _ in ascent(.fontainebleau, "6A", angle: .slab) }
+        let s = session(over + slab)
+        let pending = ProgressEngine.stylePendingGroups([s], discipline: .boulder, monthsBack: nil)
+            .filter { $0.category == "Wandwinkel" }
+        XCTAssertEqual(pending.map(\.label), ["Überhang"])   // n=4 im Pending
+        XCTAssertEqual(pending.first?.sample, 4)
+        let rates = ProgressEngine.styleRates([s], discipline: .boulder, monthsBack: nil)
+            .filter { $0.category == "Wandwinkel" }
+        XCTAssertEqual(rates.map(\.label), ["Platte"])       // n=5 wandert in die Quoten
+    }
+
+    func testComfortCandidate_prefersHigherTotalOverGrade() {
+        let s = session(
+            repeated(.fontainebleau, "6A", sends: 4, fails: 0)
+            + repeated(.fontainebleau, "6C", sends: 2, fails: 0)
+        )
+        let c = ProgressEngine.comfortCandidate([s], discipline: .boulder, monthsBack: nil)
+        XCTAssertEqual(c?.grade, "6A")   // total 4 schlägt den höheren, aber selteneren 6C
+        XCTAssertEqual(c?.sample, 4)
+    }
+
+    func testComfortCandidate_tieBreaksOnGrade() {
+        let s = session(
+            repeated(.fontainebleau, "6A", sends: 3, fails: 0)
+            + repeated(.fontainebleau, "6C", sends: 3, fails: 0)
+        )
+        let c = ProgressEngine.comfortCandidate([s], discipline: .boulder, monthsBack: nil)
+        XCTAssertEqual(c?.grade, "6C")   // Gleichstand → höherer Grad
+    }
+
+    func testComfortCandidate_fullSampleRowNotCandidate() {
+        let s = session(repeated(.fontainebleau, "6A", sends: 5, fails: 0))
+        XCTAssertNil(ProgressEngine.comfortCandidate([s], discipline: .boulder, monthsBack: nil))
+    }
+
+    func testComfortCandidate_nilWhenEmpty() {
+        XCTAssertNil(ProgressEngine.comfortCandidate([], discipline: .boulder, monthsBack: nil))
+    }
+
     func testLimiterCounts_periodBoundary() {
         // Session vor dem Fenster fällt raus, Session im Fenster zählt
         let inside = session([ascent(.fontainebleau, "6A")], limiters: [.fingerStrength], day: 0)

@@ -357,6 +357,61 @@ enum ProgressEngine {
             .sorted { $0.count > $1.count }
     }
 
+    // MARK: - MO-4: Endowed Progress (Stil-Gruppen unter der Schwelle + Kandidat)
+
+    struct PendingStyle: Equatable, Identifiable {
+        let label: String
+        let category: String        // wie StyleRate
+        let sample: Int             // 1 ≤ sample < minSampleSize
+        var id: String { "\(category)_\(label)" }
+    }
+
+    /// Stil-Gruppen knapp unter der Auswertungs-Schwelle (1 ≤ n < minSampleSize).
+    /// Endowed-Progress-Hebel: transportiert bewusst nur die Stichprobe, KEINE
+    /// Send-Quote (die wäre unter n = 5 nicht belastbar, S32). Gleiche Gruppierung
+    /// wie `styleRates`; Sortierung nach Stichprobe absteigend (nächstgelegene zuerst).
+    static func stylePendingGroups(_ sessions: [ClimbSession], discipline: Discipline,
+                                   monthsBack: Int?, calendar: Calendar = .current,
+                                   now: Date = Date()) -> [PendingStyle] {
+        let scoped = sessionsInPeriod(sessions, monthsBack: monthsBack, calendar: calendar, now: now)
+            .filter { $0.isClimbing }
+        let ascents = scoped.flatMap(\.ascents).filter { discipline.matches($0) }
+
+        func pending<T: Hashable>(_ cases: [T], _ category: String,
+                                  key: (Ascent) -> T?, label: (T) -> String) -> [PendingStyle] {
+            cases.compactMap { c in
+                let count = ascents.filter { key($0) == c }.count
+                guard count >= 1 && count < minSampleSize else { return nil }
+                return PendingStyle(label: label(c), category: category, sample: count)
+            }
+        }
+
+        var result: [PendingStyle] = []
+        result += pending(WallAngle.allCases, "Wandwinkel", key: { $0.wallAngle }, label: { $0.label })
+        result += pending(HoldType.allCases, "Grifftyp", key: { $0.holdType }, label: { $0.label })
+        result += pending(ClimbStyle.allCases, "Kletterart", key: { $0.climbStyle }, label: { $0.label })
+        return result.sorted { $0.sample > $1.sample }
+    }
+
+    /// Wohlfühl-Grad-Kandidat, solange `comfortGrade` nil ist: die Pyramiden-Zeile
+    /// mit 1 ≤ total < minSampleSize, priorisiert nach (total, dann sortOrder).
+    /// Nur Stichprobe, keine Quote (S32).
+    static func comfortCandidate(_ sessions: [ClimbSession], discipline: Discipline,
+                                 monthsBack: Int?, calendar: Calendar = .current,
+                                 now: Date = Date()) -> (grade: String, sample: Int)? {
+        let rows = pyramid(sessions, discipline: discipline, monthsBack: monthsBack,
+                           calendar: calendar, now: now)
+        let candidates = rows.compactMap { row -> (grade: String, sample: Int, sortOrder: Int)? in
+            let total = row.sends + row.failedTries
+            guard total >= 1 && total < minSampleSize else { return nil }
+            return (row.grade, total, row.sortOrder)
+        }
+        guard let best = candidates.max(by: {
+            $0.sample != $1.sample ? $0.sample < $1.sample : $0.sortOrder < $1.sortOrder
+        }) else { return nil }
+        return (best.grade, best.sample)
+    }
+
     // MARK: - FO-14: Wochen-Zählung (entkoppelt von weeklyMinutes)
 
     /// Anzahl Kletter-Sessions in der laufenden Kalenderwoche (Montag-Start).
