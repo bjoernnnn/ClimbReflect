@@ -167,10 +167,28 @@ struct FortschrittView: View {
     }
 }
 
-#Preview {
+// DS-5: Abnahme-Netz mit realistischen deutschen Strings — der Chip-Umbruch
+// (DS-1..DS-4-Anlass) wäre hier sofort sichtbar gewesen.
+
+#Preview("Voll") {
     let container = try! ModelContainer(
         for: ClimbSession.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    MockData.seedIfNeeded(container.mainContext)
+    for s in MockData.makeFullProgressScenario() { container.mainContext.insert(s) }
+    return FortschrittView().modelContainer(container)
+}
+
+#Preview("Spärlich") {
+    let container = try! ModelContainer(
+        for: ClimbSession.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    for s in MockData.makeSparseProgressScenario() { container.mainContext.insert(s) }
+    return FortschrittView().modelContainer(container)
+}
+
+#Preview("Leer") {
+    let container = try! ModelContainer(
+        for: ClimbSession.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     return FortschrittView().modelContainer(container)
 }
