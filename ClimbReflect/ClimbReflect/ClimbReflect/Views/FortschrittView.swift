@@ -108,7 +108,8 @@ struct FortschrittView: View {
                                     comfortGrade: comfortGrade, discipline: discipline,
                                     nextGrade: nextGrade, nextGradeTries: nextGradeTries,
                                     comfortCandidate: comfortCandidate,
-                                    celebratesSend: celebratesSend)
+                                    celebratesSend: celebratesSend,
+                                    firstSends: highlights.firstSends)
                     GradeTimelineChart(points: timeline, discipline: discipline)
                     PyramidChart(rows: pyramidRows)
                     ClimbDaysCard(monthlyDays: monthlyDays, sends: totals.sends,
