@@ -46,6 +46,14 @@ struct GradeTimelineChart: View {
         return Array((lo - 1)...(hi + 1))
     }
 
+    // DS-4: Basislinie der Send-Fläche = unterer Rand des sichtbaren Bereichs.
+    private var yBaseline: Int { yTicks.min() ?? 0 }
+
+    // DS-4: bei vielen Monaten jeden zweiten Monat beschriften, sonst wird die
+    // X-Achse eng. `.automatic(desiredCount:)` erzeugte zuvor Sub-Monats-Ticks,
+    // die alle denselben Monatsnamen zeigten („Jun Jun Jun Jul Jul").
+    private var xAxisStride: Int { points.count > 8 ? 2 : 1 }
+
     private var flashLabel: String { discipline == .rope ? "Flash · Onsight" : "Flash" }
 
     var body: some View {
@@ -77,6 +85,15 @@ struct GradeTimelineChart: View {
                     .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
             }
             ForEach(sendSegs) { s in
+                AreaMark(x: .value("Monat", s.month, unit: .month),
+                         yStart: .value("Basis", yBaseline),
+                         yEnd: .value("Grad", s.order),
+                         series: .value("Serie", "send-fill-\(s.segment)"))
+                    .interpolationMethod(.stepEnd)
+                    .foregroundStyle(
+                        LinearGradient(colors: [Theme.gold.opacity(0.16), .clear],
+                                      startPoint: .top, endPoint: .bottom)
+                    )
                 LineMark(x: .value("Monat", s.month, unit: .month),
                          y: .value("Grad", s.order),
                          series: .value("Serie", "send-\(s.segment)"))
@@ -86,7 +103,7 @@ struct GradeTimelineChart: View {
                 PointMark(x: .value("Monat", s.month, unit: .month),
                           y: .value("Grad", s.order))
                     .foregroundStyle(Theme.gold)
-                    .symbolSize(28)
+                    .symbolSize(40)
             }
         }
         .chartYAxis {
@@ -101,12 +118,12 @@ struct GradeTimelineChart: View {
             }
         }
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+            AxisMarks(values: .stride(by: .month, count: xAxisStride)) { _ in
                 AxisValueLabel(format: .dateTime.month(.abbreviated))
                     .foregroundStyle(Theme.textTertiary)
             }
         }
-        .frame(height: 150)
+        .frame(height: 140)
     }
 
     private var legend: some View {
