@@ -26,6 +26,10 @@ struct FortschrittView: View {
         ProgressEngine.comfortGrade(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
 
+    private var highlights: ProgressEngine.Highlights {
+        ProgressEngine.periodHighlights(sessions, discipline: discipline, monthsBack: period.monthsBack)
+    }
+
     private var timeline: [ProgressEngine.TimelinePoint] {
         ProgressEngine.gradeTimeline(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
@@ -70,6 +74,11 @@ struct FortschrittView: View {
                     HStack {
                         Spacer()
                         ProgressPeriodPicker(selection: $period)
+                    }
+                    // „Alles" neutralisiert Erst-Sends (Konsens-Punkt 2) → nur bei
+                    // endlichem Zeitraum zeigen.
+                    if period != .all {
+                        PeriodHighlightsRow(highlights: highlights)
                     }
                     LevelHeaderView(send: bests.send, flash: bests.flash,
                                     comfortGrade: comfortGrade, discipline: discipline)
