@@ -127,6 +127,49 @@ final class StatsEngineTests: XCTestCase {
         XCTAssertEqual(StatsEngine.bestClimbWeekStreak(sessions), 4)
     }
 
+    // MARK: - throwbackSession (MO-12)
+
+    private func makeThrowback(daysAgo: Int, learned: String? = nil,
+                               hardestPart: String? = nil,
+                               type: SessionType = .boulder) -> ClimbSession {
+        let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date())!
+        return ClimbSession(date: date, durationSeconds: 3600, sessionType: type,
+                            learned: learned, hardestPart: hardestPart)
+    }
+
+    func testThrowbackSession_excludesRecentSession() {
+        let recent = makeThrowback(daysAgo: 30, learned: "Kernspannung")
+        XCTAssertNil(StatsEngine.throwbackSession([recent]))
+    }
+
+    func testThrowbackSession_excludesEmptyText() {
+        let old = makeThrowback(daysAgo: 200)   // kein learned/hardestPart
+        XCTAssertNil(StatsEngine.throwbackSession([old]))
+    }
+
+    func testThrowbackSession_picksOldSessionWithText() {
+        let old = makeThrowback(daysAgo: 200, learned: "Fußtechnik")
+        XCTAssertEqual(StatsEngine.throwbackSession([old])?.learned, "Fußtechnik")
+    }
+
+    func testThrowbackSession_excludesTraining() {
+        let old = makeThrowback(daysAgo: 200, learned: "Hangboard", type: .training)
+        XCTAssertNil(StatsEngine.throwbackSession([old]))
+    }
+
+    func testThrowbackSession_stableWithinWeek_rotatesNextWeek() {
+        let a = makeThrowback(daysAgo: 200, learned: "A")
+        let b = makeThrowback(daysAgo: 210, learned: "B")
+        let c = makeThrowback(daysAgo: 220, learned: "C")
+        let now = Date()
+        let nextWeek = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: now)!
+        let s1 = StatsEngine.throwbackSession([a, b, c], now: now)
+        let s2 = StatsEngine.throwbackSession([a, b, c], now: now)
+        let s3 = StatsEngine.throwbackSession([a, b, c], now: nextWeek)
+        XCTAssertEqual(s1?.learned, s2?.learned)     // gleiche Woche → stabil
+        XCTAssertNotEqual(s1?.learned, s3?.learned)  // Folgewoche → Rotation
+    }
+
     // MARK: - achievements (aktuell: nur "first" und "streak")
 
     func testAchievements_noSessions_allLocked() {

@@ -108,6 +108,32 @@ enum StatsEngine {
         return best
     }
 
+    // MARK: - MO-12: „Damals"-Rückblick (deterministische Wochen-Rotation)
+
+    /// Deterministische Wochen-Rotation über geeignete Rückblick-Sessions
+    /// (Kletter-Session, ≥ 90 Tage alt, `learned` oder `hardestPart` nicht leer).
+    /// Index = (yearForWeekOfYear · 100 + weekOfYear) mod Anzahl → mehrfaches
+    /// Öffnen in derselben Woche zeigt dieselbe Karte (kein Checking-Anreiz, S33),
+    /// die Folgewoche rotiert weiter. Kandidaten aufsteigend nach Datum (stabiler Index).
+    static func throwbackSession(_ sessions: [ClimbSession],
+                                 calendar: Calendar = .current,
+                                 now: Date = Date()) -> ClimbSession? {
+        guard let cutoff = calendar.date(byAdding: .day, value: -90, to: now) else { return nil }
+        let candidates = climbing(sessions)
+            .filter { $0.date <= cutoff && hasThrowbackText($0) }
+            .sorted { $0.date < $1.date }
+        guard !candidates.isEmpty else { return nil }
+
+        let comps = calendar.dateComponents([.weekOfYear, .yearForWeekOfYear], from: now)
+        let key = (comps.yearForWeekOfYear ?? 0) * 100 + (comps.weekOfYear ?? 0)
+        return candidates[key % candidates.count]
+    }
+
+    private static func hasThrowbackText(_ s: ClimbSession) -> Bool {
+        !(s.learned ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !(s.hardestPart ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     // MARK: Adaptive Kletter-Erfolge (P3.9)
 
     struct ClimbAchievement: Identifiable {

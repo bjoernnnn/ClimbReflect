@@ -60,6 +60,11 @@ struct FortschrittView: View {
         ProgressEngine.periodTotals(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
 
+    // MO-12: „Damals"-Rückblick (disziplin-übergreifend, deterministisch pro Woche).
+    private var throwback: ClimbSession? {
+        StatsEngine.throwbackSession(sessions)
+    }
+
     /// Für die Empty-State-Entscheidung: gibt es überhaupt Begehungen der Disziplin?
     private var hasData: Bool {
         sessions.contains { s in s.ascents.contains { discipline.matches($0) } }
@@ -103,6 +108,9 @@ struct FortschrittView: View {
                     ClimbDaysCard(monthlyDays: monthlyDays, sends: totals.sends,
                                   climbDays: totals.climbDays, discipline: discipline)
                     styleLink
+                    if let throwback {
+                        ThrowbackCard(session: throwback)
+                    }
                 } else {
                     emptyState
                 }
