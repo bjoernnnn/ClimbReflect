@@ -77,6 +77,65 @@ final class ProgressEngineTests: XCTestCase {
         XCTAssertEqual(ProgressEngine.personalBests([s], discipline: .rope).send?.grade, "6a")
     }
 
+    // MARK: - periodHighlights (MO-2)
+
+    func testPeriodHighlights_firstSendWithinPeriod() {
+        let s = session([ascent(.fontainebleau, "6A", day: -10)], day: -10)
+        let h = ProgressEngine.periodHighlights([s], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertEqual(h.firstSends.map(\.grade), ["6A"])
+    }
+
+    func testPeriodHighlights_firstSendOutsidePeriodExcluded() {
+        let s = session([ascent(.fontainebleau, "6A", day: -200)], day: -200)
+        let h = ProgressEngine.periodHighlights([s], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertTrue(h.firstSends.isEmpty)
+    }
+
+    func testPeriodHighlights_scaleMixIsNotFirstSend() {
+        // 6C wurde alt (vor dem Zeitraum) gesendet; ein V5 (== Fb 6C) im Zeitraum
+        // ist derselbe kanonische Grad → KEIN Erst-Send.
+        let old = session([ascent(.fontainebleau, "6C", day: -200)], day: -200)
+        let recent = session([ascent(.vScale, "V5", day: -5)], day: -5)
+        let h = ProgressEngine.periodHighlights([old, recent], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertTrue(h.firstSends.isEmpty)
+    }
+
+    func testPeriodHighlights_allTimeYieldsNoFirstSends() {
+        let s = session([ascent(.fontainebleau, "6A", day: -5)], day: -5)
+        let h = ProgressEngine.periodHighlights([s], discipline: .boulder,
+                                                monthsBack: nil, now: date(0))
+        XCTAssertTrue(h.firstSends.isEmpty)   // Konsens-Punkt 2
+        XCTAssertNotNil(h.hardestSend)        // Bestwert bleibt
+    }
+
+    func testPeriodHighlights_isAllTimeBestTrue() {
+        let s = session([ascent(.fontainebleau, "7A", day: -5)], day: -5)
+        let h = ProgressEngine.periodHighlights([s], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertTrue(h.isAllTimeBest)
+        XCTAssertEqual(h.hardestSend?.grade, "7A")
+    }
+
+    func testPeriodHighlights_isAllTimeBestFalseWhenOlderHarder() {
+        let old = session([ascent(.fontainebleau, "7B", day: -200)], day: -200)
+        let recent = session([ascent(.fontainebleau, "6C", day: -5)], day: -5)
+        let h = ProgressEngine.periodHighlights([old, recent], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertFalse(h.isAllTimeBest)
+        XCTAssertEqual(h.hardestSend?.grade, "6C")   // härtester IM Zeitraum
+    }
+
+    func testPeriodHighlights_emptyHistory() {
+        let h = ProgressEngine.periodHighlights([], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertTrue(h.firstSends.isEmpty)
+        XCTAssertNil(h.hardestSend)
+        XCTAssertFalse(h.isAllTimeBest)
+    }
+
     // MARK: - gradeTimeline
 
     func testGradeTimeline_gapMonthOmitted() {

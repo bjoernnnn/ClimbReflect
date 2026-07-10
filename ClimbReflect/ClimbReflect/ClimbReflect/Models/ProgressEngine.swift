@@ -95,6 +95,79 @@ enum ProgressEngine {
         )
     }
 
+    // MARK: - MO-2: Zeitraum-Highlights (Erst-Sends + Bestwert)
+
+    /// Ein Grad, der im Zeitraum zum ersten Mal überhaupt gesendet wurde.
+    struct FirstSend: Equatable, Identifiable {
+        let grade: String   // Anzeige-Skala
+        let order: Int      // canonical, für Sortierung
+        let date: Date      // frühester Send dieses Grads überhaupt
+        var id: String { grade }
+    }
+
+    /// Neuigkeiten eines Zeitraums: erstmals gesendete Grade + härtester Send
+    /// im Zeitraum (mit Kennzeichnung, ob er zugleich der historische PB ist).
+    struct Highlights: Equatable {
+        let firstSends: [FirstSend]      // absteigend nach order
+        let hardestSend: PersonalBest?   // härtester Send IM Zeitraum
+        let isAllTimeBest: Bool          // == historischer PB?
+    }
+
+    /// Erst-Sends und Zeitraum-Bestwert für den „Was ist neu?"-Hebel.
+    /// Ein Erst-Send ist ein Anzeige-Grad, dessen frühestes Send-Datum der
+    /// GESAMTEN Historie im Zeitraum liegt – das ehrlichste Neuheits-Signal des
+    /// Bestands, ganz ohne Persistenz oder Prognose.
+    ///
+    /// `monthsBack == nil` liefert bewusst KEINE Erst-Sends: über die
+    /// Gesamthistorie ist jeder je gesendete Grad trivial ein „Erst-Send", die
+    /// Zeile wäre reines Rauschen (Konsens-Punkt 2). Die UI zeigt die Highlights-
+    /// Zeile darum nur bei endlichem Zeitraum.
+    static func periodHighlights(_ sessions: [ClimbSession],
+                                 discipline: Discipline, monthsBack: Int?,
+                                 calendar: Calendar = .current,
+                                 now: Date = Date()) -> Highlights {
+        let allTops = sessions.flatMap(\.ascents)
+            .filter { discipline.matches($0) && $0.result == .top && $0.isGraded }
+        guard !allTops.isEmpty else {
+            return Highlights(firstSends: [], hardestSend: nil, isAllTimeBest: false)
+        }
+        let target = discipline.displaySystem
+
+        // Erst-Sends nur bei endlichem Zeitraum (siehe Doc-Kommentar).
+        var firstSends: [FirstSend] = []
+        if let monthsBack,
+           let cutoff = calendar.date(byAdding: .month, value: -monthsBack, to: now) {
+            // Je Anzeige-Grad das früheste Send-Datum der Gesamthistorie
+            // (Konvertierung wie pyramid → ein V-Scale-Send nach gleichwertiger
+            //  Font-Historie fällt in denselben Topf, ist also kein Erst-Send).
+            var earliest: [String: Date] = [:]
+            for a in allTops {
+                guard let key = GradeConverter.convert(grade: a.gradeRaw, from: a.gradeSystem, to: target)
+                else { continue }   // nicht konvertierbar → ausschließen
+                earliest[key] = earliest[key].map { min($0, a.date) } ?? a.date
+            }
+            firstSends = earliest.compactMap { grade, date -> FirstSend? in
+                guard date >= cutoff else { return nil }
+                let order = GradeConverter.canonicalIndex(grade: grade, system: target) ?? 0
+                return FirstSend(grade: grade, order: order, date: date)
+            }
+            .sorted { $0.order > $1.order }   // absteigend nach order
+        }
+
+        // Härtester Send im Zeitraum + Abgleich mit historischem Maximum.
+        let scopedTops = sessionsInPeriod(sessions, monthsBack: monthsBack,
+                                          calendar: calendar, now: now)
+            .flatMap(\.ascents)
+            .filter { discipline.matches($0) && $0.result == .top && $0.isGraded }
+        let hardestInPeriod = hardest(scopedTops)
+        let allTimeMax = allTops.map(\.canonicalOrder).max() ?? Int.min
+        return Highlights(
+            firstSends: firstSends,
+            hardestSend: hardestInPeriod.map { pb($0, discipline: discipline) },
+            isAllTimeBest: hardestInPeriod.map { $0.canonicalOrder == allTimeMax } ?? false
+        )
+    }
+
     // MARK: - FO-2: Grad-Verlauf je Monat
 
     struct TimelinePoint: Equatable {
