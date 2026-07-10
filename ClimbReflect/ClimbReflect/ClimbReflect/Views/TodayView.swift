@@ -9,6 +9,7 @@ struct TodayView: View {
 
     @State private var showAddSession = false
     @State private var showSettings = false
+    @State private var monthRecapDismissed = false
 
     // FO-12: Bestleistungen kommen aus der ProgressEngine (eine Quelle der Wahrheit,
     // identisch zum Level-Block im Fortschritt-Tab). Grad bereits in Anzeige-Skala.
@@ -18,6 +19,34 @@ struct TodayView: View {
 
     private var heroRoute: String? {
         ProgressEngine.personalBests(sessions, discipline: .rope).send?.grade
+    }
+
+    // MO-13: Monatsrückblick des Vormonats. Sichtbar nur in den ersten 7 Tagen des
+    // Monats, wenn der Vormonat nicht leer ist und die Karte noch nicht quittiert
+    // wurde. Dismiss persistiert über den dynamischen Key `monthRecapSeen-YYYY-MM`
+    // (Vormonat) direkt in UserDefaults (@AppStorage kann keine dynamischen Keys).
+    private var previousMonth: Date {
+        let cal = Calendar.current
+        let startOfThisMonth = cal.date(from: cal.dateComponents([.year, .month], from: Date())) ?? Date()
+        return cal.date(byAdding: .month, value: -1, to: startOfThisMonth) ?? startOfThisMonth
+    }
+
+    private var monthRecapSeenKey: String {
+        let c = Calendar.current.dateComponents([.year, .month], from: previousMonth)
+        return String(format: "monthRecapSeen-%04d-%02d", c.year ?? 0, c.month ?? 0)
+    }
+
+    private var monthRecap: ProgressEngine.MonthRecap? {
+        guard Calendar.current.component(.day, from: Date()) <= 7,
+              !monthRecapDismissed,
+              !UserDefaults.standard.bool(forKey: monthRecapSeenKey) else { return nil }
+        let recap = ProgressEngine.monthRecap(sessions, month: previousMonth)
+        return recap.isEmpty ? nil : recap
+    }
+
+    private func dismissMonthRecap() {
+        UserDefaults.standard.set(true, forKey: monthRecapSeenKey)
+        withAnimation { monthRecapDismissed = true }
     }
 
     // MO-11: jüngste Kletter-Session mit nicht-leerem Vorsatz. Sobald eine neuere
@@ -41,6 +70,11 @@ struct TodayView: View {
 
                         if let status = watchReceiver.liveStatus {
                             LiveSessionBanner(status: status)
+                        }
+
+                        // Selten und darf dann oben stehen (vor der Hero-Reihe).
+                        if let recap = monthRecap {
+                            MonthRecapCard(recap: recap, onDismiss: dismissMonthRecap)
                         }
 
                         if heroBoulder != nil || heroRoute != nil {
