@@ -77,6 +77,19 @@ enum ProgressEngine {
         return discipline.isBoulder ? style == .flash : (style == .flash || style == .onsight)
     }
 
+    /// Je Anzeige-Grad das früheste Send-Datum der übergebenen Tops (Konvertierung
+    /// wie pyramid → ein V-Scale-Send nach gleichwertiger Font-Historie fällt in
+    /// denselben Topf). Geteilte Basis der Erst-Send-Logik (MO-2 & MO-6).
+    private static func earliestSendDates(_ tops: [Ascent], target: GradeSystem) -> [String: Date] {
+        var earliest: [String: Date] = [:]
+        for a in tops {
+            guard let key = GradeConverter.convert(grade: a.gradeRaw, from: a.gradeSystem, to: target)
+            else { continue }   // nicht konvertierbar → ausschließen
+            earliest[key] = earliest[key].map { min($0, a.date) } ?? a.date
+        }
+        return earliest
+    }
+
     /// Höchster canonicalOrder; bei Gleichstand die früheste Begehung.
     static func hardest(_ ascents: [Ascent]) -> Ascent? {
         ascents.reduce(nil) { best, a in
@@ -149,15 +162,7 @@ enum ProgressEngine {
         var firstSends: [FirstSend] = []
         if let monthsBack,
            let cutoff = calendar.date(byAdding: .month, value: -monthsBack, to: now) {
-            // Je Anzeige-Grad das früheste Send-Datum der Gesamthistorie
-            // (Konvertierung wie pyramid → ein V-Scale-Send nach gleichwertiger
-            //  Font-Historie fällt in denselben Topf, ist also kein Erst-Send).
-            var earliest: [String: Date] = [:]
-            for a in allTops {
-                guard let key = GradeConverter.convert(grade: a.gradeRaw, from: a.gradeSystem, to: target)
-                else { continue }   // nicht konvertierbar → ausschließen
-                earliest[key] = earliest[key].map { min($0, a.date) } ?? a.date
-            }
+            let earliest = earliestSendDates(allTops, target: target)
             firstSends = earliest.compactMap { grade, date -> FirstSend? in
                 guard date >= cutoff else { return nil }
                 let order = GradeConverter.canonicalIndex(grade: grade, system: target) ?? 0
@@ -178,6 +183,57 @@ enum ProgressEngine {
             hardestSend: hardestInPeriod.map { pb($0, discipline: discipline) },
             isAllTimeBest: hardestInPeriod.map { $0.canonicalOrder == allTimeMax } ?? false
         )
+    }
+
+    // MARK: - MO-6: Monatsrückblick (Fakten für den Fresh-Start-Hebel)
+
+    struct MonthRecap: Equatable {
+        struct DisciplineRecap: Equatable {
+            let climbDays: Int
+            let sends: Int
+            let hardestGrade: String?   // Anzeige-Skala
+            let firstSendCount: Int     // Erst-Sends im Monat (Logik MO-2)
+        }
+        let month: Date                 // 1. des Monats
+        let boulder: DisciplineRecap
+        let rope: DisciplineRecap
+        var isEmpty: Bool { boulder.climbDays == 0 && rope.climbDays == 0 }
+    }
+
+    /// Fakten eines Kalendermonats je Disziplin. Die Engine wertet nur aus; ob und
+    /// wann gezeigt wird, entscheidet die UI (MO-13) – bei leerem Monat wird nichts
+    /// gezeigt (keine Null-Bilanz, S33). Monatsfenster `[startOfMonth, +1 Monat)`.
+    static func monthRecap(_ sessions: [ClimbSession], month: Date,
+                           calendar: Calendar = .current) -> MonthRecap {
+        let start = startOfMonth(month, calendar)
+        let end = calendar.date(byAdding: .month, value: 1, to: start) ?? start
+
+        func recap(_ discipline: Discipline) -> MonthRecap.DisciplineRecap {
+            // Klettertage: eindeutige Tage disziplin-gefilterter Sessions (wie climbDaysPerMonth).
+            let climbDays = Set(sessions
+                .filter { discipline.matches($0) && $0.date >= start && $0.date < end }
+                .map { calendar.startOfDay(for: $0.date) }).count
+
+            // Sends: Tops der Disziplin im Fenster (inkl. ungegradeter, wie periodTotals).
+            let windowTops = sessions.flatMap(\.ascents).filter {
+                discipline.matches($0) && $0.result == .top && $0.date >= start && $0.date < end
+            }
+            let hardestGrade = hardest(windowTops.filter { $0.isGraded }).map {
+                GradeConverter.display(grade: $0.gradeRaw, storedIn: $0.gradeSystem)
+            }
+
+            // Erst-Sends: Anzeige-Grade, deren frühestes Send-Datum der Gesamt-
+            // historie in diesem Monat liegt (Logik MO-2, Fenster = Monat).
+            let allTops = sessions.flatMap(\.ascents)
+                .filter { discipline.matches($0) && $0.result == .top && $0.isGraded }
+            let firstSendCount = earliestSendDates(allTops, target: discipline.displaySystem)
+                .values.filter { $0 >= start && $0 < end }.count
+
+            return .init(climbDays: climbDays, sends: windowTops.count,
+                         hardestGrade: hardestGrade, firstSendCount: firstSendCount)
+        }
+
+        return MonthRecap(month: start, boulder: recap(.boulder), rope: recap(.rope))
     }
 
     // MARK: - FO-2: Grad-Verlauf je Monat

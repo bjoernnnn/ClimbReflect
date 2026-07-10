@@ -363,4 +363,46 @@ final class ProgressEngineTests: XCTestCase {
         XCTAssertEqual(totals.sends, 2)      // nur Tops
         XCTAssertEqual(totals.climbDays, 2)  // zwei verschiedene Tage
     }
+
+    // MARK: - monthRecap (MO-6)   (Basis-Datum date(0) = 2023-11-14 → Monat November)
+
+    func testMonthRecap_monthBoundariesExclusive() {
+        let inMonth = session([ascent(.fontainebleau, "6A", day: 0)], day: 0)     // Nov 14
+        let before = session([ascent(.fontainebleau, "7A", day: -14)], day: -14)  // Okt 31
+        let after = session([ascent(.fontainebleau, "7B", day: 17)], day: 17)     // Dez 1
+        let r = ProgressEngine.monthRecap([inMonth, before, after], month: date(0))
+        XCTAssertEqual(r.boulder.climbDays, 1)
+        XCTAssertEqual(r.boulder.sends, 1)
+        XCTAssertEqual(r.boulder.hardestGrade, "6A")   // nur der November-Send
+    }
+
+    func testMonthRecap_disciplineSeparation() {
+        let b = session([ascent(.fontainebleau, "6A", day: 0)], type: .boulder, day: 0)
+        let r = session([ascent(.french, "6a", day: 1)], type: .lead, day: 1)
+        let recap = ProgressEngine.monthRecap([b, r], month: date(0))
+        XCTAssertEqual(recap.boulder.climbDays, 1)
+        XCTAssertEqual(recap.boulder.sends, 1)
+        XCTAssertEqual(recap.rope.climbDays, 1)
+        XCTAssertEqual(recap.rope.sends, 1)
+    }
+
+    func testMonthRecap_firstSendCountRespectsHistory() {
+        let prior = session([ascent(.fontainebleau, "6A", day: -20)], day: -20)  // Okt 25
+        let now = session([
+            ascent(.fontainebleau, "6A", day: 2),   // Wiederholung → kein Erst-Send
+            ascent(.fontainebleau, "7A", day: 3)     // Erst-Send im November
+        ], day: 2)
+        let r = ProgressEngine.monthRecap([prior, now], month: date(0))
+        XCTAssertEqual(r.boulder.firstSendCount, 1)   // nur 7A
+    }
+
+    func testMonthRecap_isEmptyWithoutClimbSession() {
+        let training = session([], type: .training, day: 0)
+        XCTAssertTrue(ProgressEngine.monthRecap([training], month: date(0)).isEmpty)
+    }
+
+    func testMonthRecap_notEmptyWithClimbSession() {
+        let b = session([ascent(.fontainebleau, "6A", day: 0)], day: 0)
+        XCTAssertFalse(ProgressEngine.monthRecap([b], month: date(0)).isEmpty)
+    }
 }
