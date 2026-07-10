@@ -30,6 +30,16 @@ struct FortschrittView: View {
         ProgressEngine.periodHighlights(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
 
+    // MO-8: Basis = historischer Höchst-Send, Zählung = gewählter Zeitraum.
+    private var nextGrade: String? {
+        bests.send.flatMap { ProgressEngine.nextGrade(afterOrder: $0.order, discipline: discipline) }
+    }
+
+    private var nextGradeTries: Int {
+        guard let nextGrade else { return 0 }
+        return pyramidRows.first { $0.grade == nextGrade }?.failedTries ?? 0
+    }
+
     private var timeline: [ProgressEngine.TimelinePoint] {
         ProgressEngine.gradeTimeline(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
@@ -81,7 +91,8 @@ struct FortschrittView: View {
                         PeriodHighlightsRow(highlights: highlights)
                     }
                     LevelHeaderView(send: bests.send, flash: bests.flash,
-                                    comfortGrade: comfortGrade, discipline: discipline)
+                                    comfortGrade: comfortGrade, discipline: discipline,
+                                    nextGrade: nextGrade, nextGradeTries: nextGradeTries)
                     GradeTimelineChart(points: timeline, discipline: discipline)
                     PyramidChart(rows: pyramidRows)
                     ClimbDaysCard(monthlyDays: monthlyDays, sends: totals.sends,

@@ -8,6 +8,9 @@ struct LevelHeaderView: View {
     let flash: ProgressEngine.PersonalBest?
     let comfortGrade: String?
     let discipline: ProgressEngine.Discipline
+    // MO-8: nächste Leiterstufe über dem historischen Höchst-Send (Goal-Gradient).
+    var nextGrade: String? = nil
+    var nextGradeTries: Int = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -27,7 +30,26 @@ struct LevelHeaderView: View {
                 }
                 .font(.subheadline)
             }
+            if let nextGrade {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.up.forward.circle")
+                        .font(.caption)
+                        .foregroundStyle(Theme.accent2)
+                    Text("Nächste Stufe ")
+                        .foregroundStyle(Theme.textSecondary)
+                    + Text(nextGrade).foregroundStyle(Theme.textPrimary).bold()
+                    + Text(nextGradeSuffix).foregroundStyle(Theme.textTertiary)
+                }
+                .font(.subheadline)
+            }
         }
+    }
+
+    /// „ · N Begehungen" bzw. „ · noch unversucht" – kein Fortschrittsbalken
+    /// (der würde eine Quote suggerieren, S32).
+    private var nextGradeSuffix: String {
+        guard nextGradeTries > 0 else { return " · noch unversucht" }
+        return " · \(nextGradeTries) Begehung\(nextGradeTries == 1 ? "" : "en")"
     }
 
     private var flashTitle: String {
