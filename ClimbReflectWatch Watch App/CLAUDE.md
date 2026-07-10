@@ -356,6 +356,19 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   `ProgressEngine`. Grad-Vergleiche über `canonicalOrder` (S30), Anzeige in der
   eingestellten Skala. Referenz: `FORTSCHRITT-KONZEPT.md` Abschnitt 4.
 
+**S33 – Motivation ohne Manipulation.** Gefeiert werden ausschließlich echte,
+aus den Daten belegte Ereignisse (Erst-Send, PB, Unlock, Comeback) — genau
+einmal, im Moment ihres Entstehens (Feier-Kanal: TODO11/ER-5, sonst keiner).
+Keine Schuld-Mechanik: kein „Du warst lange nicht klettern", kein bestrafender
+Streak-Reset als alleinige Anzeige (Rekord steht daneben), keine
+Engagement-Notifications ohne Ereignis. Keine variable Belohnung ohne
+Leistungsbezug (rotierende Inhalte deterministisch pro Woche), keine
+Punkte-/XP-Ökonomie (Overjustification). Nähe zu Zielen mit echten Zahlen,
+nie mit Prognosen; Leerzustände zeigen Fortschritt zur Schwelle (n/5) statt
+Quoten darunter. Umsetzung: TODO13 (Motivations-Layer, macht Fortschritt
+*sichtbar*), Feier-Ebene: TODO11/ERFOLGE-KONZEPT. Referenz:
+`FORTSCHRITT-KONZEPT.md` Abschnitt „Motivations-Layer (TODO13)".
+
 ---
 
 *Dieses Dokument bei jeder größeren Entscheidung/jedem Fix aktualisieren, damit der rote Faden
