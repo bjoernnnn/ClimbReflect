@@ -52,6 +52,7 @@ enum ProgressEngine {
         let system: GradeSystem    // Anzeige-System
         let date: Date
         let style: AscentStyle?
+        let order: Int             // MO-3: canonicalOrder der Begehung (für nextGrade)
     }
 
     /// Höchster Send + höchster Flash (Boulder) bzw. Flash/Onsight (Seil) über die
@@ -91,8 +92,19 @@ enum ProgressEngine {
             grade: GradeConverter.display(grade: a.gradeRaw, storedIn: a.gradeSystem),
             system: discipline.displaySystem,
             date: a.date,
-            style: a.style
+            style: a.style,
+            order: a.canonicalOrder
         )
+    }
+
+    // MARK: - MO-3: Nächste Leiterstufe
+
+    /// Anzeige-Grad der kanonischen Stufe direkt über `order`;
+    /// nil am Leiter-Ende (gradeLabel liefert dort "").
+    static func nextGrade(afterOrder order: Int,
+                          discipline: Discipline) -> String? {
+        let label = gradeLabel(forOrder: order + 1, discipline: discipline)
+        return label.isEmpty ? nil : label
     }
 
     // MARK: - MO-2: Zeitraum-Highlights (Erst-Sends + Bestwert)

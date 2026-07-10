@@ -136,6 +136,36 @@ final class ProgressEngineTests: XCTestCase {
         XCTAssertFalse(h.isAllTimeBest)
     }
 
+    // MARK: - nextGrade (MO-3)
+
+    func testNextGrade_middleRungReturnsSuccessor() {
+        // order 11 = Fb "7A"; Nachfolger order 12 = "7A+"
+        XCTAssertEqual(ProgressEngine.nextGrade(afterOrder: 11, discipline: .boulder), "7A+")
+    }
+
+    func testNextGrade_ropeMiddleRung() {
+        // routeFrench order 12 = "7a"; Nachfolger order 13 = "7a+"
+        XCTAssertEqual(ProgressEngine.nextGrade(afterOrder: 12, discipline: .rope), "7a+")
+    }
+
+    func testNextGrade_vScaleDisplay() {
+        UserDefaults.standard.set(GradeSystem.vScale.rawValue, forKey: "boulderScale")
+        defer { UserDefaults.standard.removeObject(forKey: "boulderScale") }
+        // Font-Referenz order 10 = "6C+"; Nachfolger 11 = Fb "7A" → V-Scale "V6"
+        XCTAssertEqual(ProgressEngine.nextGrade(afterOrder: 10, discipline: .boulder), "V6")
+    }
+
+    func testNextGrade_topOfLadderIsNil() {
+        // boulderFb endet bei order 23 = "9A" → Nachfolger außerhalb der Leiter → nil
+        XCTAssertNil(ProgressEngine.nextGrade(afterOrder: 23, discipline: .boulder))
+    }
+
+    func testPersonalBest_carriesCanonicalOrder() {
+        let s = session([ascent(.fontainebleau, "7A", day: 0)])
+        let best = ProgressEngine.personalBests([s], discipline: .boulder)
+        XCTAssertEqual(best.send?.order, 11)   // Fb "7A" == canonical 11
+    }
+
     // MARK: - gradeTimeline
 
     func testGradeTimeline_gapMonthOmitted() {
