@@ -26,6 +26,10 @@ struct FortschrittView: View {
         ProgressEngine.comfortGrade(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
 
+    private var comfortCandidate: (grade: String, sample: Int)? {
+        ProgressEngine.comfortCandidate(sessions, discipline: discipline, monthsBack: period.monthsBack)
+    }
+
     private var highlights: ProgressEngine.Highlights {
         ProgressEngine.periodHighlights(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
@@ -92,7 +96,8 @@ struct FortschrittView: View {
                     }
                     LevelHeaderView(send: bests.send, flash: bests.flash,
                                     comfortGrade: comfortGrade, discipline: discipline,
-                                    nextGrade: nextGrade, nextGradeTries: nextGradeTries)
+                                    nextGrade: nextGrade, nextGradeTries: nextGradeTries,
+                                    comfortCandidate: comfortCandidate)
                     GradeTimelineChart(points: timeline, discipline: discipline)
                     PyramidChart(rows: pyramidRows)
                     ClimbDaysCard(monthlyDays: monthlyDays, sends: totals.sends,

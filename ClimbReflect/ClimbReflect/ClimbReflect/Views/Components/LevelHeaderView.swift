@@ -11,6 +11,8 @@ struct LevelHeaderView: View {
     // MO-8: nächste Leiterstufe über dem historischen Höchst-Send (Goal-Gradient).
     var nextGrade: String? = nil
     var nextGradeTries: Int = 0
+    // MO-9: Wohlfühl-Grad-Kandidat (nur relevant, solange comfortGrade nil ist).
+    var comfortCandidate: (grade: String, sample: Int)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -29,6 +31,17 @@ struct LevelHeaderView: View {
                     + Text(comfortGrade).foregroundStyle(Theme.textPrimary).bold()
                 }
                 .font(.subheadline)
+            } else if let comfortCandidate {
+                // Endowed Progress: die n/5-Schwelle als sichtbares Mini-Ziel,
+                // nur Stichprobe, keine Quote (S32).
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.seal")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                    Text("Wohlfühl-Grad ab \(ProgressEngine.minSampleSize) Begehungen je Grad — \(comfortCandidate.grade): \(comfortCandidate.sample)/\(ProgressEngine.minSampleSize)")
+                        .foregroundStyle(Theme.textTertiary)
+                }
+                .font(.caption)
             }
             if let nextGrade {
                 HStack(spacing: 6) {
