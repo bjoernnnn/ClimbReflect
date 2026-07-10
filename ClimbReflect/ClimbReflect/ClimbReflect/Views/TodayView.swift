@@ -20,6 +20,17 @@ struct TodayView: View {
         ProgressEngine.personalBests(sessions, discipline: .rope).send?.grade
     }
 
+    // MO-11: jüngste Kletter-Session mit nicht-leerem Vorsatz. Sobald eine neuere
+    // Kletter-Session existiert (mit oder ohne eigenen Vorsatz), verschwindet die
+    // Karte automatisch.
+    private var intentSession: ClimbSession? {
+        guard let latest = sessions.first(where: \.isClimbing),
+              let improve = latest.improveNext,
+              !improve.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else { return nil }
+        return latest
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -34,6 +45,10 @@ struct TodayView: View {
 
                         if heroBoulder != nil || heroRoute != nil {
                             heroTrophyRow
+                        }
+
+                        if let intentSession {
+                            IntentFollowUpCard(session: intentSession)
                         }
 
                         statRow
