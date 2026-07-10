@@ -5,8 +5,15 @@ entwerfen + umsetzen" gewählt). **Schwellen sind kalibrierbar** – Zahlen unte
 sind ein sinnvoller Startpunkt, kein Dogma.
 
 ## Prinzipien
+- **Motivation ohne Manipulation (S33):** Ein Unlock ist der einzige Feier-Moment
+  der App (ER-5-Overlay) und wird genau einmal ausgelöst, im Moment des Entstehens.
+  Keine Schuld-Mechanik, keine Engagement-Trigger ohne Ereignis. TODO13 zeigt
+  Fortschritt zusätzlich *ohne* Feier (Chips/Zeilen) – die Kanäle bleiben getrennt.
 - **Datenehrlich (S6/S27):** Jede Definition ist aus echten Daten berechenbar
   (Sessions, Ascents, Projekte). Keine erfundenen Werte.
+- **Kein `attempts`-Feld (S32/FB-8):** Das `Ascent.attempts`-Feld ist unzuverlässig
+  (Watch-Ascents tragen `attempts = 1`). Kriterien zählen deshalb **Ascent-Datensätze**
+  (jeder geloggte Ascent ist ein realer Versuch), nie die aufsummierten `attempts`.
 - **Grade skalenübergreifend** über `Ascent.canonicalOrder` (S30), getrennt nach
   Disziplin (Boulder/Seil). Ungegradete (`isGraded == false`) zählen nie.
 - **Trainingslast/Zeit** über `ClimbSession.activeSeconds` (RP-3).
@@ -29,7 +36,7 @@ sind ein sinnvoller Startpunkt, kein Dogma.
 | `first_session` | once | Erste Session aufgezeichnet |
 | `sessions_count` | tiered [10,25,50,100] | Anzahl Sessions |
 | `tops_count` | tiered [10,50,100,500] | Getoppte Begehungen gesamt |
-| `ascents_count` | tiered [50,250,1000] | Begehungen gesamt (inkl. Versuche) |
+| `ascents_count` | tiered [50,250,1000] | Anzahl geloggter Ascent-Datensätze gesamt (jeder Datensatz = ein realer Versuch; **nicht** `attempts` summieren) |
 | `first_outdoor` | once | Erste Outdoor-Session |
 
 ### B – Konsistenz
@@ -58,7 +65,7 @@ sind ein sinnvoller Startpunkt, kein Dogma.
 | id | kind | Kriterium |
 |----|------|-----------|
 | `project_sent` | repeatable | Projekt gesendet (über Relation) |
-| `persistent` | repeatable | Projekt mit ≥10 Versuchen gesendet (Hartnäckig) |
+| `persistent` | repeatable | Hartnäckig: Projekt gesendet, dessen Relation ≥10 verknüpfte Ascent-Datensätze über ≥2 Sessions umfasst (jeder Ascent = ein realer Versuch; kein `attempts`-Summenwert, S32) |
 | `projects_count` | tiered [1,5,10] | Anzahl gesendeter Projekte |
 
 ### F – Training
