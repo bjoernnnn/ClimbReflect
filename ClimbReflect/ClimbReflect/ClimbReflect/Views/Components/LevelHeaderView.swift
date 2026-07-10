@@ -13,11 +13,16 @@ struct LevelHeaderView: View {
     var nextGradeTries: Int = 0
     // MO-9: Wohlfühl-Grad-Kandidat (nur relevant, solange comfortGrade nil ist).
     var comfortCandidate: (grade: String, sample: Int)? = nil
+    // DS-2: PB-Feier wandert in die Send-Kachel selbst (Gold-Stroke + NEU-Badge)
+    // statt einer separaten Chip-Zeile darüber — „Neuigkeit wohnt in den
+    // Elementen, nicht über ihnen".
+    var celebratesSend: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                tile(title: "Höchster Send", best: send, showStyleBadge: false)
+                tile(title: "Höchster Send", best: send, showStyleBadge: false,
+                     celebrates: celebratesSend)
                 tile(title: flash == nil ? "Flash" : flashTitle,
                      best: flash, showStyleBadge: discipline == .rope)
             }
@@ -70,7 +75,7 @@ struct LevelHeaderView: View {
     }
 
     private func tile(title: String, best: ProgressEngine.PersonalBest?,
-                      showStyleBadge: Bool) -> some View {
+                      showStyleBadge: Bool, celebrates: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title.uppercased())
                 .font(.caption2.weight(.semibold))
@@ -102,6 +107,23 @@ struct LevelHeaderView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Theme.bgElevated))
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Theme.bgElevated)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(celebrates ? Theme.gold.opacity(0.35) : Color.clear, lineWidth: 1)
+                )
+        )
+        .overlay(alignment: .topTrailing) {
+            if celebrates {
+                Text("NEU")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Theme.bg)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().fill(Theme.goldGradient))
+                    .padding(10)
+            }
+        }
     }
 }

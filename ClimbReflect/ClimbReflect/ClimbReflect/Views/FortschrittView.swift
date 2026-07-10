@@ -34,6 +34,13 @@ struct FortschrittView: View {
         ProgressEngine.periodHighlights(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
 
+    // DS-2: bei „Alles" ist isAllTimeBest trivial immer wahr (Zeitraum ==
+    // Gesamthistorie) — die Feier gilt nur für einen echten Zeitraum-Fund
+    // (Konsens-Punkt 2, wie zuvor bei den Erst-Send-Chips).
+    private var celebratesSend: Bool {
+        period != .all && highlights.isAllTimeBest && highlights.hardestSend != nil
+    }
+
     // MO-8: Basis = historischer Höchst-Send, Zählung = gewählter Zeitraum.
     private var nextGrade: String? {
         bests.send.flatMap { ProgressEngine.nextGrade(afterOrder: $0.order, discipline: discipline) }
@@ -100,7 +107,8 @@ struct FortschrittView: View {
                     LevelHeaderView(send: bests.send, flash: bests.flash,
                                     comfortGrade: comfortGrade, discipline: discipline,
                                     nextGrade: nextGrade, nextGradeTries: nextGradeTries,
-                                    comfortCandidate: comfortCandidate)
+                                    comfortCandidate: comfortCandidate,
+                                    celebratesSend: celebratesSend)
                     GradeTimelineChart(points: timeline, discipline: discipline)
                     PyramidChart(rows: pyramidRows)
                     ClimbDaysCard(monthlyDays: monthlyDays, sends: totals.sends,
