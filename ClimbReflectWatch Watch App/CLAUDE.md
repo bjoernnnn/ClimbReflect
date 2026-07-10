@@ -232,9 +232,13 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   still im Timer-only-Modus starten. Aber: Gating an den **echten** Status koppeln (S14).
 - **Frontmost (Ziel):** Nach behobenem Leck verifizieren, dass die laufende Workout-Session die
   App frontmost hält; nur falls nötig `WKExtendedRuntimeSession`.
-- **Projekt-Sync zur Watch:** `knownProjects` kam im Test leer an – prüfen, ob
-  `updateApplicationContext` beim Start zuverlässig ankommt (ggf. persistieren). Die Funktion muss
-  zurück (Projekt auf der Uhr wählbar).
+- **Projekt-Sync zur Watch (W-1, gemildert):** Der Kontext-Button verschwand komplett, wenn
+  `knownProjects`/`knownShoes` leer ankamen – kein Einstiegspunkt mehr, um zu wählen oder manuell
+  nachzusynchronisieren (stille Degradierung, Grundsatz 6). Fix: Button bleibt immer sichtbar; bei
+  leerer Liste löst ein Tap `SyncService.requestListSync()` aus (manueller Re-Push ans iPhone).
+  **Offen bleibt:** die eigentliche Zuverlässigkeit von `updateApplicationContext` beim Start ist
+  nicht verifiziert (ggf. Persistenz-/Timing-Problem) – der Fix ist ein Recovery-Pfad, keine
+  Ursachenbehebung. Bei erneuten leeren Listen: Diagnose-Log auf `sync:`-Einträge prüfen.
 - **Grad-Skalen:** Picker-Leiter (`Enums`) und `GradeConverter` divergieren – perspektivisch eine
   kanonische Leiter pro Disziplin.
 
