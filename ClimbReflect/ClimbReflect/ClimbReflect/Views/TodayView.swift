@@ -87,9 +87,14 @@ struct TodayView: View {
     }
 
     private var statRow: some View {
-        HStack(spacing: 12) {
+        // MO-10: Rekord-Streak steht als unverlierbarer Besitz neben dem laufenden
+        // Streak – nach einer Pause liest sich die Kachel als „Rekord: N Wo." statt
+        // als Bestrafung (kein roter Reset, S33). Detail erst ab Rekord ≥ 2.
+        let bestStreak = StatsEngine.bestClimbWeekStreak(sessions)
+        return HStack(spacing: 12) {
             StatTile(value: "\(sessions.filter(\.isClimbing).count)", label: "Sessions", symbol: "figure.climbing")
-            StatTile(value: "\(StatsEngine.climbWeekStreak(sessions))", label: "Streak", symbol: "flame.fill")
+            StatTile(value: "\(StatsEngine.climbWeekStreak(sessions))", label: "Streak", symbol: "flame.fill",
+                     detail: bestStreak >= 2 ? "Rekord: \(bestStreak) Wo." : nil)
             // Klettersessions wie die Nachbar-Kacheln ("Sessions"/"Streak") – sonst
             // zählt "Diese Woche" Trainings mit und widerspricht der Zeile
             StatTile(value: "\(ProgressEngine.sessionsThisWeek(sessions))", label: "Diese Woche", symbol: "calendar")
