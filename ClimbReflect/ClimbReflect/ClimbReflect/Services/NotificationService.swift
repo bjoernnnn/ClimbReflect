@@ -51,5 +51,19 @@ final class NotificationService {
             .removePendingNotificationRequests(withIdentifiers: [notificationID(for: sessionID)])
     }
 
+    // ERFOLGE-KONZEPT-V2 EP-11: sichert den Unlock-Moment, wenn die App im
+    // Hintergrund ist (Watch-DTO kann jederzeit ankommen). Im Vordergrund
+    // übernimmt ausschließlich das Overlay — nie beides.
+    func notifyUnlock(title: String, subtitle: String) {
+        guard isEnabled else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Erfolg freigeschaltet"
+        content.body = subtitle.isEmpty ? title : "\(title) — \(subtitle)"
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: "achievement-\(UUID().uuidString)",
+                                            content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
+    }
+
     private func notificationID(for id: UUID) -> String { "reflect-\(id.uuidString)" }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import UIKit
 
 // ERFOLGE-KONZEPT-V2 EP-3: einziger Aufrufpunkt für die Erfolgs-Auswertung.
 // checkNow() fetcht Sessions/Projekte/vorhandene Unlocks, lässt die reine
@@ -12,7 +13,7 @@ final class AchievementService {
     private init() {}
 
     @discardableResult
-    func checkNow(context: ModelContext) -> [AchievementUnlock] {
+    func checkNow(context: ModelContext, notify: Bool = true) -> [AchievementUnlock] {
         let sessions = (try? context.fetch(FetchDescriptor<ClimbSession>())) ?? []
         let projects = (try? context.fetch(FetchDescriptor<Project>())) ?? []
         let existingUnlocks = (try? context.fetch(FetchDescriptor<AchievementUnlock>())) ?? []
@@ -38,6 +39,7 @@ final class AchievementService {
             inserted.append(unlock)
         }
         try? context.save()
+        if notify { notifyIfBackground(inserted) }
         return inserted
     }
 
@@ -45,6 +47,29 @@ final class AchievementService {
         .init(definitionID: u.definitionID, tier: u.tier,
              contextValue: u.tier == nil ? u.contextValue : nil,
              sessionID: u.tier == nil ? u.sessionID : nil)
+    }
+
+    // MARK: - EP-11: Benachrichtigung bei Hintergrund-Unlock
+
+    /// Watch-DTO kann eintreffen, während die App im Hintergrund ist — der
+    /// Moment darf nicht verpuffen. Im Vordergrund übernimmt ausschließlich
+    /// das Overlay (nie beides); nur .full-Erfolge benachrichtigen (.quiet
+    /// bleibt bewusst leise, auch im Hintergrund).
+    private func notifyIfBackground(_ unlocks: [AchievementUnlock]) {
+        guard UIApplication.shared.applicationState != .active else { return }
+        for unlock in unlocks {
+            guard let def = AchievementDefinition.definition(id: unlock.definitionID),
+                  def.celebration == .full else { continue }
+            NotificationService.shared.notifyUnlock(title: def.title, subtitle: notificationSubtitle(unlock, def))
+        }
+    }
+
+    private func notificationSubtitle(_ unlock: AchievementUnlock, _ def: AchievementDefinition) -> String {
+        if case .tiered(let tiers) = def.kind, let t = unlock.tier, tiers.indices.contains(t),
+           let name = tiers[t].name {
+            return name
+        }
+        return unlock.contextValue ?? ""
     }
 
     // MARK: - EP-4: Backfill (Endowed Progress, L2)
@@ -58,7 +83,7 @@ final class AchievementService {
         let ud = UserDefaults.standard
         guard !ud.bool(forKey: Self.backfillFlagKey) else { return }
 
-        let unlocks = checkNow(context: context)
+        let unlocks = checkNow(context: context, notify: false)
         for u in unlocks { u.seenByUser = true }
         try? context.save()
 
