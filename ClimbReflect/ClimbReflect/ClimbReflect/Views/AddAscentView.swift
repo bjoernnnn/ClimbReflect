@@ -269,6 +269,15 @@ struct AddAscentView: View {
         .preferredColorScheme(.dark)
         .tint(Theme.accent)
         .onAppear {
+            // GR-3: Begehung aus einem Projekt → Grad/System des Projekts vorbelegen
+            // (representativeGradeRaw, konsistent zu GR-1 auf der Watch).
+            if let project = preselectedProject,
+               let gradeRaw = project.representativeGradeRaw,
+               let sysRaw = project.representativeGradeSystemRaw,
+               let sys = GradeSystem(rawValue: sysRaw) {
+                gradeSystem = sys
+                selectedGrade = gradeRaw
+            }
             if !gradeSystem.grades.contains(selectedGrade) {
                 selectedGrade = gradeSystem.grades[min(8, gradeSystem.grades.count - 1)]
             }
