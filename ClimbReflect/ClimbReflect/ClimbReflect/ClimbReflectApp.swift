@@ -47,6 +47,7 @@ struct ClimbReflectApp: App {
         #if DEBUG
         MockData.seedIfNeeded(container.mainContext)
         #endif
+        AchievementService.shared.backfillIfNeeded(context: container.mainContext)
     }
 
     private func endOrphanedLiveActivities() {
