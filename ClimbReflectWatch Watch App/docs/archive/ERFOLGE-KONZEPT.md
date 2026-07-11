@@ -1,3 +1,6 @@
+> **Archiviert (EP-12):** Nie implementiert, ersetzt durch `ERFOLGE-KONZEPT-V2.md`
+> (Umsetzung: `TODO13-ERFOLGE-PREMIUM.md`). Nur als historische Referenz belassen.
+
 # ERFOLGE-KONZEPT – Katalog & System
 
 Von Claude Code entworfen (Konzept-Doc fehlte im Repo; Björn hat „Katalog

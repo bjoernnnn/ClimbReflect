@@ -1,3 +1,6 @@
+> **Archiviert (EP-12):** Nie implementiert, ersetzt durch `TODO13-ERFOLGE-PREMIUM.md`
+> (Konzept: `ERFOLGE-KONZEPT-V2.md`). Nur als historische Referenz belassen.
+
 # TODO11 – Erfolgssystem-Neuaufbau (Konzept: ERFOLGE-KONZEPT.md)
 
 Basis: `dev` @ e5f6e02. Ein Task = ein Commit.

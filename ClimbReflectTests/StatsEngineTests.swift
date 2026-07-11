@@ -170,32 +170,6 @@ final class StatsEngineTests: XCTestCase {
         XCTAssertNotEqual(s1?.learned, s3?.learned)  // Folgewoche → Rotation
     }
 
-    // MARK: - achievements (aktuell: nur "first" und "streak")
-
-    func testAchievements_noSessions_allLocked() {
-        let achievements = StatsEngine.achievements(for: [])
-        XCTAssertTrue(achievements.allSatisfy { !$0.isUnlocked })
-    }
-
-    func testAchievements_firstSession_unlocksErstezug() {
-        let achievements = StatsEngine.achievements(for: [makeSession()])
-        let first = achievements.first { $0.id == "first" }
-        XCTAssertTrue(first?.isUnlocked == true)
-    }
-
-    func testAchievements_fourWeekStreak_unlocksStreak() {
-        let sessions = [0, 7, 14, 21].map { makeSession(daysAgo: $0) }
-        let achievements = StatsEngine.achievements(for: sessions)
-        let streak = achievements.first { $0.id == "streak" }
-        XCTAssertTrue(streak?.isUnlocked == true)
-    }
-
-    func testAchievements_progressIsClampedToOne() {
-        let sessions = (0..<30).map { makeSession(daysAgo: $0) }
-        let achievements = StatsEngine.achievements(for: sessions)
-        XCTAssertTrue(achievements.allSatisfy { $0.progress <= 1.0 })
-    }
-
     // MARK: - Kanonische Grad-Ordnung (skalenübergreifend)
 
     func testCanonicalOrder_vScaleVsFontainebleau_comparable() {

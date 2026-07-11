@@ -59,9 +59,11 @@ arbeiten. **Bei Unsicherheit: hier nachsehen, bevor neu entschieden wird.**
 - **`WorkoutManager` wird NICHT aufgesplittet** (feste Entscheidung).
 
 ### 2.4 iPhone-UI
-- 4 Tabs: **Heute** (Hero, Quick-Add, Live-Banner, letzte Sessions, gepinnte Projekte),
-  **Statistik** (alle Charts), **Projekte**, **Erfolge**. Jeder Tab hat einen eigenen
-  `NavigationStack`.
+- 4 Tabs: **Heute** (Hero, Quick-Add, Live-Banner, letzte Sessions, gepinnte Projekte,
+  „Nächster Erfolg"-Karte), **Fortschritt** (Level/Verlauf/Pyramide/Volumen/Stil,
+  `ProgressEngine`), **Projekte**, **Erfolge** (Gipfelmarken-Sammlung,
+  `AchievementEngine`/`AchievementUnlock`, ERFOLGE-KONZEPT-V2). Jeder Tab hat einen
+  eigenen `NavigationStack`.
 
 ---
 
@@ -362,16 +364,29 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
 
 **S33 – Motivation ohne Manipulation.** Gefeiert werden ausschließlich echte,
 aus den Daten belegte Ereignisse (Erst-Send, PB, Unlock, Comeback) — genau
-einmal, im Moment ihres Entstehens (Feier-Kanal: TODO11/ER-5, sonst keiner).
-Keine Schuld-Mechanik: kein „Du warst lange nicht klettern", kein bestrafender
-Streak-Reset als alleinige Anzeige (Rekord steht daneben), keine
-Engagement-Notifications ohne Ereignis. Keine variable Belohnung ohne
+einmal, im Moment ihres Entstehens (Feier-Kanal: `AchievementUnlockOverlay`,
+sonst keiner). Keine Schuld-Mechanik: kein „Du warst lange nicht klettern",
+kein bestrafender Streak-Reset als alleinige Anzeige (Rekord steht daneben),
+keine Engagement-Notifications ohne Ereignis. Keine variable Belohnung ohne
 Leistungsbezug (rotierende Inhalte deterministisch pro Woche), keine
 Punkte-/XP-Ökonomie (Overjustification). Nähe zu Zielen mit echten Zahlen,
 nie mit Prognosen; Leerzustände zeigen Fortschritt zur Schwelle (n/5) statt
-Quoten darunter. Umsetzung: TODO13 (Motivations-Layer, macht Fortschritt
-*sichtbar*), Feier-Ebene: TODO11/ERFOLGE-KONZEPT. Referenz:
+Quoten darunter. Umsetzung: TODO13-MOTIVATION.md (Motivations-Layer, macht
+Fortschritt *sichtbar*), Feier-Ebene: TODO13-ERFOLGE-PREMIUM.md/S34. Referenz:
 `FORTSCHRITT-KONZEPT.md` Abschnitt „Motivations-Layer (TODO13)".
+
+**S34 – Erfolge sind persistierte Ereignisse, kein Live-Zustand.** Ein Erfolg
+entsteht ausschließlich über `AchievementEngine.evaluate` (rein, aus Sessions/
+Projekten/bestehenden Unlocks) und wird als `AchievementUnlock` persistiert —
+niemals als bei jedem Render neu abgeleiteter Boolean (das war W1 der
+Alt-Architektur: löschbare Vergangenheit, kein „Freigeschaltet am …"). Einmal
+freigeschaltet bleibt freigeschaltet, auch wenn die auslösenden Daten später
+gelöscht werden (Widerrufs-Politik). Feiern nur über `transform`/`opacity`
+(kein animiertes Layout/Blur), vollständig abschaltbar
+(`achievementEffectsEnabled`) und `accessibilityReduceMotion` wird zusätzlich
+immer respektiert. Keine wöchentlich/monatlich wiederkehrenden Erfolge
+(Spam-/Übertrainings-Nudge, S31) — nur einmalige, gestufte oder pro-Ereignis
+wiederholbare Definitionen. Referenz: `ERFOLGE-KONZEPT-V2.md`.
 
 ---
 
