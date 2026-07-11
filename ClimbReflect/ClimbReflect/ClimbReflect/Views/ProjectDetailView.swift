@@ -223,7 +223,9 @@ struct ProjectDetailView: View {
                 .foregroundStyle(Theme.accentGradient)
             }
             .chartXAxis {
-                AxisMarks(values: .stride(by: .day)) { _ in
+                // CH-1: .stride(by: .day) erzeugte über lange Projekt-Zeitspannen ein
+                // Label pro Tag (hunderte, unlesbar). .automatic verteilt selbst sinnvoll.
+                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                     AxisGridLine().foregroundStyle(Theme.surfaceStroke.opacity(0.3))
                     AxisValueLabel(format: .dateTime.day().month(.twoDigits))
                         .foregroundStyle(Theme.textTertiary)
