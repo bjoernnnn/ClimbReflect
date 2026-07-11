@@ -234,15 +234,25 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
   still im Timer-only-Modus starten. Aber: Gating an den **echten** Status koppeln (S14).
 - **Frontmost (Ziel):** Nach behobenem Leck verifizieren, dass die laufende Workout-Session die
   App frontmost hält; nur falls nötig `WKExtendedRuntimeSession`.
-- **Projekt-Sync zur Watch (W-1, gemildert):** Der Kontext-Button verschwand komplett, wenn
-  `knownProjects`/`knownShoes` leer ankamen – kein Einstiegspunkt mehr, um zu wählen oder manuell
-  nachzusynchronisieren (stille Degradierung, Grundsatz 6). Fix: Button bleibt immer sichtbar; bei
-  leerer Liste löst ein Tap `SyncService.requestListSync()` aus (manueller Re-Push ans iPhone).
-  **Offen bleibt:** die eigentliche Zuverlässigkeit von `updateApplicationContext` beim Start ist
-  nicht verifiziert (ggf. Persistenz-/Timing-Problem) – der Fix ist ein Recovery-Pfad, keine
-  Ursachenbehebung. Bei erneuten leeren Listen: Diagnose-Log auf `sync:`-Einträge prüfen.
+- **Projekt-Sync zur Watch (W-1 → PS-1, weiter gehärtet):** Der Kontext-Button verschwand
+  komplett, wenn `knownProjects`/`knownShoes` leer ankamen (W-1-Fix: Button bleibt immer sichtbar,
+  Tap löst `SyncService.requestListSync()` aus). PS-1 hat zwei weitere Lecks geschlossen: (1)
+  `saveListCache()` persistierte nur nicht-leere Listen – ein gelöschtes letztes Projekt kam nach
+  Watch-Neustart aus dem Cache zurück; jetzt wird auch `[]` explizit gespeichert. (2)
+  `selectedProject`/`selectedShoe` wurden nie gegen die aktuelle Liste abgeglichen – ein gelöschtes,
+  zuvor gewähltes Projekt blieb aktiv bankbar; `SyncService.onListsUpdated` (zentral in
+  `WorkoutManager.init()`, analog `onCommand`) räumt das jetzt nach jedem Sync auf. **Offen
+  bleibt:** die grundsätzliche Zuverlässigkeit von `updateApplicationContext` beim Start ist nicht
+  geräteseitig verifiziert. Bei erneuten leeren Listen: Diagnose-Log auf `sync:`-Einträge prüfen.
 - **Grad-Skalen:** Picker-Leiter (`Enums`) und `GradeConverter` divergieren – perspektivisch eine
-  kanonische Leiter pro Disziplin.
+  kanonische Leiter pro Disziplin. Bereits geprüft (GR-1): die Watch-Leitern (`WatchEnums`) sind
+  gegenüber den iPhone-Leitern nur an den Rändern kürzer (fehlende Extremgrade oben/unten), die
+  String-Notation selbst ist identisch – kein Case-/Format-Mismatch, nur ein Range-Thema.
+- **CloudKit-Sync (CK-1):** Roadmap CK-P0…P3 (siehe TODO15-FEEDBACK-CLOUD.md). **CK-P0 erledigt**
+  (Schema CloudKit-tauglich: `.unique` entfernt, Defaults ergänzt, S38) – CloudKit ist weiterhin
+  **nicht aktiv**. CK-P1 (Entitlements/Capabilities, iCloud-Container) braucht einen Apple-
+  Developer-Account mit iCloud-Fähigkeit – vor Fortsetzung klären. CK-P2 (Aktivierung hinter Flag)
+  und CK-P3 (Zwei-Geräte-Verifikation) erst danach, jede Phase eigener Commit.
 
 **S17 – `HKAnchoredObjectQuery` mit `anchor: nil` liefert beim (Neu-)Start die komplette
   Historie seit dem Predicate-Start.** Akkumulatoren (`hrSum`, `hrCount`, `activeEnergyKcal`)
@@ -387,6 +397,47 @@ gelöscht werden (Widerrufs-Politik). Feiern nur über `transform`/`opacity`
 immer respektiert. Keine wöchentlich/monatlich wiederkehrenden Erfolge
 (Spam-/Übertrainings-Nudge, S31) — nur einmalige, gestufte oder pro-Ereignis
 wiederholbare Definitionen. Referenz: `ERFOLGE-KONZEPT-V2.md`.
+**ER-1-Entscheidung (TODO15):** S34 bleibt unangetastet (Option A, kein
+Widerruf). Testdaten-Aufräumen läuft über einen `#if DEBUG`-Button „Erfolge
+neu berechnen" in `SettingsView` (löscht alle Unlocks, wertet neu aus,
+markiert sofort als gesehen) — kein Produktions-Widerruf, keine neue Regel.
+
+**S35 – WatchConnectivity-Callbacks (`onCommand`, `onListsUpdated`) gehören in
+den Singleton, nie in eine View.** Ein `SyncService.onCommand`-Wiring in
+`LiveSessionView.onAppear` verpuffte, sobald eine andere View aktiv war
+(End-Flow, Auswahl) oder `onAppear` erneut feuerte — der iPhone-Banner-Befehl
+kam nie an, ohne dass irgendwo ein Fehler sichtbar wurde. Callbacks mit
+App-weiter Gültigkeit einmalig in `WorkoutManager.init()` registrieren
+(Singleton-Lebensdauer), nicht an einen View-Lifecycle koppeln. Guards gegen
+doppelte/verspätete Zustellung (`isPaused`-Check vor `pauseWorkout()`, analog
+zum bestehenden S4-Muster) sind Pflicht, sobald ein Befehl mehrfach oder
+verspätet ankommen kann (`transferUserInfo` ist nicht Echtzeit).
+
+**S36 – Cache-Persistenz muss auch den Leer-Zustand explizit schreiben.**
+`saveListCache()` schrieb nur bei nicht-leerer Liste (`if !list.isEmpty`) —
+das letzte gelöschte Element „überlebte" jeden Watch-Neustart, weil der alte,
+nicht-leere Cache-Eintrag nie überschrieben wurde. Ein Cache, der einen
+Löschvorgang korrekt abbilden soll, muss `[]` genauso persistieren wie jeden
+anderen Zustand. Gilt für jeden Watch-seitigen Empfangs-Cache (Listen,
+Flags) — „leer" ist ein echter, speicherwürdiger Zustand, kein Fehlen von Daten.
+
+**S37 – Die Mitte einer Skala ist kein neutraler Default.** Ein
+`gradeIndex = count / 2`-Fallback traf bei der 18-teiligen French-Leiter exakt
+den plausibel wirkenden Grad „7a" — sah wie eine echte Vorbelegung aus, war
+aber Zufall der Leiterlänge. Ein Fallback ohne echte Grundlage sollte
+**erkennbar** falsch sein (z. B. Index 0 = niedrigster Grad), nicht zufällig
+einen glaubwürdigen Wert treffen — sonst bleibt der Nutzer-Fehler unbemerkt.
+Gilt allgemein für jeden „Mitte der Range"-Default über echten fachlichen
+Werten (Grade, Prozentsätze, Datumsbereiche).
+
+**S38 – CloudKit-Voraussetzungen sind ein Schema-Umbau, kein Schalter.**
+`ModelConfiguration(cloudKitDatabase:)` „einschalten" allein crasht/verliert
+Daten: CloudKit verbietet `@Attribute(.unique)` (keine Unique-Constraints) und
+verlangt für **jedes** nicht-optionale Attribut einen deklarierten Default
+(`= wert`, nicht nur eine Zuweisung im `init`). CK-P0 hat das über alle 7
+`@Model`-Klassen nachgezogen, ohne CloudKit zu aktivieren — Dedupe-Logik
+(`watchSessionID`-Upsert etc.) bleibt bewusst app-seitig, da CloudKit dafür
+keinen DB-Mechanismus bietet. Referenz: TODO15-FEEDBACK-CLOUD.md CK-1.
 
 ---
 
