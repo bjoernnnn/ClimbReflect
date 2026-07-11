@@ -1,46 +1,53 @@
 import SwiftUI
 import SwiftData
 
+/// Erfolge-Tab „Gipfelmarken" (ERFOLGE-KONZEPT-V2 · 6.4): Sammlung-Header,
+/// „In Reichweite", Kategorie-Chips, Grid. Ersetzt den horizontalen Streifen
+/// aus dem alten StatsEngine-Ableitungssystem (Alt-Code-Abbau folgt in EP-12).
 struct AchievementsView: View {
     @Query(sort: \ClimbSession.date, order: .reverse) private var sessions: [ClimbSession]
-    @State private var selectedAchievementID: String?
+    @Query private var projects: [Project]
+    @Query private var unlocks: [AchievementUnlock]
 
-    private var selectedAchievement: StatsEngine.ClimbAchievement? {
-        allAchievements.first { $0.id == selectedAchievementID }
+    @State private var selectedCategory: AchievementCategory?
+    @State private var selectedDefinitionID: String?
+
+    private var viewData: [AchievementViewData] {
+        AchievementViewModel.build(sessions: sessions, projects: projects, unlocks: unlocks)
     }
 
-    private var climbAchievements: [StatsEngine.ClimbAchievement] {
-        StatsEngine.climbAchievements(for: sessions)
+    private var unlockedCount: Int { viewData.filter(\.isUnlocked).count }
+    private var totalCount: Int { AchievementDefinition.all.count }
+
+    private var inReach: [AchievementViewData] {
+        Array(viewData
+            .filter { !$0.isUnlocked && !$0.definition.isHidden && ($0.progress?.fraction ?? 0) >= 0.5 }
+            .sorted { ($0.progress?.fraction ?? 0) > ($1.progress?.fraction ?? 0) }
+            .prefix(3))
     }
 
-    private var appAchievements: [Achievement] {
-        StatsEngine.achievements(for: sessions)
+    private var filtered: [AchievementViewData] {
+        guard let selectedCategory else { return viewData }
+        return viewData.filter { $0.definition.category == selectedCategory }
     }
 
-    private var allAchievements: [StatsEngine.ClimbAchievement] {
-        let app = appAchievements.map { a in
-            StatsEngine.ClimbAchievement(
-                id: a.id,
-                title: a.title,
-                subtitle: a.subtitle,
-                symbol: a.symbol,
-                isUnlocked: a.isUnlocked,
-                color: Theme.accent,
-                explanation: a.id == "first"
-                    ? "Du hast deine erste Session erfasst. Der erste Schritt auf dem Weg zur Verbesserung!"
-                    : "Du warst mindestens 4 Wochen in Folge aktiv. Konsistenz ist der Schlüssel zum Fortschritt."
-            )
-        }
-        return climbAchievements + app
+    private var selectedData: AchievementViewData? {
+        guard let selectedDefinitionID else { return nil }
+        return viewData.first { $0.id == selectedDefinitionID }
     }
+
+    private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
     var body: some View {
         NavigationStack {
             ZStack {
                 MountainBackground()
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        achievementsGrid
+                    VStack(alignment: .leading, spacing: 22) {
+                        header
+                        if !inReach.isEmpty { inReachSection }
+                        categoryChips
+                        grid
                         betaLibraryLink
                     }
                     .padding(.horizontal, 20)
@@ -51,60 +58,120 @@ struct AchievementsView: View {
             .navigationTitle("Erfolge")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
-            .sheet(isPresented: .constant(selectedAchievementID != nil),
-                   onDismiss: { selectedAchievementID = nil }) {
-                if let a = selectedAchievement { achievementDetail(a) }
+            .sheet(isPresented: Binding(
+                get: { selectedDefinitionID != nil },
+                set: { if !$0 { selectedDefinitionID = nil } }
+            )) {
+                if let data = selectedData {
+                    AchievementDetailSheet(data: data)
+                        .presentationDetents([.medium, .large])
+                }
             }
         }
         .preferredColorScheme(.dark)
     }
 
-    private var achievementsGrid: some View {
-        let unlocked = allAchievements.filter(\.isUnlocked).count
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Erfolge")
-                    .font(.headline)
-                    .foregroundStyle(Theme.textPrimary)
-                Spacer()
-                Text("\(unlocked)/\(allAchievements.count)")
-                    .font(.caption.weight(.semibold))
+    // MARK: - Header
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Sammlung".uppercased())
+                    .font(.caption2.weight(.semibold))
+                    .tracking(0.4)
                     .foregroundStyle(Theme.textTertiary)
+                (Text("\(unlockedCount) ")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundStyle(Theme.textPrimary)
+                 + Text("von \(totalCount)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textTertiary))
             }
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(allAchievements) { a in
-                        Button { selectedAchievementID = a.id } label: {
-                            VStack(spacing: 8) {
-                                ZStack {
-                                    Circle()
-                                        .fill(a.isUnlocked ? a.color.opacity(0.15) : Theme.bgElevated)
-                                        .frame(width: 52, height: 52)
-                                    Image(systemName: a.symbol)
-                                        .font(.system(size: 22))
-                                        .foregroundStyle(a.isUnlocked ? a.color : Theme.textTertiary)
-                                }
-                                Text(a.title)
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(a.isUnlocked ? Theme.textPrimary : Theme.textTertiary)
-                                    .multilineTextAlignment(.center)
-                                    .lineLimit(2)
-                                    .frame(width: 72, height: 28, alignment: .top)
-                            }
-                            .padding(.vertical, 10)
-                            .padding(.horizontal, 8)
-                            .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(a.isUnlocked ? a.color.opacity(0.3) : Color.clear, lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.bgElevated)
+                    Capsule().fill(Theme.accentGradient)
+                        .frame(width: geo.size.width * CGFloat(unlockedCount) / CGFloat(max(1, totalCount)))
                 }
-                .padding(.horizontal, 2)
             }
-            .scrollClipDisabled()
+            .frame(height: 4)
+        }
+    }
+
+    // MARK: - In Reichweite
+
+    private var inReachSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("In Reichweite")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.textPrimary)
+            ForEach(inReach) { data in
+                Button { selectedDefinitionID = data.id } label: {
+                    HStack(spacing: 12) {
+                        AchievementMedallion(symbol: data.definition.symbol,
+                                             state: .locked(progress: data.progress?.fraction), size: 46)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(data.definition.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text(data.progress?.remainingText ?? "")
+                                .font(.caption)
+                                .foregroundStyle(Theme.textTertiary)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                        Text("\(Int(((data.progress?.fraction ?? 0) * 100).rounded())) %")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Theme.accent)
+                            .monospacedDigit()
+                    }
+                    .padding(11)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surface))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.surfaceStroke, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Kategorie-Chips
+
+    private var categoryChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                categoryChip(nil, label: "Alle")
+                ForEach(AchievementCategory.allCases) { cat in
+                    categoryChip(cat, label: cat.label)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .scrollClipDisabled()
+    }
+
+    private func categoryChip(_ category: AchievementCategory?, label: String) -> some View {
+        let active = selectedCategory == category
+        return Button { selectedCategory = category } label: {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(active ? Theme.accent : Theme.bgElevated))
+                .foregroundStyle(active ? Theme.bg : Theme.textSecondary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Grid
+
+    private var grid: some View {
+        LazyVGrid(columns: columns, spacing: 10) {
+            ForEach(filtered) { data in
+                Button { selectedDefinitionID = data.id } label: {
+                    AchievementTile(data: data)
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -134,47 +201,5 @@ struct AchievementsView: View {
             .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
         }
         .buttonStyle(.plain)
-    }
-
-    private func achievementDetail(_ a: StatsEngine.ClimbAchievement) -> some View {
-        VStack(spacing: 20) {
-            ZStack {
-                Circle()
-                    .fill(a.isUnlocked ? a.color.opacity(0.15) : Theme.bgElevated)
-                    .frame(width: 80, height: 80)
-                Image(systemName: a.symbol)
-                    .font(.system(size: 36))
-                    .foregroundStyle(a.isUnlocked ? a.color : Theme.textTertiary)
-            }
-            .padding(.top, 28)
-
-            VStack(spacing: 8) {
-                Text(a.title)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(Theme.textPrimary)
-                Text(a.isUnlocked ? "Freigeschaltet ✓" : "Noch gesperrt")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(a.isUnlocked ? a.color : Theme.textTertiary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(a.isUnlocked ? a.color.opacity(0.12) : Theme.bgElevated))
-            }
-
-            Text(a.explanation)
-                .font(.subheadline)
-                .foregroundStyle(Theme.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-
-            Text(a.subtitle)
-                .font(.caption)
-                .foregroundStyle(Theme.textTertiary)
-                .multilineTextAlignment(.center)
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-        .background(Theme.bg.ignoresSafeArea())
-        .preferredColorScheme(.dark)
     }
 }
