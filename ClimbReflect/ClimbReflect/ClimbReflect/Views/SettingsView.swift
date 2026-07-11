@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var showDeleteSamplesConfirm = false
     @State private var exportURL: URL?
     @State private var showExportSheet = false
+    @State private var showResetAchievementsConfirm = false   // ER-1
     @State private var notificationsEnabled = NotificationService.shared.isEnabled
 
     @AppStorage("boulderScale") private var boulderScale: String = GradeSystem.fontainebleau.rawValue
@@ -236,6 +237,18 @@ struct SettingsView: View {
                         .onChange(of: watchDiagnosticsVisible) { _, _ in
                             WatchSessionReceiver.shared.pushProjectsToWatch()
                         }
+                        #if DEBUG
+                        // ER-1: S34 (Erfolge bleiben nach Löschen der auslösenden Daten
+                        // bestehen) ist Absicht, nicht widerrufbar – aber Testdaten sollen
+                        // keine dauerhaften "Geister-Erfolge" hinterlassen. Reset löscht alle
+                        // Unlocks und wertet den aktuellen Datenbestand neu aus (kein Overlay).
+                        Button(role: .destructive) {
+                            showResetAchievementsConfirm = true
+                        } label: {
+                            Label("Erfolge neu berechnen", systemImage: "arrow.counterclockwise")
+                                .foregroundStyle(Theme.danger)
+                        }
+                        #endif
                     } header: {
                         Text("Entwicklung").foregroundStyle(Theme.textTertiary)
                     } footer: {
@@ -286,6 +299,18 @@ struct SettingsView: View {
                     ShareSheet(items: [url])
                 }
             }
+            #if DEBUG
+            .confirmationDialog(
+                "Erfolge neu berechnen?",
+                isPresented: $showResetAchievementsConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Neu berechnen", role: .destructive) { resetAchievements() }
+                Button("Abbrechen", role: .cancel) {}
+            } message: {
+                Text("Alle freigeschalteten Erfolge werden gelöscht und aus dem aktuellen Datenbestand neu ermittelt. Kein Unlock-Overlay dabei.")
+            }
+            #endif
         }
         .preferredColorScheme(.dark)
         .tint(Theme.accent)
@@ -308,6 +333,21 @@ struct SettingsView: View {
         let toDelete = sessions.filter { $0.source == .manual && $0.learned == "Mock-Eintrag" }
         toDelete.forEach { context.delete($0) }
     }
+
+    #if DEBUG
+    // ER-1 Option A: löscht alle AchievementUnlock und wertet den aktuellen
+    // Datenbestand neu aus – hält die S34-Widerrufs-Politik unangetastet
+    // (Produktions-Code widerruft nie), räumt aber Testdaten-Geister-Erfolge auf.
+    // Neu ermittelte Unlocks direkt als gesehen markieren: kein Overlay-Schwall.
+    private func resetAchievements() {
+        let unlocks = (try? context.fetch(FetchDescriptor<AchievementUnlock>())) ?? []
+        unlocks.forEach { context.delete($0) }
+        try? context.save()
+        let recomputed = AchievementService.shared.checkNow(context: context, notify: false)
+        recomputed.forEach { $0.seenByUser = true }
+        try? context.save()
+    }
+    #endif
 
     private func exportJSON() {
         struct ExportSession: Encodable {
