@@ -6,6 +6,12 @@ struct LiveSessionBanner: View {
     @State private var showEndConfirm = false   // RP-15
     @State private var bufferedFeedback = false // LA-2: Befehl nur gepuffert (Uhr nicht erreichbar)
 
+    // LA-3: Sperrbildschirm-Live-Activity kann erst starten, nachdem die App einmal
+    // im Vordergrund war (S26, Activity.request() läuft nur dort) – Grenze einmalig
+    // transparent machen statt sie stillschweigend hinzunehmen. Einmal quittiert,
+    // bleibt der Hinweis weg (kein wiederkehrendes Genöhle).
+    @AppStorage("lockScreenHintDismissed") private var lockScreenHintDismissed = false
+
     private var sessionLabel: String {
         switch status.sessionTypeRaw {
         case "boulder":   "Bouldern"
@@ -22,6 +28,25 @@ struct LiveSessionBanner: View {
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            mainRow
+            if !lockScreenHintDismissed {
+                lockScreenHint
+            }
+        }
+        .confirmationDialog("Session auf der Watch beenden?", isPresented: $showEndConfirm, titleVisibility: .visible) {
+            Button("Beenden", role: .destructive) { sendCommand("end") }
+            Button("Abbrechen", role: .cancel) {}
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(status.isPaused ? Theme.gold.opacity(0.25) : Theme.accent.opacity(0.25), lineWidth: 1)
+        )
+    }
+
+    private var mainRow: some View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
@@ -84,16 +109,26 @@ struct LiveSessionBanner: View {
                 .buttonStyle(.plain)
             }
         }
-        .confirmationDialog("Session auf der Watch beenden?", isPresented: $showEndConfirm, titleVisibility: .visible) {
-            Button("Beenden", role: .destructive) { sendCommand("end") }
-            Button("Abbrechen", role: .cancel) {}
+    }
+
+    private var lockScreenHint: some View {
+        HStack(spacing: 6) {
+            Text("Sperrbildschirm-Anzeige aktiv, sobald die App einmal offen war")
+                .font(.caption2)
+                .foregroundStyle(Theme.textTertiary)
+                .lineLimit(2)
+            Button {
+                withAnimation { lockScreenHintDismissed = true }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .buttonStyle(.plain)
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(status.isPaused ? Theme.gold.opacity(0.25) : Theme.accent.opacity(0.25), lineWidth: 1)
-        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(Theme.bgElevated))
     }
 
     private func liveElapsedFormatted() -> String {
