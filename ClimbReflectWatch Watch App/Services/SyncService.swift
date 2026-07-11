@@ -26,6 +26,10 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     @Published var lastTransferStatus: String = ""
     @Published var knownProjects: [ProjectInfo] = []   // W5.2: vom iPhone empfangen
     @Published var knownShoes: [ShoeInfo] = []          // SH-6: vom iPhone empfangen
+    // DG-1: Diagnose-Einstieg auf der Uhr nur sichtbar, wenn vom iPhone freigeschaltet
+    // (Normalbetrieb: aus). Log-Sammlung selbst (DiagnosticLog.isEnabled) läuft
+    // unabhängig davon weiter – nur die Sichtbarkeit des Einstiegs wird geschaltet.
+    @Published var diagnosticsVisible: Bool = UserDefaults.standard.bool(forKey: SyncService.diagnosticsVisibleKey)
 
     // W5.3: Lokale Queue für Transfers die offline gehen
     private var pendingDTOs: [WatchSessionDTO] = []
@@ -102,6 +106,7 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     static let projectListKey = "projectList"
     static let shoeListKey = "shoeList"
     static let shoeProjectSyncKey = "shoeProjectSync"   // SH-14: transferUserInfo-Fallback-Key
+    static let diagnosticsVisibleKey = "watchDiagnosticsVisible"   // DG-1
 
     func session(_ session: WCSession,
                  didReceiveApplicationContext applicationContext: [String: Any]) {
@@ -130,6 +135,12 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
                     defaultForTypes: dict["defaultForTypes"] as? [String] ?? []
                 )
             }
+        }
+        // DG-1: Diagnose-Sichtbarkeit vom iPhone übernehmen + persistieren, damit sie
+        // einen Watch-Neustart übersteht (analog Listen-Cache).
+        if let visible = context[SyncService.diagnosticsVisibleKey] as? Bool {
+            diagnosticsVisible = visible
+            UserDefaults.standard.set(visible, forKey: Self.diagnosticsVisibleKey)
         }
         saveListCache()
         onListsUpdated?()   // PS-1: Aufrufer (WorkoutManager) gleicht selectedProject/-Shoe ab

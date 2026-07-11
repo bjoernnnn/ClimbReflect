@@ -71,10 +71,14 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             ]
         }
 
+        // DG-1: Diagnose-Sichtbarkeit auf der Uhr über denselben Sync-Kanal pushen.
+        let diagnosticsVisible = UserDefaults.standard.bool(forKey: "watchDiagnosticsVisible")
+
         let context: [String: Any] = [
             "projectList": projectList,
             Self.projectsKey: projectNames,
-            "shoeList": shoeList
+            "shoeList": shoeList,
+            "watchDiagnosticsVisible": diagnosticsVisible
         ]
         var updateFailed = false
         do {

@@ -23,6 +23,9 @@ struct SettingsView: View {
     @AppStorage("achievementEffectsEnabled") private var achievementEffectsEnabled = true
     @AppStorage("achievementSoundEnabled") private var achievementSoundEnabled = false
 
+    // DG-1
+    @AppStorage("watchDiagnosticsVisible") private var watchDiagnosticsVisible = false
+
     private var boulderGradeSystems: [GradeSystem] { [.fontainebleau, .vScale] }
     private var routeGradeSystems: [GradeSystem] { [.french, .uiaa] }
 
@@ -223,8 +226,21 @@ struct SettingsView: View {
                             Label("Watch-Diagnose", systemImage: "stethoscope")
                                 .foregroundStyle(Theme.textPrimary)
                         }
+                        // DG-1: Diagnose-Einstieg auf der Uhr ist im Normalbetrieb
+                        // ausgeblendet; hier gezielt für den Fehlerfall freischalten.
+                        Toggle(isOn: $watchDiagnosticsVisible) {
+                            Label("Diagnose auf der Uhr anzeigen", systemImage: "applewatch")
+                                .foregroundStyle(Theme.textPrimary)
+                        }
+                        .tint(Theme.accent)
+                        .onChange(of: watchDiagnosticsVisible) { _, _ in
+                            WatchSessionReceiver.shared.pushProjectsToWatch()
+                        }
                     } header: {
                         Text("Entwicklung").foregroundStyle(Theme.textTertiary)
+                    } footer: {
+                        Text("Standardmäßig aus, damit die Uhr im Alltag schlank bleibt. Bei Bedarf hier aktivieren.")
+                            .foregroundStyle(Theme.textTertiary)
                     }
                     .listRowBackground(Theme.surface)
 
