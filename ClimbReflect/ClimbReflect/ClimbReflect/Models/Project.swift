@@ -3,14 +3,15 @@ import SwiftData
 
 @Model
 final class Project {
-    @Attribute(.unique) var id: UUID
-    var name: String
+    // CK-P0: .unique entfernt + Defaults ergänzt (CloudKit-Voraussetzungen).
+    var id: UUID = UUID()
+    var name: String = ""
     var betaNotes: String = ""
     var statusRaw: String?              // nil = auto-abgeleitet, "abandoned" = manuell
     var isPinned: Bool = false
     var gradeSystemRaw: String?
     var targetGradeRaw: String?
-    var createdAt: Date
+    var createdAt: Date = Date.now
 
     @Relationship(deleteRule: .nullify, inverse: \Ascent.project)
     var ascents: [Ascent] = []

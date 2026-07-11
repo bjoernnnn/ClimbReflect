@@ -21,15 +21,18 @@ enum ShoeCondition: String, Codable, CaseIterable, Identifiable {
 
 @Model
 final class Shoe {
-    @Attribute(.unique) var id: UUID
-    var name: String
-    var startMonth: Int        // 1…12
-    var startYear: Int
+    // CK-P0: .unique entfernt + Defaults ergänzt (CloudKit-Voraussetzungen).
+    // startMonth/startYear-Defaults sind reine Schema-Platzhalter – der App-Init
+    // verlangt echte Werte, sie werden hier nie faktisch verwendet.
+    var id: UUID = UUID()
+    var name: String = ""
+    var startMonth: Int = 1        // 1…12
+    var startYear: Int = 2000
     var isRetired: Bool = false
     var conditionRaw: String = ShoeCondition.neu.rawValue
     var isBuiltInDefault: Bool = false      // SH-A: nicht löschbar, immer einer vorhanden
     var defaultForTypesRaw: [String] = []   // SH-B: SessionType.rawValues für Auto-Vorauswahl
-    var createdAt: Date
+    var createdAt: Date = Date.now
 
     @Relationship(deleteRule: .nullify, inverse: \Ascent.shoe) var ascents: [Ascent] = []
 

@@ -3,14 +3,17 @@ import SwiftData
 
 @Model
 final class Ascent {
-    @Attribute(.unique) var id: UUID
-    var gradeSystemRaw: String
-    var gradeRaw: String
-    var resultRaw: String
+    // CK-P0: .unique entfernt (CloudKit unterstützt keine Unique-Constraints) +
+    // Defaults ergänzt (CloudKit verlangt optional-oder-Default für jedes Attribut).
+    // Dedupe bleibt app-seitig (z. B. WatchSessionReceiver-Upsert über watchSessionID).
+    var id: UUID = UUID()
+    var gradeSystemRaw: String = ""
+    var gradeRaw: String = ""
+    var resultRaw: String = ""
     var styleRaw: String?
-    var attempts: Int
+    var attempts: Int = 1
     var note: String?
-    var date: Date
+    var date: Date = Date.now
 
     // Stil-Tags (P3.7)
     var wallAngleRaw: String?
@@ -40,7 +43,7 @@ final class Ascent {
     @Attribute(.externalStorage) var photoData: Data?
 
     var session: ClimbSession?
-    var createdAt: Date
+    var createdAt: Date = Date.now
 
     init(id: UUID = UUID(),
          gradeSystem: GradeSystem,

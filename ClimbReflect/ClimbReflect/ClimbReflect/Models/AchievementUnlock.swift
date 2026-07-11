@@ -7,13 +7,14 @@ import SwiftData
 
 @Model
 final class AchievementUnlock {
-    @Attribute(.unique) var id: UUID
-    var definitionID: String
+    // CK-P0: .unique entfernt + Defaults ergänzt (CloudKit-Voraussetzungen).
+    var id: UUID = UUID()
+    var definitionID: String = ""
     var tier: Int?
-    var unlockedAt: Date
+    var unlockedAt: Date = Date.now
     var contextValue: String?
     var sessionID: UUID?
-    var seenByUser: Bool
+    var seenByUser: Bool = false
 
     init(id: UUID = UUID(), definitionID: String, tier: Int? = nil, unlockedAt: Date,
          contextValue: String? = nil, sessionID: UUID? = nil, seenByUser: Bool = false) {
