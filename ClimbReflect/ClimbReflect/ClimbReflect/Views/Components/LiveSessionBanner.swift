@@ -32,7 +32,7 @@ struct LiveSessionBanner: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(sessionLabel) auf der Watch")
+                Text(sessionLabel)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.textPrimary)
                 // Sekündliche Anzeige lokal via TimelineView – kein Watch-Funk
@@ -45,18 +45,6 @@ struct LiveSessionBanner: View {
                         Text(liveElapsedFormatted())
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(Theme.accent)
-                    }
-                }
-                HStack(spacing: 10) {
-                    if let hr = status.heartRate {
-                        Label(String(format: "%.0f bpm", hr), systemImage: "heart.fill")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.danger)
-                    }
-                    if let kcal = status.activeEnergyKcal {
-                        Label(String(format: "%.0f kcal", kcal), systemImage: "flame.fill")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.gold)
                     }
                 }
             }
