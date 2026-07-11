@@ -11,7 +11,7 @@ struct ClimbReflectApp: App {
 
         do {
             container = try ModelContainer(
-                for: ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self,
+                for: ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, AchievementUnlock.self,
                 configurations: config
             )
         } catch {

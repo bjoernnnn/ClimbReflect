@@ -10,6 +10,11 @@ import SwiftData
 // V6 → V7: additive Änderungen (ClimbSession.sessionFocusRaw/energyRaw RP-2).
 // V7 → V8: additive Änderungen (ClimbSession.pausedSeconds RP-3).
 // V8 → V9: additive Änderungen (Ascent.heartRateAtBanking RP-6).
+// V9 → V10: additive Änderungen (neue Tabelle AchievementUnlock, ERFOLGE-KONZEPT-V2 EP-2).
+// Hinweis: Diese Kette ist aktuell nicht an ModelContainer(for:) angeschlossen
+// (ClimbReflectApp.init nutzt keinen migrationPlan:-Parameter) — dokumentiert
+// die Schema-Historie, greift aber nicht zur Laufzeit (siehe TODO13-ERFOLGE-
+// PREMIUM.md Phase 0, Zusatzbefund).
 
 enum SchemaV1: VersionedSchema {
     static var versionIdentifier = Schema.Version(1, 0, 0)
@@ -74,11 +79,18 @@ enum SchemaV9: VersionedSchema {
     }
 }
 
+enum SchemaV10: VersionedSchema {
+    static var versionIdentifier = Schema.Version(10, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, Shoe.self, TrainingSet.self, AchievementUnlock.self]
+    }
+}
+
 enum AppMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self]
+        [SchemaV1.self, SchemaV2.self, SchemaV3.self, SchemaV4.self, SchemaV5.self, SchemaV6.self, SchemaV7.self, SchemaV8.self, SchemaV9.self, SchemaV10.self]
     }
-    static var stages: [MigrationStage] { [v1ToV2, v2ToV3, v3ToV4, v4ToV5, v5ToV6, v6ToV7, v7ToV8, v8ToV9] }
+    static var stages: [MigrationStage] { [v1ToV2, v2ToV3, v3ToV4, v4ToV5, v5ToV6, v6ToV7, v7ToV8, v8ToV9, v9ToV10] }
     static let v1ToV2 = MigrationStage.lightweight(
         fromVersion: SchemaV1.self,
         toVersion: SchemaV2.self
@@ -110,5 +122,9 @@ enum AppMigrationPlan: SchemaMigrationPlan {
     static let v8ToV9 = MigrationStage.lightweight(
         fromVersion: SchemaV8.self,
         toVersion: SchemaV9.self
+    )
+    static let v9ToV10 = MigrationStage.lightweight(
+        fromVersion: SchemaV9.self,
+        toVersion: SchemaV10.self
     )
 }
