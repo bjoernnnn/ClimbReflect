@@ -465,6 +465,7 @@ struct ProjectDetailView: View {
     private func deleteAscent(_ ascent: Ascent) {
         context.delete(ascent)
         try? context.save()
+        AchievementService.shared.checkNow(context: context)   // EP-3
     }
 
     // MARK: - Helpers

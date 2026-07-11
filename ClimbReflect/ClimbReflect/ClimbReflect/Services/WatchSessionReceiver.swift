@@ -204,6 +204,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             }
             if let e = dto.energyRaw { existing.energyRaw = e }
             try? ctx.save()
+            AchievementService.shared.checkNow(context: ctx)   // EP-3: auch Upsert-Pfad
             return
         }
 
@@ -301,5 +302,6 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         }
 
         try? ctx.save()
+        AchievementService.shared.checkNow(context: ctx)   // EP-3
     }
 }

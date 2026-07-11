@@ -160,6 +160,7 @@ struct ManualSessionView: View {
         session.temperatureC = temperatureC
         context.insert(session)
         try? context.save()
+        AchievementService.shared.checkNow(context: context)   // EP-3
         NotificationService.shared.scheduleReflectionReminder(for: session)
         createdSession = session
         navigateToDetail = true

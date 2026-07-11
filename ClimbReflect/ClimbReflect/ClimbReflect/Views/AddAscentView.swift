@@ -401,6 +401,7 @@ struct AddAscentView: View {
         }
 
         try? context.save()
+        AchievementService.shared.checkNow(context: context)   // EP-3
 
         if result == .top {
             UINotificationFeedbackGenerator().notificationOccurred(.success)

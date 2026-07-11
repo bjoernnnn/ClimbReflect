@@ -77,6 +77,11 @@ struct SessionDetailView: View {
         .sheet(isPresented: $showAddAscent) {
             AddAscentView(session: session)
         }
+        // EP-3: deckt Reflexion-/Ascent-Änderungen ab, die in dieser Ansicht
+        // ohne einzelnen Save-Aufruf passieren (Limiter-Toggle, Notizfelder …).
+        .onDisappear {
+            AchievementService.shared.checkNow(context: context)
+        }
         .confirmationDialog("Session löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Löschen", role: .destructive) {
                 context.delete(session)
