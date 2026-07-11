@@ -47,8 +47,11 @@ struct AchievementUnlockOverlay: View {
             }
 
             VStack(spacing: 0) {
+                // ER-2: 340 statt 176 reserviert den vollen Glow-Durchmesser
+                // (340×340) als Layout-Raum, damit der Text darunter nicht mit dem
+                // hellen Kern des Glows kollidiert (analog Detail-Sheet-Fix).
                 stage
-                    .frame(height: 176)
+                    .frame(height: 340)
 
                 Text("Erfolg freigeschaltet".uppercased())
                     .font(.caption.weight(.bold))

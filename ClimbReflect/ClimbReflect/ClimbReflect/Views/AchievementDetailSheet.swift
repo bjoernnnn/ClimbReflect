@@ -53,10 +53,12 @@ struct AchievementDetailSheet: View {
     }
 
     private var medallionWithAura: some View {
-        ZStack {
-            AchievementMedallion(symbol: isSecret ? "questionmark" : data.definition.symbol,
-                                 state: medallionState, size: 96)
-        }
+        // ER-2: Der Material-Glow rendert ab size ≥ 72 mit Frame size*1.7 (≈163 pt)
+        // und ragte ohne reservierten Platz in den Titel darunter. Fester Rahmen
+        // schließt die Aura ein, statt sie überlaufen zu lassen.
+        AchievementMedallion(symbol: isSecret ? "questionmark" : data.definition.symbol,
+                             state: medallionState, size: 96)
+            .frame(width: 96 * 1.7, height: 96 * 1.7)
     }
 
     private var materialChip: some View {
