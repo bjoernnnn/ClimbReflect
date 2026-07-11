@@ -25,6 +25,10 @@ struct DashboardView: View {
     @State private var batchTotal = 0
     @State private var toastUnlock: AchievementUnlock?
 
+    // EP-10: gemeinsame Tab-Auswahl, damit „Nächster Erfolg" (Today) direkt
+    // in den Erfolge-Tab springen kann, ohne eine Binding-Kette durchzureichen.
+    @AppStorage("selectedTabIndex") private var selectedTabIndex = 0
+
     private var currentUnlock: AchievementUnlock? { unseenFullUnlocks.first }
     private var pagerText: String? {
         guard batchTotal > 1 else { return nil }
@@ -33,18 +37,22 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTabIndex) {
             TodayView()
                 .tabItem { Label("Heute", systemImage: "house.fill") }
+                .tag(0)
 
             FortschrittView()
                 .tabItem { Label("Fortschritt", systemImage: "chart.line.uptrend.xyaxis") }
+                .tag(1)
 
             NavigationStack { ProjectsView() }
                 .tabItem { Label("Projekte", systemImage: "target") }
+                .tag(2)
 
             AchievementsView()
                 .tabItem { Label("Erfolge", systemImage: "trophy.fill") }
+                .tag(3)
         }
         .tint(Theme.accent)
         .preferredColorScheme(.dark)

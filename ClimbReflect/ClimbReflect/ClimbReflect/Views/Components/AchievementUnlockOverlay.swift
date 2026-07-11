@@ -16,16 +16,7 @@ struct AchievementUnlockOverlay: View {
     @State private var appear = false
 
     private var definition: AchievementDefinition? { AchievementDefinition.definition(id: unlock.definitionID) }
-
-    private var material: AchievementMaterial {
-        guard let def = definition else { return .gold }
-        switch def.kind {
-        case .once(let m), .repeatable(let m): return m
-        case .tiered(let tiers):
-            if let t = unlock.tier, tiers.indices.contains(t) { return tiers[t].material }
-            return .gold
-        }
-    }
+    private var material: AchievementMaterial { unlock.material }
 
     private var reduced: Bool { !effectsEnabled || reduceMotion }
 

@@ -17,6 +17,20 @@ struct AchievementViewData: Identifiable {
     var id: String { definition.id }
 }
 
+extension AchievementUnlock {
+    /// Material dieses konkreten Unlock-Ereignisses (tiered: die erreichte
+    /// Stufe). Geteilt zwischen Overlay, Toast und Session-Detail-Badges.
+    var material: AchievementMaterial {
+        guard let def = AchievementDefinition.definition(id: definitionID) else { return .gold }
+        switch def.kind {
+        case .once(let m), .repeatable(let m): return m
+        case .tiered(let tiers):
+            if let t = tier, tiers.indices.contains(t) { return tiers[t].material }
+            return .gold
+        }
+    }
+}
+
 enum AchievementViewModel {
     static func build(sessions: [ClimbSession], projects: [Project],
                       unlocks: [AchievementUnlock]) -> [AchievementViewData] {

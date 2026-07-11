@@ -14,6 +14,11 @@ struct SessionDetailView: View {
 
     // ST-2: distinct gymNames aus allen Sessions
     @Query(sort: \ClimbSession.date, order: .reverse) private var allSessions: [ClimbSession]
+    // EP-10: Unlocks, die aus dieser Session entstanden sind (Badge-Zeile).
+    @Query private var allUnlocks: [AchievementUnlock]
+    private var sessionUnlocks: [AchievementUnlock] {
+        allUnlocks.filter { $0.sessionID == session.id }.sorted { $0.unlockedAt < $1.unlockedAt }
+    }
     private var knownGymNames: [String] {
         Array(Set(allSessions.compactMap(\.gymName).filter { !$0.isEmpty })).sorted()
     }
@@ -35,6 +40,9 @@ struct SessionDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     overviewSection
+                    if !sessionUnlocks.isEmpty {
+                        sessionUnlocksCard
+                    }
                     if session.sessionType == .training {
                         trainingSetsCard
                     }
@@ -122,6 +130,35 @@ struct SessionDetailView: View {
             insightsSection
         }
         .padding(.top, 8)
+    }
+
+    // MARK: - EP-10: In dieser Session freigeschaltet
+
+    private var sessionUnlocksCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("In dieser Session freigeschaltet")
+                .font(.headline)
+                .foregroundStyle(Theme.textPrimary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(sessionUnlocks, id: \.id) { unlock in
+                        VStack(spacing: 6) {
+                            AchievementMedallion(
+                                symbol: AchievementDefinition.definition(id: unlock.definitionID)?.symbol ?? "star.fill",
+                                state: .unlocked(material: unlock.material), size: 44)
+                            Text(AchievementDefinition.definition(id: unlock.definitionID)?.title ?? "")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                                .frame(width: 64)
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .card()
     }
 
     // MARK: - Session-Insights (SI-2 / SI-3)

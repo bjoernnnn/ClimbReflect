@@ -5,11 +5,15 @@ struct TodayView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \ClimbSession.date, order: .reverse) private var sessions: [ClimbSession]
     @Query(sort: \Project.name) private var allProjects: [Project]
+    @Query private var unlocks: [AchievementUnlock]
     @ObservedObject private var watchReceiver = WatchSessionReceiver.shared
 
     @State private var showAddSession = false
     @State private var showSettings = false
     @State private var monthRecapDismissed = false
+
+    // EP-10: springt in den Erfolge-Tab (DashboardView liest denselben Key).
+    @AppStorage("selectedTabIndex") private var selectedTabIndex = 0
 
     // FO-12: Bestleistungen kommen aus der ProgressEngine (eine Quelle der Wahrheit,
     // identisch zum Level-Block im Fortschritt-Tab). Grad bereits in Anzeige-Skala.
@@ -49,6 +53,15 @@ struct TodayView: View {
         withAnimation { monthRecapDismissed = true }
     }
 
+    // EP-10: Erfolg mit dem höchsten Fortschritt < 100 % — Goal-Gradient-
+    // Einstieg auf dem Homescreen. Verschwindet automatisch bei 28/28 bzw.
+    // sobald kein gesperrter Erfolg mehr einen Fortschritt trägt.
+    private var nextAchievement: AchievementViewData? {
+        AchievementViewModel.build(sessions: sessions, projects: allProjects, unlocks: unlocks)
+            .filter { !$0.isUnlocked && ($0.progress?.fraction ?? 0) > 0 && ($0.progress?.fraction ?? 0) < 1 }
+            .max { ($0.progress?.fraction ?? 0) < ($1.progress?.fraction ?? 0) }
+    }
+
     // MO-11: jüngste Kletter-Session mit nicht-leerem Vorsatz. Sobald eine neuere
     // Kletter-Session existiert (mit oder ohne eigenen Vorsatz), verschwindet die
     // Karte automatisch.
@@ -86,6 +99,15 @@ struct TodayView: View {
                         }
 
                         statRow
+
+                        if let nextAchievement {
+                            Button {
+                                selectedTabIndex = 3
+                            } label: {
+                                NextAchievementsCard(data: nextAchievement)
+                            }
+                            .buttonStyle(.plain)
+                        }
 
                         pinnedProjectsCard
 
