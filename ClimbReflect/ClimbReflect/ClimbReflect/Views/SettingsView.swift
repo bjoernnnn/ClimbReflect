@@ -19,6 +19,10 @@ struct SettingsView: View {
     @AppStorage("boulderScale") private var boulderScale: String = GradeSystem.fontainebleau.rawValue
     @AppStorage("routeScale") private var routeScale: String = GradeSystem.french.rawValue
 
+    // ERFOLGE-KONZEPT-V2 EP-9
+    @AppStorage("achievementEffectsEnabled") private var achievementEffectsEnabled = true
+    @AppStorage("achievementSoundEnabled") private var achievementSoundEnabled = false
+
     private var boulderGradeSystems: [GradeSystem] { [.fontainebleau, .vScale] }
     private var routeGradeSystems: [GradeSystem] { [.french, .uiaa] }
 
@@ -99,6 +103,30 @@ struct SettingsView: View {
                         Text("Grad-Skala").foregroundStyle(Theme.textTertiary)
                     } footer: {
                         Text("Legt fest, in welcher Skala Grad-Anzeigen erscheinen. Die Originaldaten bleiben unverändert gespeichert.")
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                    .listRowBackground(Theme.surface)
+
+                    // MARK: Animationen (ERFOLGE-KONZEPT-V2 EP-9)
+                    Section {
+                        Toggle(isOn: $achievementEffectsEnabled) {
+                            Label("Achievement-Effekte", systemImage: "sparkles")
+                                .foregroundStyle(Theme.textPrimary)
+                        }
+                        .tint(Theme.accent)
+
+                        // Phase 0, Frage 3: kein .caf-Asset vorhanden — Toggle
+                        // existiert, bleibt aber deaktiviert bis eins nachgeliefert wird.
+                        Toggle(isOn: $achievementSoundEnabled) {
+                            Label("Sound bei Erfolgen", systemImage: "speaker.wave.2.fill")
+                                .foregroundStyle(Theme.textTertiary)
+                        }
+                        .tint(Theme.accent)
+                        .disabled(true)
+                    } header: {
+                        Text("Animationen").foregroundStyle(Theme.textTertiary)
+                    } footer: {
+                        Text("Steuert Glow, Partikel und Haptik beim Freischalten von Erfolgen. Die Systemeinstellung ‚Bewegung reduzieren' wird zusätzlich immer respektiert.")
                             .foregroundStyle(Theme.textTertiary)
                     }
                     .listRowBackground(Theme.surface)
