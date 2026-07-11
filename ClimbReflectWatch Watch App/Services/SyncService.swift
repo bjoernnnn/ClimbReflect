@@ -132,16 +132,25 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
             }
         }
         saveListCache()
+        onListsUpdated?()   // PS-1: Aufrufer (WorkoutManager) gleicht selectedProject/-Shoe ab
     }
+
+    // PS-1: benachrichtigt, wenn sich knownProjects/knownShoes geändert haben –
+    // damit eine nicht mehr vorhandene Auswahl (z. B. gelöschtes Projekt) bereinigt
+    // werden kann. Zentral registriert (analog onCommand), nicht View-gebunden.
+    var onListsUpdated: (() -> Void)?
 
     // MARK: - SH-15: Listen-Cache + aktive Nachforderung
 
     private func saveListCache() {
+        // PS-1: auch leere Listen persistieren – sonst "konserviert" der Cache ein
+        // gelöschtes letztes Projekt/Schuh über den nächsten Watch-Start hinweg,
+        // weil der alte (nicht-leere) Cache-Eintrag nie überschrieben wurde.
         let ud = UserDefaults.standard
-        if !knownProjects.isEmpty, let data = try? JSONEncoder().encode(knownProjects) {
+        if let data = try? JSONEncoder().encode(knownProjects) {
             ud.set(data, forKey: Self.projectsCacheKey)
         }
-        if !knownShoes.isEmpty, let data = try? JSONEncoder().encode(knownShoes) {
+        if let data = try? JSONEncoder().encode(knownShoes) {
             ud.set(data, forKey: Self.shoesCacheKey)
         }
     }

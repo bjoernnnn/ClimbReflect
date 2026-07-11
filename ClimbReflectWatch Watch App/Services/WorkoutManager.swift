@@ -258,6 +258,33 @@ final class WorkoutManager: NSObject, ObservableObject {
                 }
             }
         }
+
+        // PS-1: zentral registriert (analog onCommand) – nach jeder Sync-Listen-
+        // Aktualisierung eine nicht mehr vorhandene Auswahl bereinigen.
+        SyncService.shared.onListsUpdated = {
+            Task { @MainActor in
+                WorkoutManager.shared.reconcileSelectionWithKnownLists()
+            }
+        }
+    }
+
+    /// PS-1: Ist das aktuell gewählte Projekt/Schuh nicht mehr in den vom iPhone
+    /// gepushten Listen enthalten (z. B. gelöscht), Auswahl zurücksetzen – sonst
+    /// bankt man gegen ein Projekt, das auf dem iPhone längst weg ist.
+    private func reconcileSelectionWithKnownLists() {
+        var cleaned = false
+        if let sp = selectedProject,
+           !SyncService.shared.knownProjects.contains(where: { $0.id == sp.id }) {
+            selectedProject = nil
+            cleaned = true
+        }
+        if let ss = selectedShoe,
+           !SyncService.shared.knownShoes.contains(where: { $0.id == ss.id }) {
+            selectedShoe = nil
+            cleaned = true
+        }
+        DiagnosticLog.shared.log(
+            "sync: projects=\(SyncService.shared.knownProjects.count) (selected bereinigt: \(cleaned ? "ja" : "nein"))")
     }
 
     private func persistSelectedProject() {
