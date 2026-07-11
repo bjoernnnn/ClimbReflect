@@ -243,6 +243,21 @@ final class WorkoutManager: NSObject, ObservableObject {
         let launchCount = ud.integer(forKey: "launchCount") + 1
         ud.set(launchCount, forKey: "launchCount")
         DiagnosticLog.shared.log("app launch #\(launchCount) \(AppVersion.short) mem=\(MemoryFootprint.residentMB())MB")
+
+        // LA-2: onCommand zentral einmalig registrieren (Singleton-Lebensdauer der
+        // App), statt in LiveSessionView.onAppear — dort verpuffte der Befehl, sobald
+        // eine andere View aktiv war (End-Flow, Auswahl) oder onAppear erneut feuerte.
+        SyncService.shared.onCommand = { cmd in
+            Task { @MainActor in
+                DiagnosticLog.shared.log("cmd empfangen: \(cmd) (isRunning=\(WorkoutManager.shared.isRunning))")
+                switch cmd {
+                case "pause":  WorkoutManager.shared.pauseWorkout()
+                case "resume": WorkoutManager.shared.resumeWorkout()
+                case "end":    _ = await WorkoutManager.shared.endWorkout()
+                default: break
+                }
+            }
+        }
     }
 
     private func persistSelectedProject() {
@@ -439,6 +454,10 @@ final class WorkoutManager: NSObject, ObservableObject {
     // MARK: - Pause / Resume (W6.1)
 
     func pauseWorkout() {
+        // LA-2: Guard gegen doppelte/verspätete Befehle (z. B. Watch-UI + iPhone-
+        // Banner-Tap kurz hintereinander) – sonst überschreibt ein zweiter pause()
+        // pauseStartedAt und die Pausenzeit-Berechnung beim resume() geht verloren.
+        guard !isPaused else { return }
         session?.pause()
         isPaused = true
         pauseStartedAt = Date()
@@ -447,6 +466,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     }
 
     func resumeWorkout() {
+        guard isPaused else { return }
         if let p = pauseStartedAt {
             accumulatedPaused += Date().timeIntervalSince(p)
             pauseStartedAt = nil

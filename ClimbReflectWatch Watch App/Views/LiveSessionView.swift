@@ -62,15 +62,8 @@ struct LiveSessionView: View {
             if case .awaitingResult = workoutManager.attemptState, !workoutManager.isTraining {
                 currentTab = 2
             }
-            // E2: iPhone-Befehle verarbeiten
-            SyncService.shared.onCommand = { [workoutManager] cmd in
-                switch cmd {
-                case "pause":   workoutManager.pauseWorkout()
-                case "resume":  workoutManager.resumeWorkout()
-                case "end":     Task { _ = await workoutManager.endWorkout() }
-                default: break
-                }
-            }
+            // LA-2: onCommand-Wiring ist jetzt zentral in WorkoutManager.init()
+            // registriert (nicht mehr View-gebunden, siehe dortiger Kommentar).
         }
     }
 

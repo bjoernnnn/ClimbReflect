@@ -178,6 +178,7 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
                  didReceiveMessage message: [String: Any],
                  replyHandler: @escaping ([String: Any]) -> Void) {
         if let command = message["watchCommand"] as? String {
+            DiagnosticLog.shared.log("sync: cmd '\(command)' via message")
             DispatchQueue.main.async { self.onCommand?(command) }
         }
         replyHandler([:])
@@ -187,6 +188,7 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     func session(_ session: WCSession,
                  didReceiveUserInfo userInfo: [String: Any] = [:]) {
         if let command = userInfo["watchCommand"] as? String {
+            DiagnosticLog.shared.log("sync: cmd '\(command)' via userInfo")
             DispatchQueue.main.async { self.onCommand?(command) }
         }
         // SH-14: Robustheits-Fallback für Projekt-/Schuh-Liste, falls updateApplicationContext

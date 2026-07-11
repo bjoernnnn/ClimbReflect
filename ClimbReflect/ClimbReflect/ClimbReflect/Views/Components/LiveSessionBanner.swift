@@ -4,6 +4,7 @@ import WatchConnectivity
 struct LiveSessionBanner: View {
     let status: WatchLiveStatus
     @State private var showEndConfirm = false   // RP-15
+    @State private var bufferedFeedback = false // LA-2: Befehl nur gepuffert (Uhr nicht erreichbar)
 
     private var sessionLabel: String {
         switch status.sessionTypeRaw {
@@ -46,6 +47,14 @@ struct LiveSessionBanner: View {
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(Theme.accent)
                     }
+                }
+                // LA-2: ehrliches Feedback statt stiller Nicht-Reaktion (Grundsatz 6) –
+                // die Uhr ist gerade nicht erreichbar, der Befehl kommt verzögert an.
+                if bufferedFeedback {
+                    Text("Wird an die Uhr gesendet …")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.textTertiary)
+                        .transition(.opacity)
                 }
             }
 
@@ -102,8 +111,14 @@ struct LiveSessionBanner: View {
         if reachable {
             WCSession.default.sendMessage(payload, replyHandler: nil)
         } else {
-            // Fallback: transferUserInfo wird zugestellt sobald Watch erreichbar ist
+            // Fallback: transferUserInfo wird zugestellt sobald Watch erreichbar ist –
+            // das kann dauern, deshalb sichtbares Feedback statt stillem "als ob nichts
+            // passiert wäre" (Grundsatz 6). Rein visuell, keine Auswirkung auf den Versand.
             WCSession.default.transferUserInfo(payload)
+            withAnimation { bufferedFeedback = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                withAnimation { bufferedFeedback = false }
+            }
         }
     }
 }
