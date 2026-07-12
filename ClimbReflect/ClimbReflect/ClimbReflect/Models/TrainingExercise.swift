@@ -30,16 +30,17 @@ enum TrainingKind: String, Codable, CaseIterable, Identifiable {
 
 @Model
 final class TrainingSet {
-    @Attribute(.unique) var id: UUID
-    var kindRaw: String
+    // CK-P0: .unique entfernt + Defaults ergänzt (CloudKit-Voraussetzungen).
+    var id: UUID = UUID()
+    var kindRaw: String = TrainingKind.other.rawValue
     var edgeMM: Int?
     var addedWeightKg: Double?
     var reps: Int?
     var durationSeconds: Double?
     var sets: Int?
     var note: String?
-    var order: Int
-    var date: Date
+    var order: Int = 0
+    var date: Date = Date.now
 
     var session: ClimbSession?
 

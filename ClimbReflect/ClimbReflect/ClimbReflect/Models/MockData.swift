@@ -62,4 +62,59 @@ enum MockData {
             )
         }
     }
+
+    // MARK: - DS-5: Preview-Szenarien für den Fortschritt-Tab (deterministisch,
+    // keine Zufallsdaten — dienen als Abnahme-Netz gegen Layout-Brüche).
+
+    /// Voller Fortschritt-Tab: 12 Monate Boulder-Progression bis zum aktuellen
+    /// PB (im Zeitraum → Gold-Feier), 6 Erst-Sends in den letzten 6 Monaten
+    /// (zeigt den „+N"-Überhang der Fakten-Karte), Wohlfühl-Kandidat bei 7A.
+    static func makeFullProgressScenario() -> [ClimbSession] {
+        let cal = Calendar.current
+        let now = Date()
+        func daysAgo(_ d: Int) -> Date { cal.date(byAdding: .day, value: -d, to: now) ?? now }
+
+        func session(_ days: Int, _ grade: String) -> ClimbSession {
+            let date = daysAgo(days)
+            let s = ClimbSession(date: date, durationSeconds: 3600, sessionType: .boulder)
+            let top = Ascent(gradeSystem: .fontainebleau, grade: grade, result: .top, date: date)
+            top.session = s
+            s.ascents.append(top)
+            return s
+        }
+
+        let sevenA = session(150, "7A")
+        // Wohlfühl-Kandidat: 3 zusätzliche Fehlversuche auf demselben Grad
+        // → 4/5, ohne minSampleSize (5) zu erreichen.
+        for _ in 0..<3 {
+            let fail = Ascent(gradeSystem: .fontainebleau, grade: "7A", result: .attempt, date: sevenA.date)
+            fail.session = sevenA
+            sevenA.ascents.append(fail)
+        }
+
+        return [
+            session(330, "6A"), session(300, "6A+"), session(270, "6B"), session(240, "6B+"),
+            session(210, "6C"), session(180, "6C+"), sevenA, session(120, "7A+"),
+            session(90, "7B"), session(60, "7B+"), session(30, "7C"), session(5, "8A")
+        ]
+    }
+
+    /// Spärlicher Fortschritt-Tab: 2 Sessions, 1 Erst-Send im Zeitraum, kein
+    /// Wohlfühl-Grad (nur Kandidat, n = 1).
+    static func makeSparseProgressScenario() -> [ClimbSession] {
+        let cal = Calendar.current
+        let now = Date()
+        func daysAgo(_ d: Int) -> Date { cal.date(byAdding: .day, value: -d, to: now) ?? now }
+
+        func session(_ days: Int, _ grade: String) -> ClimbSession {
+            let date = daysAgo(days)
+            let s = ClimbSession(date: date, durationSeconds: 3600, sessionType: .boulder)
+            let top = Ascent(gradeSystem: .fontainebleau, grade: grade, result: .top, date: date)
+            top.session = s
+            s.ascents.append(top)
+            return s
+        }
+
+        return [session(200, "6A"), session(10, "6B")]
+    }
 }

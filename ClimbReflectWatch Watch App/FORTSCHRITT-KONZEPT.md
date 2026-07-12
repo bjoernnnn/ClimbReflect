@@ -195,3 +195,42 @@ Projekte-Tab, `ChartPeriodPicker` (wird wiederverwendet), Today-Hero-Trophäen
 - Effizienz je Route nach Route-Identität B (TODO-EFFIZIENZ)
 - Outdoor-Auswertungen, sobald genug Outdoor-Daten existieren (n ≥ 5 greift dann von allein)
 - Teilbare Monats-Karte (siehe Abstimmen-Punkt 2)
+
+---
+
+## 9. Motivations-Layer (TODO13)
+
+Der Fortschritt-Tab beantwortet „Werde ich besser?" — aber Sichtbarkeit allein
+motiviert nicht. TODO13 (Prinzip **S33**) legt eine dünne Motivations-Schicht
+darüber, **ohne** neue Feier-Kanäle: Fortschritt wird *sichtbar* gemacht, gefeiert
+wird weiter allein über TODO11/ER-5 (das Feier-Monopol; keine zweite Haptik,
+keine Partikel, kein Overlay). Alle Bausteine sind rein aus den Daten ableitbar,
+iPhone-seitig, ohne Watch-Änderung.
+
+**Drei Quellen der Motivation:**
+- **Veränderung** (Belohnungsvorhersagefehler): Erst-Sends eines Zeitraums als
+  Chip-Zeile über dem Level-Block (`periodHighlights`), Gold-Chip für den
+  Zeitraum-PB. „Was ist neu?" vor dem Zustandsbericht.
+- **Nähe** (Goal-Gradient + Endowed Progress): „Nächste Stufe <Grad>" über dem
+  historischen Höchst-Send (`nextGrade`); Stil-Gruppen unter der n=5-Schwelle als
+  „n/5"-Mini-Ziel (`stylePendingGroups`) und Wohlfühl-Kandidat (`comfortCandidate`)
+  — echte Zahlen, nie Prognosen, nie Quoten unter der Schwelle.
+- **Momente** (Kompetenz-Feedback + Fresh-Start): „Damals"-Rückblick auf eine
+  ≥ 90 Tage alte eigene Reflexion (`throwbackSession`, deterministisch pro Woche),
+  Monatsrückblick des Vormonats (`monthRecap`, einmalig, ohne Null-Bilanz), Vorsatz-
+  Schleife (`improveNext` der jüngsten Session). Verlustaversion entschärft der
+  unverlierbare Streak-Rekord (`bestClimbWeekStreak`) neben dem laufenden Streak.
+
+**Ereignis-Ebene:** Die punktuelle Feier echter Meilensteine (PB, Flash-Session,
+Projekt, Comeback) gehört zu **TODO11 / ERFOLGE-KONZEPT.md** — TODO13 verweist nur
+darauf und dupliziert sie nicht.
+
+**Anti-Patterns (bewusst nicht gebaut):**
+- Tages-Streaks / „Don't break the chain"-Druck (nur ehrliche Wochen-Streaks, mit
+  unverlierbarem Rekord statt bestrafendem Reset).
+- Guilt-Push / Re-Engagement-Notifications ohne Ereignis („Du warst lange nicht …").
+- Login-/Öffnen-Belohnungen und variable Belohnung ohne Leistungsbezug (rotierende
+  Inhalte sind deterministisch pro Kalenderwoche, nicht zufällig pro Öffnen).
+- Fremdvergleich / Ranglisten im Fortschritt-Tab.
+- KI-generierte Motivationssprüche (Zitate sind immer Björns eigene Stimme).
+- `attempts`-basierte Kennzahlen (S32/FB-8 — Watch-Ascents haben `attempts = 1`).

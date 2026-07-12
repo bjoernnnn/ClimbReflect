@@ -3,10 +3,11 @@ import SwiftData
 
 @Model
 final class ProjectMedia {
-    @Attribute(.unique) var id: UUID
+    // CK-P0: .unique entfernt + Default ergänzt (CloudKit-Voraussetzungen).
+    var id: UUID = UUID()
     @Attribute(.externalStorage) var imageData: Data?
     var caption: String?
-    var createdAt: Date
+    var createdAt: Date = Date.now
     var project: Project?
 
     init(imageData: Data? = nil, caption: String? = nil) {

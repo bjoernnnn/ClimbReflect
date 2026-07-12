@@ -48,11 +48,13 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
               WCSession.default.isWatchAppInstalled else { return }
         let projects = (try? modelContext.fetch(FetchDescriptor<Project>())) ?? []
         let active = projects.filter { $0.isActive }
-        // FB-2: Ziel-Grad + System mitsenden, damit die Watch Projektversuche vorbelegt
+        // GR-1: repräsentativen Grad (Ziel-Grad, sonst schwerster erreichter/versuchter)
+        // statt nur targetGradeRaw mitsenden – viele Projekte haben keinen Ziel-Grad,
+        // ohne Fallback griff die Watch dann auf ihre irreführende Leiter-Mitte (7a).
         let projectList: [[String: String]] = active.map {
             var dict = ["id": $0.id.uuidString, "name": $0.name]
-            if let g = $0.targetGradeRaw { dict["grade"] = g }
-            if let s = $0.gradeSystemRaw { dict["gradeSystem"] = s }
+            if let g = $0.representativeGradeRaw { dict["grade"] = g }
+            if let s = $0.representativeGradeSystemRaw { dict["gradeSystem"] = s }
             return dict
         }
         let projectNames: [String] = active.map(\.name)
@@ -69,10 +71,14 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             ]
         }
 
+        // DG-1: Diagnose-Sichtbarkeit auf der Uhr über denselben Sync-Kanal pushen.
+        let diagnosticsVisible = UserDefaults.standard.bool(forKey: "watchDiagnosticsVisible")
+
         let context: [String: Any] = [
             "projectList": projectList,
             Self.projectsKey: projectNames,
-            "shoeList": shoeList
+            "shoeList": shoeList,
+            "watchDiagnosticsVisible": diagnosticsVisible
         ]
         var updateFailed = false
         do {
@@ -204,6 +210,7 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
             }
             if let e = dto.energyRaw { existing.energyRaw = e }
             try? ctx.save()
+            AchievementService.shared.checkNow(context: ctx)   // EP-3: auch Upsert-Pfad
             return
         }
 
@@ -301,5 +308,6 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
         }
 
         try? ctx.save()
+        AchievementService.shared.checkNow(context: ctx)   // EP-3
     }
 }

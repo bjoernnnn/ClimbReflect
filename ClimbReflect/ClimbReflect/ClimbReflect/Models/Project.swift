@@ -3,14 +3,15 @@ import SwiftData
 
 @Model
 final class Project {
-    @Attribute(.unique) var id: UUID
-    var name: String
+    // CK-P0: .unique entfernt + Defaults ergänzt (CloudKit-Voraussetzungen).
+    var id: UUID = UUID()
+    var name: String = ""
     var betaNotes: String = ""
     var statusRaw: String?              // nil = auto-abgeleitet, "abandoned" = manuell
     var isPinned: Bool = false
     var gradeSystemRaw: String?
     var targetGradeRaw: String?
-    var createdAt: Date
+    var createdAt: Date = Date.now
 
     @Relationship(deleteRule: .nullify, inverse: \Ascent.project)
     var ascents: [Ascent] = []
@@ -49,6 +50,21 @@ final class Project {
     var displayTargetGrade: String? {
         guard let raw = targetGradeRaw, let sys = gradeSystem else { return nil }
         return GradeConverter.display(grade: raw, storedIn: sys)
+    }
+
+    // GR-1: repräsentativer Grad für die Watch-Vorbelegung beim Klassifizieren.
+    // Bevorzugt den Ziel-Grad; sonst der schwerste getoppte Grad; sonst der
+    // schwerste versuchte. Viele Projekte haben keinen Ziel-Grad — ohne diesen
+    // Fallback bekäme die Watch dort gar nichts und griffe auf ihren eigenen,
+    // irreführenden Leiter-Mitte-Fallback zurück (S. AttemptLogView).
+    var representativeGradeRaw: String? {
+        if let target = targetGradeRaw { return target }
+        let topped = ascents.filter { $0.result == .top }
+        let pool = topped.isEmpty ? ascents : topped
+        return pool.max(by: { $0.canonicalOrder < $1.canonicalOrder })?.gradeRaw
+    }
+    var representativeGradeSystemRaw: String? {
+        gradeSystemRaw ?? ascents.first?.gradeSystemRaw
     }
 
     init(name: String, betaNotes: String = "", statusRaw: String? = nil, isPinned: Bool = false) {

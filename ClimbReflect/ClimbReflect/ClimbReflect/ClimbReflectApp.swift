@@ -11,7 +11,7 @@ struct ClimbReflectApp: App {
 
         do {
             container = try ModelContainer(
-                for: ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self,
+                for: ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, AchievementUnlock.self,
                 configurations: config
             )
         } catch {
@@ -47,6 +47,7 @@ struct ClimbReflectApp: App {
         #if DEBUG
         MockData.seedIfNeeded(container.mainContext)
         #endif
+        AchievementService.shared.backfillIfNeeded(context: container.mainContext)
     }
 
     private func endOrphanedLiveActivities() {

@@ -26,6 +26,10 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     @Published var lastTransferStatus: String = ""
     @Published var knownProjects: [ProjectInfo] = []   // W5.2: vom iPhone empfangen
     @Published var knownShoes: [ShoeInfo] = []          // SH-6: vom iPhone empfangen
+    // DG-1: Diagnose-Einstieg auf der Uhr nur sichtbar, wenn vom iPhone freigeschaltet
+    // (Normalbetrieb: aus). Log-Sammlung selbst (DiagnosticLog.isEnabled) läuft
+    // unabhängig davon weiter – nur die Sichtbarkeit des Einstiegs wird geschaltet.
+    @Published var diagnosticsVisible: Bool = UserDefaults.standard.bool(forKey: SyncService.diagnosticsVisibleKey)
 
     // W5.3: Lokale Queue für Transfers die offline gehen
     private var pendingDTOs: [WatchSessionDTO] = []
@@ -102,6 +106,7 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     static let projectListKey = "projectList"
     static let shoeListKey = "shoeList"
     static let shoeProjectSyncKey = "shoeProjectSync"   // SH-14: transferUserInfo-Fallback-Key
+    static let diagnosticsVisibleKey = "watchDiagnosticsVisible"   // DG-1
 
     func session(_ session: WCSession,
                  didReceiveApplicationContext applicationContext: [String: Any]) {
@@ -131,17 +136,32 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
                 )
             }
         }
+        // DG-1: Diagnose-Sichtbarkeit vom iPhone übernehmen + persistieren, damit sie
+        // einen Watch-Neustart übersteht (analog Listen-Cache).
+        if let visible = context[SyncService.diagnosticsVisibleKey] as? Bool {
+            diagnosticsVisible = visible
+            UserDefaults.standard.set(visible, forKey: Self.diagnosticsVisibleKey)
+        }
         saveListCache()
+        onListsUpdated?()   // PS-1: Aufrufer (WorkoutManager) gleicht selectedProject/-Shoe ab
     }
+
+    // PS-1: benachrichtigt, wenn sich knownProjects/knownShoes geändert haben –
+    // damit eine nicht mehr vorhandene Auswahl (z. B. gelöschtes Projekt) bereinigt
+    // werden kann. Zentral registriert (analog onCommand), nicht View-gebunden.
+    var onListsUpdated: (() -> Void)?
 
     // MARK: - SH-15: Listen-Cache + aktive Nachforderung
 
     private func saveListCache() {
+        // PS-1: auch leere Listen persistieren – sonst "konserviert" der Cache ein
+        // gelöschtes letztes Projekt/Schuh über den nächsten Watch-Start hinweg,
+        // weil der alte (nicht-leere) Cache-Eintrag nie überschrieben wurde.
         let ud = UserDefaults.standard
-        if !knownProjects.isEmpty, let data = try? JSONEncoder().encode(knownProjects) {
+        if let data = try? JSONEncoder().encode(knownProjects) {
             ud.set(data, forKey: Self.projectsCacheKey)
         }
-        if !knownShoes.isEmpty, let data = try? JSONEncoder().encode(knownShoes) {
+        if let data = try? JSONEncoder().encode(knownShoes) {
             ud.set(data, forKey: Self.shoesCacheKey)
         }
     }
@@ -163,14 +183,22 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     /// gerade nicht läuft).
     private func requestListSyncIfEmpty() {
         guard knownProjects.isEmpty && knownShoes.isEmpty else { return }
+        requestListSync()
+    }
+
+    /// W-1: manueller Re-Sync (Uhr-Button bei leerer Liste) – im Gegensatz zu
+    /// requestListSyncIfEmpty() unbedingt, damit der Nutzer eine hängende Sync-
+    /// Lücke selbst auflösen kann statt auf den nächsten App-Start zu warten.
+    func requestListSync() {
         WCSession.default.transferUserInfo(["requestShoeProjectSync": true])
-        DiagnosticLog.shared.log("sync: Projekt-/Schuh-Liste leer – Re-Push angefordert")
+        DiagnosticLog.shared.log("sync: Projekt-/Schuh-Re-Push manuell angefordert")
     }
 
     func session(_ session: WCSession,
                  didReceiveMessage message: [String: Any],
                  replyHandler: @escaping ([String: Any]) -> Void) {
         if let command = message["watchCommand"] as? String {
+            DiagnosticLog.shared.log("sync: cmd '\(command)' via message")
             DispatchQueue.main.async { self.onCommand?(command) }
         }
         replyHandler([:])
@@ -180,6 +208,7 @@ final class SyncService: NSObject, WCSessionDelegate, ObservableObject {
     func session(_ session: WCSession,
                  didReceiveUserInfo userInfo: [String: Any] = [:]) {
         if let command = userInfo["watchCommand"] as? String {
+            DiagnosticLog.shared.log("sync: cmd '\(command)' via userInfo")
             DispatchQueue.main.async { self.onCommand?(command) }
         }
         // SH-14: Robustheits-Fallback für Projekt-/Schuh-Liste, falls updateApplicationContext

@@ -21,6 +21,7 @@ struct ProjectDetailView: View {
     @State private var captionDraft = ""
     @State private var showDeleteConfirm = false
     @State private var showGradeEditor = false   // FB-1
+    @State private var editedAscent: Ascent? = nil   // GR-2
 
     private var sortedAscents: [Ascent] {
         project.ascents.sorted { $0.date > $1.date }
@@ -223,7 +224,9 @@ struct ProjectDetailView: View {
                 .foregroundStyle(Theme.accentGradient)
             }
             .chartXAxis {
-                AxisMarks(values: .stride(by: .day)) { _ in
+                // CH-1: .stride(by: .day) erzeugte über lange Projekt-Zeitspannen ein
+                // Label pro Tag (hunderte, unlesbar). .automatic verteilt selbst sinnvoll.
+                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                     AxisGridLine().foregroundStyle(Theme.surfaceStroke.opacity(0.3))
                     AxisValueLabel(format: .dateTime.day().month(.twoDigits))
                         .foregroundStyle(Theme.textTertiary)
@@ -442,6 +445,8 @@ struct ProjectDetailView: View {
                     VStack(spacing: 0) {
                         ForEach(group.ascents) { ascent in
                             AscentRowView(ascent: ascent)
+                                .contentShape(Rectangle())
+                                .onTapGesture { editedAscent = ascent }   // GR-2: Grad/Ergebnis/Stil korrigierbar
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                     Button(role: .destructive) {
                                         deleteAscent(ascent)
@@ -460,11 +465,15 @@ struct ProjectDetailView: View {
             }
         }
         .card()
+        .sheet(item: $editedAscent) { ascent in
+            EditAscentAssociationsSheet(ascent: ascent)
+        }
     }
 
     private func deleteAscent(_ ascent: Ascent) {
         context.delete(ascent)
         try? context.save()
+        AchievementService.shared.checkNow(context: context)   // EP-3
     }
 
     // MARK: - Helpers

@@ -4,6 +4,13 @@ import WatchConnectivity
 struct LiveSessionBanner: View {
     let status: WatchLiveStatus
     @State private var showEndConfirm = false   // RP-15
+    @State private var bufferedFeedback = false // LA-2: Befehl nur gepuffert (Uhr nicht erreichbar)
+
+    // LA-3: Sperrbildschirm-Live-Activity kann erst starten, nachdem die App einmal
+    // im Vordergrund war (S26, Activity.request() läuft nur dort) – Grenze einmalig
+    // transparent machen statt sie stillschweigend hinzunehmen. Einmal quittiert,
+    // bleibt der Hinweis weg (kein wiederkehrendes Genöhle).
+    @AppStorage("lockScreenHintDismissed") private var lockScreenHintDismissed = false
 
     private var sessionLabel: String {
         switch status.sessionTypeRaw {
@@ -21,6 +28,25 @@ struct LiveSessionBanner: View {
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            mainRow
+            if !lockScreenHintDismissed {
+                lockScreenHint
+            }
+        }
+        .confirmationDialog("Session auf der Watch beenden?", isPresented: $showEndConfirm, titleVisibility: .visible) {
+            Button("Beenden", role: .destructive) { sendCommand("end") }
+            Button("Abbrechen", role: .cancel) {}
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(status.isPaused ? Theme.gold.opacity(0.25) : Theme.accent.opacity(0.25), lineWidth: 1)
+        )
+    }
+
+    private var mainRow: some View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
@@ -32,7 +58,7 @@ struct LiveSessionBanner: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(sessionLabel) auf der Watch")
+                Text(sessionLabel)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.textPrimary)
                 // Sekündliche Anzeige lokal via TimelineView – kein Watch-Funk
@@ -47,17 +73,13 @@ struct LiveSessionBanner: View {
                             .foregroundStyle(Theme.accent)
                     }
                 }
-                HStack(spacing: 10) {
-                    if let hr = status.heartRate {
-                        Label(String(format: "%.0f bpm", hr), systemImage: "heart.fill")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.danger)
-                    }
-                    if let kcal = status.activeEnergyKcal {
-                        Label(String(format: "%.0f kcal", kcal), systemImage: "flame.fill")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.gold)
-                    }
+                // LA-2: ehrliches Feedback statt stiller Nicht-Reaktion (Grundsatz 6) –
+                // die Uhr ist gerade nicht erreichbar, der Befehl kommt verzögert an.
+                if bufferedFeedback {
+                    Text("Wird an die Uhr gesendet …")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.textTertiary)
+                        .transition(.opacity)
                 }
             }
 
@@ -87,16 +109,26 @@ struct LiveSessionBanner: View {
                 .buttonStyle(.plain)
             }
         }
-        .confirmationDialog("Session auf der Watch beenden?", isPresented: $showEndConfirm, titleVisibility: .visible) {
-            Button("Beenden", role: .destructive) { sendCommand("end") }
-            Button("Abbrechen", role: .cancel) {}
+    }
+
+    private var lockScreenHint: some View {
+        HStack(spacing: 6) {
+            Text("Sperrbildschirm-Anzeige aktiv, sobald die App einmal offen war")
+                .font(.caption2)
+                .foregroundStyle(Theme.textTertiary)
+                .lineLimit(2)
+            Button {
+                withAnimation { lockScreenHintDismissed = true }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .buttonStyle(.plain)
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(status.isPaused ? Theme.gold.opacity(0.25) : Theme.accent.opacity(0.25), lineWidth: 1)
-        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(Theme.bgElevated))
     }
 
     private func liveElapsedFormatted() -> String {
@@ -114,8 +146,14 @@ struct LiveSessionBanner: View {
         if reachable {
             WCSession.default.sendMessage(payload, replyHandler: nil)
         } else {
-            // Fallback: transferUserInfo wird zugestellt sobald Watch erreichbar ist
+            // Fallback: transferUserInfo wird zugestellt sobald Watch erreichbar ist –
+            // das kann dauern, deshalb sichtbares Feedback statt stillem "als ob nichts
+            // passiert wäre" (Grundsatz 6). Rein visuell, keine Auswirkung auf den Versand.
             WCSession.default.transferUserInfo(payload)
+            withAnimation { bufferedFeedback = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                withAnimation { bufferedFeedback = false }
+            }
         }
     }
 }

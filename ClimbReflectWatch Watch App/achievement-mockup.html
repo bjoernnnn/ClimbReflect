@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClimbReflect · Erfolge — Design-Referenz „Gipfelmarken"</title>
+<style>
+  :root{
+    --bg:#0B0E13; --bg-elevated:#12161D; --surface:rgba(23,28,37,.85); --surface-solid:#171C25;
+    --stroke:#232B37; --text-1:#F2F5F9; --text-2:#8B97A7; --text-3:#7A8799;
+    --accent:#37E29A; --accent2:#29B6F6; --danger:#FF6B6B;
+    --gold:#F5C451; --gold-hi:#FFD976; --gold-deep:#B98A28;
+    --bronze:#C9905E; --bronze-hi:#E8B888; --bronze-deep:#8A5A34;
+    --silver:#C9D4E0; --silver-hi:#EEF3F8; --silver-deep:#7E8C9E;
+    --diamond:#A8ECFF; --diamond-hi:#DFF8FF; --diamond-deep:#4FC3F7;
+    --r-card:20px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:#06080C; color:var(--text-1);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; align-items:center;
+    padding:32px 16px 64px; min-height:100vh;
+  }
+
+  /* ---------- Rahmen um das Mockup ---------- */
+  .caption{max-width:400px;width:100%;margin-bottom:14px}
+  .caption .eyebrow{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}
+  .caption h1{font-size:17px;font-weight:600;margin-top:4px}
+  .caption p{font-size:12.5px;color:var(--text-2);margin-top:4px;line-height:1.5}
+  .controls{max-width:400px;width:100%;display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;align-items:center}
+  .controls button{
+    font:inherit;font-size:12.5px;font-weight:600;color:var(--bg);
+    background:var(--accent);border:none;border-radius:99px;padding:8px 14px;cursor:pointer;
+  }
+  .controls button.secondary{background:var(--bg-elevated);color:var(--text-1);border:1px solid var(--stroke)}
+  .controls label{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-2);cursor:pointer;margin-left:auto}
+  .controls input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
+
+  /* ---------- Phone-Canvas ---------- */
+  .phone{
+    position:relative;width:100%;max-width:400px;background:var(--bg);
+    border:1px solid #1B222C;border-radius:36px;overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.55);
+  }
+  .screen{position:relative;height:760px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+
+  /* Berg-Hintergrund (Zitat MountainBackground: diagonaler, gefadeter Grat) */
+  .mountain{position:absolute;inset:0;pointer-events:none;opacity:.5}
+
+  .content{position:relative;padding:18px 20px 48px}
+  .navtitle{text-align:center;font-size:16px;font-weight:600;padding:6px 0 16px}
+
+  /* ---------- Sammlung-Header ---------- */
+  .collection{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px}
+  .collection .label{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3)}
+  .collection .count{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","SF Pro Text",sans-serif;
+    font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .collection .count small{font-size:13px;font-weight:600;color:var(--text-3)}
+  .totalbar{height:4px;border-radius:2px;background:var(--bg-elevated);overflow:hidden;margin-bottom:22px}
+  .totalbar i{display:block;height:100%;width:39%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+  .section-title{font-size:13px;font-weight:600;color:var(--text-1);margin:2px 0 10px}
+
+  /* ---------- In Reichweite ---------- */
+  .reach{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+  .reach-card{display:flex;align-items:center;gap:12px;background:var(--surface);
+    border:1px solid var(--stroke);border-radius:16px;padding:11px 14px;cursor:pointer}
+  .reach-card .txt{flex:1;min-width:0}
+  .reach-card .t{font-size:13.5px;font-weight:600}
+  .reach-card .s{font-size:11.5px;color:var(--text-3);margin-top:2px}
+  .reach-card .pct{font-size:12px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+
+  /* ---------- Kategorie-Chips ---------- */
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;font-size:12px;font-weight:600;color:var(--text-2);
+    background:var(--bg-elevated);border:1px solid var(--stroke);border-radius:99px;
+    padding:6px 12px;cursor:pointer;white-space:nowrap}
+  .chip.active{color:var(--bg);background:var(--accent);border-color:var(--accent)}
+
+  /* ---------- Grid & Kacheln ---------- */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{background:var(--surface);border:1px solid var(--stroke);border-radius:var(--r-card);
+    padding:16px 12px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;
+    cursor:pointer;transition:transform .15s ease}
+  .tile:active{transform:scale(.97)}
+  .tile .title{font-size:13px;font-weight:600;line-height:1.25;margin-top:10px;min-height:33px;
+    display:flex;align-items:center}
+  .tile .status{font-size:11px;color:var(--text-3);margin-top:3px;min-height:14px}
+  .tile.unlocked .status{color:var(--text-2)}
+  .tile .dots{display:flex;gap:5px;margin-top:9px;min-height:6px}
+  .dot{width:6px;height:6px;border-radius:50%;background:transparent;border:1px solid var(--stroke)}
+  .dot.f-bronze{background:var(--bronze);border-color:var(--bronze)}
+  .dot.f-silver{background:var(--silver);border-color:var(--silver)}
+  .dot.f-gold{background:var(--gold);border-color:var(--gold)}
+  .dot.f-diamond{background:var(--diamond-deep);border-color:var(--diamond-deep)}
+  .tile .badge-x{font-size:10.5px;font-weight:700;color:var(--gold);letter-spacing:.02em;margin-top:9px}
+
+  /* ---------- Medaillon (Gipfelmarke) ---------- */
+  .medallion{position:relative;display:inline-block}
+  .medallion svg{display:block}
+  .medallion .aura{position:absolute;inset:-34%;border-radius:50%;opacity:.28;pointer-events:none;filter:none}
+  .aura.gold{background:radial-gradient(circle,var(--gold) 0%,transparent 62%)}
+  .aura.bronze{background:radial-gradient(circle,var(--bronze) 0%,transparent 62%)}
+  .aura.silver{background:radial-gradient(circle,var(--silver-deep) 0%,transparent 62%)}
+  .aura.diamond{background:radial-gradient(circle,var(--diamond-deep) 0%,transparent 62%)}
+
+  .footer-note{max-width:400px;width:100%;margin-top:16px;font-size:11.5px;line-height:1.6;color:var(--text-3)}
+  .footer-note code{color:var(--text-2);font-family:ui-monospace,Menlo,monospace;font-size:10.5px}
+
+  /* ---------- Detail-Sheet ---------- */
+  .sheet-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:20}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg-elevated);
+    border-radius:24px 24px 0 0;border-top:1px solid var(--stroke);padding:14px 22px 30px;
+    transform:translateY(102%);transition:transform .34s cubic-bezier(.32,.72,.25,1);z-index:21;
+    max-height:82%;overflow-y:auto}
+  .phone.sheet-open .sheet{transform:translateY(0)}
+  .phone.sheet-open .sheet-backdrop{opacity:1;pointer-events:auto}
+  .grabber{width:36px;height:4px;border-radius:2px;background:var(--stroke);margin:0 auto 18px}
+  .sheet .med-wrap{display:flex;justify-content:center;margin:6px 0 14px}
+  .sheet h2{text-align:center;font-size:19px;font-weight:700}
+  .mat-chip{display:block;width:max-content;margin:8px auto 0;font-size:10.5px;font-weight:700;
+    letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:99px}
+  .mat-chip.gold{color:var(--gold);background:rgba(245,196,81,.12)}
+  .mat-chip.bronze{color:var(--bronze);background:rgba(201,144,94,.12)}
+  .mat-chip.silver{color:var(--silver);background:rgba(201,212,224,.10)}
+  .mat-chip.diamond{color:var(--diamond);background:rgba(79,195,247,.12)}
+  .sheet .crit{font-size:13.5px;color:var(--text-2);text-align:center;line-height:1.55;margin:14px 4px 0}
+  .sheet .progress-row{margin:18px 2px 0}
+  .sheet .progress-row .lbl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-3);margin-bottom:6px;font-variant-numeric:tabular-nums}
+  .pbar{height:5px;border-radius:3px;background:var(--surface-solid);overflow:hidden}
+  .pbar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+  .history{margin-top:20px}
+  .history .h-title{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
+  .h-item{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-top:1px solid var(--stroke);font-size:13px}
+  .h-item .g{font-family:"SF Pro Rounded",-apple-system,sans-serif;font-weight:700;color:var(--gold);min-width:44px}
+  .h-item .d{color:var(--text-3);font-size:11.5px;margin-left:auto;font-variant-numeric:tabular-nums}
+
+  /* ---------- Unlock-Overlay ---------- */
+  .overlay{position:absolute;inset:0;z-index:40;display:none;align-items:center;justify-content:center;flex-direction:column}
+  .overlay.show{display:flex}
+  .ov-backdrop{position:absolute;inset:0;background:#000;opacity:0}
+  .ov-stage{position:relative;display:flex;flex-direction:column;align-items:center}
+  .ov-glow{position:absolute;top:50%;left:50%;width:340px;height:340px;margin:-170px 0 0 -170px;
+    border-radius:50%;opacity:0;pointer-events:none}
+  .ov-glow.gold{background:radial-gradient(circle,rgba(255,217,118,.9) 0%,rgba(245,196,81,.35) 30%,transparent 65%)}
+  .ov-glow.diamond{background:radial-gradient(circle,rgba(168,236,255,.9) 0%,rgba(79,195,247,.35) 30%,transparent 65%)}
+  .ov-med{position:relative;opacity:0}
+  .ov-eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);
+    margin-top:26px;opacity:0}
+  .ov-title{font-family:"SF Pro Rounded",-apple-system,sans-serif;font-size:26px;font-weight:800;margin-top:6px;opacity:0}
+  .ov-sub{font-size:14px;color:var(--text-2);margin-top:6px;opacity:0}
+  .ov-counter{position:absolute;top:22px;font-size:12px;font-weight:600;color:var(--text-3);opacity:0}
+  .ov-btn{margin-top:34px;font:inherit;font-size:14px;font-weight:700;color:var(--bg);
+    background:var(--text-1);border:none;border-radius:99px;padding:11px 30px;cursor:pointer;opacity:0}
+  .particle{position:absolute;top:50%;left:50%;width:5px;height:5px;border-radius:50%;
+    pointer-events:none;will-change:transform,opacity}
+  .sweep-clip{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none}
+  .sweep{position:absolute;top:-20%;left:-70%;width:34%;height:140%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);
+    transform:rotate(24deg) translateX(0);opacity:0}
+</style>
+</head>
+<body>
+
+<div class="caption">
+  <div class="eyebrow">ClimbReflect · Design-Referenz</div>
+  <h1>Erfolge-Tab „Gipfelmarken" — Sammlung, Wertigkeiten &amp; Unlock-Moment</h1>
+  <p>Interaktives Mockup im bestehenden Theme (Farb-Tokens 1:1 aus <code>Theme.swift</code>).
+  Kacheln antippen öffnet das Detail-Sheet. Die Unlock-Choreografie animiert ausschließlich
+  <code>transform</code> und <code>opacity</code> — exakt die Regel für die SwiftUI-Umsetzung (TODO13, EP-7).</p>
+</div>
+
+<div class="controls">
+  <button id="demoGold">▶ Unlock: Neue Bestmarke (Gold)</button>
+  <button id="demoDiamond" class="secondary">▶ Everest (Diamant)</button>
+  <label><input type="checkbox" id="fxToggle" checked> Achievement-Effekte</label>
+</div>
+
+<div class="phone" id="phone">
+  <div class="screen" id="screen">
+
+    <!-- Berg-Hintergrund: Zitat des diagonalen MountainBackground -->
+    <svg class="mountain" viewBox="0 0 400 760" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="mgrad" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stop-color="#151B24" stop-opacity=".9"/>
+          <stop offset=".6" stop-color="#12161D" stop-opacity=".25"/>
+          <stop offset="1" stop-color="#0B0E13" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="M0,760 L0,470 L90,360 L150,415 L235,290 L310,370 L400,240 L400,760 Z" fill="url(#mgrad)"/>
+      <path d="M0,470 L90,360 L150,415 L235,290 L310,370 L400,240" fill="none" stroke="#2A3444" stroke-width="1" opacity=".5"/>
+    </svg>
+
+    <div class="content">
+      <div class="navtitle">Erfolge</div>
+
+      <div class="collection">
+        <div>
+          <div class="label">Sammlung</div>
+          <div class="count">11 <small>von 28</small></div>
+        </div>
+      </div>
+      <div class="totalbar"><i></i></div>
+
+      <div class="section-title">In Reichweite</div>
+      <div class="reach">
+        <div class="reach-card" onclick="openSheet('stammgast')">
+          <span data-med='{"size":46,"state":"locked","progress":0.84,"icon":"calendar"}'></span>
+          <div class="txt"><div class="t">Stammgast · Stufe III</div><div class="s">Noch 8 Sessions bis 50</div></div>
+          <div class="pct">84 %</div>
+        </div>
+        <div class="reach-card" onclick="openSheet('allrounder')">
+          <span data-med='{"size":46,"state":"locked","progress":0.75,"icon":"angles"}'></span>
+          <div class="txt"><div class="t">Allrounder</div><div class="s">Noch 1 Wandwinkel: Dach</div></div>
+          <div class="pct">75 %</div>
+        </div>
+        <div class="reach-card" onclick="openSheet('hoehe')">
+          <span data-med='{"size":46,"state":"locked","progress":0.61,"icon":"mountain"}'></span>
+          <div class="txt"><div class="t">Höhenmeter · Stufe III</div><div class="s">612 von 1 000 m gemessen</div></div>
+          <div class="pct">61 %</div>
+        </div>
+      </div>
+
+      <div class="chips" id="chips">
+        <div class="chip active" data-cat="alle">Alle</div>
+        <div class="chip" data-cat="anfaenge">Anfänge</div>
+        <div class="chip" data-cat="konsistenz">Konsistenz</div>
+        <div class="chip" data-cat="schwierigkeit">Schwierigkeit</div>
+        <div class="chip" data-cat="stil">Stil</div>
+        <div class="chip" data-cat="ausdauer">Ausdauer</div>
+        <div class="chip" data-cat="projekte">Projekte</div>
+        <div class="chip" data-cat="momente">Momente</div>
+      </div>
+
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <!-- Detail-Sheet -->
+    <div class="sheet-backdrop" onclick="closeSheet()"></div>
+    <div class="sheet" id="sheet"></div>
+
+    <!-- Unlock-Overlay -->
+    <div class="overlay" id="overlay">
+      <div class="ov-backdrop" id="ovBackdrop"></div>
+      <div class="ov-counter" id="ovCounter">1 von 1</div>
+      <div class="ov-stage">
+        <div class="ov-glow" id="ovGlow"></div>
+        <div class="ov-med" id="ovMed"></div>
+        <div class="ov-eyebrow" id="ovEyebrow">Erfolg freigeschaltet</div>
+        <div class="ov-title" id="ovTitle">Neue Bestmarke</div>
+        <div class="ov-sub" id="ovSub">Boulder · 7A — dein bisher schwerster Send</div>
+        <button class="ov-btn" id="ovBtn" onclick="closeOverlay()">Weiter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">
+  <strong style="color:var(--text-2)">Choreografie</strong> (≈ 1,5 s, siehe Konzept §7): Backdrop-Fade →
+  Glow (opacity + scale) → Medaillon-Spring (scale 0,6 → 1) + Haptik <code>.success</code> →
+  24 Material-Partikel (translate/scale/opacity, danach Ticker-Stopp) → Grat-Glanzlauf → Titel-Rise.
+  Effekte-Toggle aus oder System-„Bewegung reduzieren" ⇒ reiner Crossfade, Haptik bleibt.
+  Gesperrte Marken zeigen den Fortschrittsring (Goal-Gradient); Materialien: Bronze · Silber · Gold · Diamant.
+</div>
+
+<script>
+/* ============ Gipfelmarke (Medaillon) als SVG ============ */
+const MATS = {
+  bronze:  ['#E8B888','#C9905E','#8A5A34'],
+  silver:  ['#EEF3F8','#C9D4E0','#7E8C9E'],
+  gold:    ['#FFD976','#F5C451','#B98A28'],
+  diamond: ['#DFF8FF','#A8ECFF','#4FC3F7'],
+};
+const ICONS = { /* 24×24, Strichstärke 2, runde Kappen — SF-Symbol-Anmutung */
+  flag:'<path d="M6 21V4"/><path d="M6 5c3-1.8 5.5 1.6 9 0v7c-3.5 1.6-6-1.8-9 0"/>',
+  bolt:'<path d="M13 3 6 13h5l-1 8 7-10h-5z"/>',
+  eye:'<path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.6"/>',
+  target:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
+  flame:'<path d="M12 3.5c.6 3-3.8 4.9-3.8 9a5.8 5.8 0 0 0 11.6 0c0-2.4-1.3-3.9-2.3-5-.2 1.3-.8 2.2-1.8 2.6C16.3 7.6 15 4.6 12 3.5Z"/>',
+  mountain:'<path d="M3 19 9.5 8l3.2 5.2L15.5 9 21 19Z"/><path d="M8 12.5l1.5-1.2 1.4 1.2"/>',
+  clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  star:'<path d="m12 4 2.3 4.9 5.2.6-3.9 3.6 1.1 5.2L12 15.7l-4.7 2.6 1.1-5.2L4.5 9.5l5.2-.6Z"/>',
+  calendar:'<rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="M4 10h16M8 3.5v4M16 3.5v4"/>',
+  sunrise:'<path d="M12 10.5V5M12 5l-2.5 2.5M12 5l2.5 2.5M4 17.5h16M7 14.5a5 5 0 0 1 10 0"/>',
+  angles:'<path d="M4 19h16M4 19V9l6 4 4-7 6 6"/>',
+  book:'<path d="M5 4.5h11a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3Z"/><path d="M5 17.5a3 3 0 0 1 3-3h11"/>',
+  sparkle:'<path d="M12 4c.6 4 2.4 5.8 6 6.4-3.6.6-5.4 2.4-6 6.4-.6-4-2.4-5.8-6-6.4 3.6-.6 5.4-2.4 6-6.4Z"/>',
+  q:'<path d="M9.2 9.4A3 3 0 1 1 12 13c-.6.4-.9.9-.9 1.7"/><circle cx="12" cy="17.8" r=".9" fill="currentColor" stroke="none"/>',
+};
+
+function medallion({size=56, state='unlocked', material='gold', progress=null, icon='flag', gradId}){
+  const id = gradId || 'g' + Math.random().toString(36).slice(2,8);
+  const R = size/2, ringR = R-2.2, ridgeO = .09;
+  const c = MATS[material] || MATS.gold;
+  let ring='';
+  if(state==='unlocked'){
+    ring = `<circle cx="${R}" cy="${R}" r="${ringR}" fill="none" stroke="url(#${id})" stroke-width="2.5"/>`;
+  } else {
+    ring = `<circle cx="${R}" cy="${R}" r="${ringR}" fill="none" stroke="#232B37" stroke-width="3"/>`;
+    if(progress!=null){
+      const L = 2*Math.PI*ringR;
+      ring += `<circle cx="${R}" cy="${R}" r="${ringR}" fill="none" stroke="#37E29A" stroke-width="3"
+        stroke-linecap="round" stroke-dasharray="${L}" stroke-dashoffset="${L*(1-progress)}"
+        transform="rotate(-90 ${R} ${R})"/>`;
+    }
+  }
+  const iconColor = state==='unlocked' ? c[1] : '#7A8799';
+  const iS = size*0.42, iOff = R - iS/2;
+  return `
+  <span class="medallion" style="width:${size}px;height:${size}px">
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <defs>
+        <linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="${c[2]}"/><stop offset=".45" stop-color="${c[0]}"/>
+          <stop offset="1" stop-color="${c[2]}"/>
+        </linearGradient>
+        <clipPath id="${id}c"><circle cx="${R}" cy="${R}" r="${ringR-2.4}"/></clipPath>
+      </defs>
+      <circle cx="${R}" cy="${R}" r="${ringR-1}" fill="#12161D"/>
+      <g clip-path="url(#${id}c)">
+        <path d="M${-size*.1},${size*.86} L${size*.3},${size*.5} L${size*.48},${size*.66} L${size*.74},${size*.34} L${size*1.1},${size*.62}"
+              fill="none" stroke="#FFFFFF" stroke-opacity="${ridgeO}" stroke-width="1.4"/>
+      </g>
+      ${ring}
+      <g transform="translate(${iOff},${iOff}) scale(${iS/24})" fill="none" stroke="${iconColor}"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[icon]||ICONS.flag}</g>
+    </svg>
+  </span>`;
+}
+document.querySelectorAll('[data-med]').forEach(el=>{
+  el.outerHTML = medallion(JSON.parse(el.dataset.med));
+});
+
+/* ============ Katalog-Daten (repräsentativer Ausschnitt) ============ */
+const TILES = [
+ {id:'erste', cat:'anfaenge', title:'Seil frei', icon:'flag', state:'unlocked', mat:'bronze', status:'12. März 2025'},
+ {id:'reflexion', cat:'anfaenge', title:'Innehalten', icon:'book', state:'unlocked', mat:'bronze', status:'14. März 2025'},
+ {id:'pb', cat:'schwierigkeit', title:'Neue Bestmarke', icon:'star', state:'unlocked', mat:'gold', status:'Zuletzt 6C+ · Mai 2026', x:'×4',
+   detail:{crit:'Jeder neue Höchstgrad ist ein eigenes, datiertes Ereignis — die Leiter endet nie.', mat:'gold',
+     history:[['6C+','17. Mai 2026'],['6C','2. Feb 2026'],['6B+','21. Nov 2025'],['6B','3. Okt 2025']]}},
+ {id:'meilenstein', cat:'schwierigkeit', title:'Boulder-Meilensteine', icon:'mountain', state:'unlocked', mat:'silver',
+   status:'Stufe II · 6C', dots:['bronze','silver','', '', ''],
+   detail:{crit:'Erster Boulder-Top ab kanonischem Grad: 6A · 6C · 7A · 7C · 8A. Nächster Meilenstein: 7A.', mat:'silver', prog:[.86,'6C+ von 7A']}},
+ {id:'streak', cat:'konsistenz', title:'Am Ball', icon:'flame', state:'unlocked', mat:'silver',
+   status:'Stufe III · 13 Wochen', dots:['bronze','bronze','silver','',''],
+   detail:{crit:'Wochen in Folge mit mindestens einer Session. Die laufende leere Woche verzeiht — kein Streak-Stress.', mat:'silver', prog:[.5,'13 von 26 Wochen']}},
+ {id:'stammgast', cat:'konsistenz', title:'Stammgast', icon:'calendar', state:'locked', progress:.84, icon2:'calendar',
+   status:'Noch 8 Sessions', dots:['bronze','bronze','','',''],
+   detail:{crit:'Sessions gesamt: 10 · 25 · 50 · 100 · 250. Stufe III bei 50 Sessions.', mat:'silver', prog:[.84,'42 von 50 Sessions']}},
+ {id:'blitz', cat:'stil', title:'Blitzsammler', icon:'bolt', state:'unlocked', mat:'bronze',
+   status:'Stufe I · 5 Flashes', dots:['bronze','',''],
+   detail:{crit:'Flash-Tops gesamt: 5 · 25 · 100. Ein Flash zeigt, dass du Routen liest und direkt umsetzt.', mat:'bronze', prog:[.44,'11 von 25 Flashes']}},
+ {id:'onsight', cat:'stil', title:'Auf Sicht', icon:'eye', state:'locked', progress:.7, status:'7 von 10 Onsights', dots:['silver','',''],
+   detail:{crit:'Onsight-Tops gesamt: 1 · 10 · 25. Die Königsdisziplin am Seil.', mat:'gold', prog:[.7,'7 von 10 Onsights']}},
+ {id:'allrounder', cat:'stil', title:'Allrounder', icon:'angles', state:'locked', progress:.75, status:'Noch 1 Winkel: Dach',
+   detail:{crit:'Tops in allen vier Wandwinkeln — Platte, Senkrecht, Überhang, Dach. Zählt nur getaggte Begehungen.', mat:'gold', prog:[.75,'3 von 4 Wandwinkeln']}},
+ {id:'gipfel', cat:'ausdauer', title:'Gipfelsammler', icon:'mountain', state:'unlocked', mat:'silver',
+   status:'Stufe III · 100 Tops', dots:['bronze','bronze','silver','','',''],
+   detail:{crit:'Getoppte Begehungen gesamt: 10 · 50 · 100 · 250 · 500 · 1000.', mat:'silver', prog:[.57,'142 von 250 Tops']}},
+ {id:'hoehe', cat:'ausdauer', title:'Höhenmeter', icon:'mountain', state:'locked', progress:.61,
+   status:'612 von 1 000 m', dots:['bronze','silver','',''],
+   detail:{crit:'Kumulierte, per Watch gemessene Kletterhöhenmeter: 100 · 500 · 1 000 · 8 848 m. Stufe IV ist der Everest.', mat:'diamond', prog:[.61,'612 von 1 000 m']}},
+ {id:'prozess', cat:'projekte', title:'Der Prozess', icon:'target', state:'unlocked', mat:'silver', status:'8. Juni 2026',
+   detail:{crit:'Dein erstes Projekt gesendet — mehrere Sessions, ein Ziel, ein Top.', mat:'silver'}},
+ {id:'hart', cat:'projekte', title:'Hartnäckig', icon:'target', state:'locked',
+   status:'Projekt mit 10 Versuchen senden',
+   detail:{crit:'Ein Projekt mit mindestens 10 gebuchten Versuchen senden. Hartnäckigkeit hat einen Namen — den deines Projekts.', mat:'gold'}},
+ {id:'hidden1', cat:'momente', title:'???', icon:'q', state:'locked', hidden:true, status:'Geheimer Erfolg',
+   detail:{crit:'Wird beim Freischalten enthüllt.', mat:'silver', hidden:true}},
+];
+
+const grid = document.getElementById('grid');
+function renderGrid(cat='alle'){
+  grid.innerHTML = TILES.filter(t=>cat==='alle'||t.cat===cat).map(t=>{
+    const med = medallion({size:56, state:t.state, material:t.mat||'gold',
+      progress:t.state==='locked' && !t.hidden ? (t.progress ?? null) : null, icon:t.icon});
+    const dots = t.dots ? `<div class="dots">${t.dots.map(d=>`<span class="dot ${d?('f-'+d):''}"></span>`).join('')}</div>`
+               : (t.x ? `<div class="badge-x">${t.x} verdient</div>` : `<div class="dots"></div>`);
+    return `<div class="tile ${t.state}" onclick="openSheet('${t.id}')">${med}
+      <div class="title">${t.title}</div><div class="status">${t.status||''}</div>${dots}</div>`;
+  }).join('');
+}
+renderGrid();
+
+document.getElementById('chips').addEventListener('click', e=>{
+  const chip = e.target.closest('.chip'); if(!chip) return;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active'); renderGrid(chip.dataset.cat);
+});
+
+/* ============ Detail-Sheet ============ */
+const phone = document.getElementById('phone'), sheet = document.getElementById('sheet');
+function openSheet(id){
+  const t = TILES.find(x=>x.id===id); if(!t) return;
+  const d = t.detail || {crit:t.status||'', mat:t.mat||'gold'};
+  const matName = {bronze:'Bronze',silver:'Silber',gold:'Gold',diamond:'Diamant'}[d.mat];
+  const big = medallion({size:96, state:t.state, material:d.mat,
+      progress:t.state==='locked' && !t.hidden ? (t.progress ?? (d.prog?d.prog[0]:null)) : null, icon:t.icon});
+  const aura = t.state==='unlocked' ? `<span class="aura ${d.mat}"></span>` : '';
+  sheet.innerHTML = `
+    <div class="grabber"></div>
+    <div class="med-wrap"><span class="medallion" style="position:relative">${aura}${big}</span></div>
+    <h2>${t.hidden ? 'Geheimer Erfolg' : t.title}</h2>
+    <span class="mat-chip ${d.mat}">${t.state==='unlocked' ? 'Freigeschaltet · '+matName : (t.hidden?'Verborgen':matName+' · Gesperrt')}</span>
+    <p class="crit">${d.crit}</p>
+    ${d.prog && !t.hidden ? `<div class="progress-row"><div class="lbl"><span>${d.prog[1]}</span><span>${Math.round(d.prog[0]*100)} %</span></div>
+      <div class="pbar"><i style="width:${d.prog[0]*100}%"></i></div></div>` : ''}
+    ${d.history ? `<div class="history"><div class="h-title">Historie</div>
+      ${d.history.map(h=>`<div class="h-item"><span class="g">${h[0]}</span><span>Neue Bestmarke</span><span class="d">${h[1]}</span></div>`).join('')}</div>` : ''}
+  `;
+  phone.classList.add('sheet-open');
+}
+function closeSheet(){ phone.classList.remove('sheet-open'); }
+
+/* ============ Unlock-Choreografie (nur transform + opacity) ============ */
+const overlay = document.getElementById('overlay');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+const fxOn = () => document.getElementById('fxToggle').checked && !reduce.matches;
+const SPRING = 'cubic-bezier(.34,1.4,.44,1)'; /* Näherung an spring(0.45/0.7) */
+let particleTimer = null;
+
+function playUnlock({material, title, sub}){
+  closeSheet();
+  const bd = document.getElementById('ovBackdrop'), glow = document.getElementById('ovGlow'),
+        med = document.getElementById('ovMed'), eb = document.getElementById('ovEyebrow'),
+        ti = document.getElementById('ovTitle'), su = document.getElementById('ovSub'),
+        btn = document.getElementById('ovBtn'), ctr = document.getElementById('ovCounter');
+  ti.textContent = title; su.textContent = sub;
+  glow.className = 'ov-glow ' + material;
+  med.innerHTML = `<span style="position:relative;display:inline-block">
+      <span class="sweep-clip" id="sweepClip"><span class="sweep" id="sweep"></span></span>
+      ${medallion({size:128, state:'unlocked', material, icon: material==='diamond'?'mountain':'star'})}
+    </span>`;
+  overlay.classList.add('show');
+  document.getElementById('screen').style.overflow='hidden';
+
+  const full = fxOn();
+  // Backdrop
+  bd.animate([{opacity:0},{opacity:.55}], {duration:full?200:260, fill:'forwards', easing:'ease-out'});
+  ctr.animate([{opacity:0},{opacity:1}], {duration:300, delay:200, fill:'forwards'});
+
+  if(full){
+    glow.animate([{opacity:0, transform:'scale(.8)'},{opacity:.8, transform:'scale(1.15)'}],
+      {duration:450, fill:'forwards', easing:'ease-out'});
+    glow.animate([{opacity:.8},{opacity:.35}], {duration:400, delay:500, fill:'forwards'});
+    med.animate([{opacity:0, transform:'scale(.6)'},{opacity:1, transform:'scale(1)'}],
+      {duration:520, delay:60, fill:'forwards', easing:SPRING});
+    spawnParticles(material);
+    const sweep = document.getElementById('sweep');
+    sweep.animate([{opacity:0, transform:'rotate(24deg) translateX(0)'},
+                   {opacity:.9, transform:'rotate(24deg) translateX(180px)', offset:.6},
+                   {opacity:0, transform:'rotate(24deg) translateX(320px)'}],
+      {duration:520, delay:300, easing:'ease-in-out'});
+  } else {
+    // Reduzierte Variante: reiner Crossfade, keine Skalierung/Partikel
+    glow.style.opacity=0;
+    med.animate([{opacity:0},{opacity:1}], {duration:320, fill:'forwards'});
+  }
+  const tD = full?350:150;
+  eb.animate([{opacity:0, transform:'translateY(8px)'},{opacity:1, transform:'translateY(0)'}],
+    {duration:300, delay:tD, fill:'forwards', easing:'ease-out'});
+  ti.animate([{opacity:0, transform:'translateY(8px)'},{opacity:1, transform:'translateY(0)'}],
+    {duration:300, delay:tD+60, fill:'forwards', easing:'ease-out'});
+  su.animate([{opacity:0, transform:'translateY(8px)'},{opacity:1, transform:'translateY(0)'}],
+    {duration:300, delay:tD+120, fill:'forwards', easing:'ease-out'});
+  btn.animate([{opacity:0},{opacity:1}], {duration:250, delay:full?1500:700, fill:'forwards'});
+  if(navigator.vibrate && full) navigator.vibrate(18); /* iOS: UINotificationFeedbackGenerator(.success) */
+}
+
+function spawnParticles(material){
+  const stage = document.querySelector('.ov-stage');
+  const cols = MATS[material];
+  clearTimeout(particleTimer);
+  for(let i=0;i<24;i++){
+    const p = document.createElement('span');
+    p.className='particle';
+    p.style.background = cols[i%3];
+    stage.appendChild(p);
+    const a = (i/24)*Math.PI*2 + (Math.random()-.5)*.4;
+    const dist = 90 + Math.random()*70, life = 900 + Math.random()*300;
+    p.animate([
+      {opacity:0, transform:'translate(-50%,-50%) scale(.4)'},
+      {opacity:1, transform:`translate(calc(-50% + ${Math.cos(a)*dist*.35}px), calc(-50% + ${Math.sin(a)*dist*.35}px)) scale(1)`, offset:.18},
+      {opacity:0, transform:`translate(calc(-50% + ${Math.cos(a)*dist}px), calc(-50% + ${Math.sin(a)*dist}px)) scale(.3)`}
+    ], {duration:life, delay:250, easing:'cubic-bezier(.15,.6,.4,1)', fill:'forwards'});
+    setTimeout(()=>p.remove(), life+400); /* Ticker-Stopp: nichts läuft weiter (S3/S19) */
+  }
+}
+
+function closeOverlay(){
+  overlay.querySelectorAll('.particle').forEach(p=>p.remove());
+  ['ovBackdrop','ovGlow','ovMed','ovEyebrow','ovTitle','ovSub','ovBtn','ovCounter'].forEach(id=>{
+    const el = document.getElementById(id);
+    el.getAnimations().forEach(a=>a.cancel()); el.style.opacity='';
+  });
+  overlay.classList.remove('show');
+  document.getElementById('screen').style.overflow='';
+}
+
+document.getElementById('demoGold').onclick = ()=> playUnlock({
+  material:'gold', title:'Neue Bestmarke', sub:'Boulder · 7A — dein bisher schwerster Send'});
+document.getElementById('demoDiamond').onclick = ()=> playUnlock({
+  material:'diamond', title:'Everest', sub:'8 848 gemessene Kletterhöhenmeter'});
+</script>
+</body>
+</html>

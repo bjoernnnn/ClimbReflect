@@ -5,14 +5,16 @@ import SwiftData
 
 @Model
 final class ClimbSession {
-    @Attribute(.unique) var id: UUID
+    // CK-P0: .unique entfernt + Defaults ergänzt (CloudKit-Voraussetzungen, keine
+    // Aktivierung in diesem Schritt). Dedupe bleibt app-seitig über watchSessionID.
+    var id: UUID = UUID()
     var workoutUUID: UUID?            // HKWorkout.uuid → Dedupe gegen Doppel-Import aus Redpoint
     var watchSessionID: UUID?         // WatchSessionDTO.id → Dedupe gegen Doppel-Zustellung
-    var date: Date
-    var durationSeconds: Double         // RP-3: brutto (volle Session-Spanne inkl. Pausen)
+    var date: Date = Date.now
+    var durationSeconds: Double = 0     // RP-3: brutto (volle Session-Spanne inkl. Pausen)
     var pausedSeconds: Double = 0       // RP-3: Workout-Pausenzeit (Aktivzeit = duration − paused)
-    var sessionTypeRaw: String
-    var sourceRaw: String
+    var sessionTypeRaw: String = SessionType.unknown.rawValue
+    var sourceRaw: String = SessionSource.manual.rawValue
 
     // Objektive Daten (kommen via HealthKit von Redpoint – alle optional)
     var avgHeartRate: Double?
@@ -50,8 +52,8 @@ final class ClimbSession {
     @Relationship(deleteRule: .cascade, inverse: \Ascent.session) var ascents: [Ascent] = []
     @Relationship(deleteRule: .cascade, inverse: \TrainingSet.session) var trainingSets: [TrainingSet] = []
 
-    var createdAt: Date
-    var updatedAt: Date
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
 
     init(id: UUID = UUID(),
          workoutUUID: UUID? = nil,

@@ -77,6 +77,95 @@ final class ProgressEngineTests: XCTestCase {
         XCTAssertEqual(ProgressEngine.personalBests([s], discipline: .rope).send?.grade, "6a")
     }
 
+    // MARK: - periodHighlights (MO-2)
+
+    func testPeriodHighlights_firstSendWithinPeriod() {
+        let s = session([ascent(.fontainebleau, "6A", day: -10)], day: -10)
+        let h = ProgressEngine.periodHighlights([s], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertEqual(h.firstSends.map(\.grade), ["6A"])
+    }
+
+    func testPeriodHighlights_firstSendOutsidePeriodExcluded() {
+        let s = session([ascent(.fontainebleau, "6A", day: -200)], day: -200)
+        let h = ProgressEngine.periodHighlights([s], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertTrue(h.firstSends.isEmpty)
+    }
+
+    func testPeriodHighlights_scaleMixIsNotFirstSend() {
+        // 6C wurde alt (vor dem Zeitraum) gesendet; ein V5 (== Fb 6C) im Zeitraum
+        // ist derselbe kanonische Grad → KEIN Erst-Send.
+        let old = session([ascent(.fontainebleau, "6C", day: -200)], day: -200)
+        let recent = session([ascent(.vScale, "V5", day: -5)], day: -5)
+        let h = ProgressEngine.periodHighlights([old, recent], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertTrue(h.firstSends.isEmpty)
+    }
+
+    func testPeriodHighlights_allTimeYieldsNoFirstSends() {
+        let s = session([ascent(.fontainebleau, "6A", day: -5)], day: -5)
+        let h = ProgressEngine.periodHighlights([s], discipline: .boulder,
+                                                monthsBack: nil, now: date(0))
+        XCTAssertTrue(h.firstSends.isEmpty)   // Konsens-Punkt 2
+        XCTAssertNotNil(h.hardestSend)        // Bestwert bleibt
+    }
+
+    func testPeriodHighlights_isAllTimeBestTrue() {
+        let s = session([ascent(.fontainebleau, "7A", day: -5)], day: -5)
+        let h = ProgressEngine.periodHighlights([s], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertTrue(h.isAllTimeBest)
+        XCTAssertEqual(h.hardestSend?.grade, "7A")
+    }
+
+    func testPeriodHighlights_isAllTimeBestFalseWhenOlderHarder() {
+        let old = session([ascent(.fontainebleau, "7B", day: -200)], day: -200)
+        let recent = session([ascent(.fontainebleau, "6C", day: -5)], day: -5)
+        let h = ProgressEngine.periodHighlights([old, recent], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertFalse(h.isAllTimeBest)
+        XCTAssertEqual(h.hardestSend?.grade, "6C")   // härtester IM Zeitraum
+    }
+
+    func testPeriodHighlights_emptyHistory() {
+        let h = ProgressEngine.periodHighlights([], discipline: .boulder,
+                                                monthsBack: 3, now: date(0))
+        XCTAssertTrue(h.firstSends.isEmpty)
+        XCTAssertNil(h.hardestSend)
+        XCTAssertFalse(h.isAllTimeBest)
+    }
+
+    // MARK: - nextGrade (MO-3)
+
+    func testNextGrade_middleRungReturnsSuccessor() {
+        // order 11 = Fb "7A"; Nachfolger order 12 = "7A+"
+        XCTAssertEqual(ProgressEngine.nextGrade(afterOrder: 11, discipline: .boulder), "7A+")
+    }
+
+    func testNextGrade_ropeMiddleRung() {
+        // routeFrench order 12 = "7a"; Nachfolger order 13 = "7a+"
+        XCTAssertEqual(ProgressEngine.nextGrade(afterOrder: 12, discipline: .rope), "7a+")
+    }
+
+    func testNextGrade_vScaleDisplay() {
+        UserDefaults.standard.set(GradeSystem.vScale.rawValue, forKey: "boulderScale")
+        defer { UserDefaults.standard.removeObject(forKey: "boulderScale") }
+        // Font-Referenz order 10 = "6C+"; Nachfolger 11 = Fb "7A" → V-Scale "V6"
+        XCTAssertEqual(ProgressEngine.nextGrade(afterOrder: 10, discipline: .boulder), "V6")
+    }
+
+    func testNextGrade_topOfLadderIsNil() {
+        // boulderFb endet bei order 23 = "9A" → Nachfolger außerhalb der Leiter → nil
+        XCTAssertNil(ProgressEngine.nextGrade(afterOrder: 23, discipline: .boulder))
+    }
+
+    func testPersonalBest_carriesCanonicalOrder() {
+        let s = session([ascent(.fontainebleau, "7A", day: 0)])
+        let best = ProgressEngine.personalBests([s], discipline: .boulder)
+        XCTAssertEqual(best.send?.order, 11)   // Fb "7A" == canonical 11
+    }
+
     // MARK: - gradeTimeline
 
     func testGradeTimeline_gapMonthOmitted() {
@@ -203,6 +292,49 @@ final class ProgressEngineTests: XCTestCase {
         XCTAssertEqual(angles.first?.sample, 5)
     }
 
+    // MARK: - stylePendingGroups / comfortCandidate (MO-4)
+
+    func testStylePendingGroups_belowThresholdAppears_atThresholdMovesToRates() {
+        let over = (0..<4).map { _ in ascent(.fontainebleau, "6A", angle: .overhang) }
+        let slab = (0..<5).map { _ in ascent(.fontainebleau, "6A", angle: .slab) }
+        let s = session(over + slab)
+        let pending = ProgressEngine.stylePendingGroups([s], discipline: .boulder, monthsBack: nil)
+            .filter { $0.category == "Wandwinkel" }
+        XCTAssertEqual(pending.map(\.label), ["Überhang"])   // n=4 im Pending
+        XCTAssertEqual(pending.first?.sample, 4)
+        let rates = ProgressEngine.styleRates([s], discipline: .boulder, monthsBack: nil)
+            .filter { $0.category == "Wandwinkel" }
+        XCTAssertEqual(rates.map(\.label), ["Platte"])       // n=5 wandert in die Quoten
+    }
+
+    func testComfortCandidate_prefersHigherTotalOverGrade() {
+        let s = session(
+            repeated(.fontainebleau, "6A", sends: 4, fails: 0)
+            + repeated(.fontainebleau, "6C", sends: 2, fails: 0)
+        )
+        let c = ProgressEngine.comfortCandidate([s], discipline: .boulder, monthsBack: nil)
+        XCTAssertEqual(c?.grade, "6A")   // total 4 schlägt den höheren, aber selteneren 6C
+        XCTAssertEqual(c?.sample, 4)
+    }
+
+    func testComfortCandidate_tieBreaksOnGrade() {
+        let s = session(
+            repeated(.fontainebleau, "6A", sends: 3, fails: 0)
+            + repeated(.fontainebleau, "6C", sends: 3, fails: 0)
+        )
+        let c = ProgressEngine.comfortCandidate([s], discipline: .boulder, monthsBack: nil)
+        XCTAssertEqual(c?.grade, "6C")   // Gleichstand → höherer Grad
+    }
+
+    func testComfortCandidate_fullSampleRowNotCandidate() {
+        let s = session(repeated(.fontainebleau, "6A", sends: 5, fails: 0))
+        XCTAssertNil(ProgressEngine.comfortCandidate([s], discipline: .boulder, monthsBack: nil))
+    }
+
+    func testComfortCandidate_nilWhenEmpty() {
+        XCTAssertNil(ProgressEngine.comfortCandidate([], discipline: .boulder, monthsBack: nil))
+    }
+
     func testLimiterCounts_periodBoundary() {
         // Session vor dem Fenster fällt raus, Session im Fenster zählt
         let inside = session([ascent(.fontainebleau, "6A")], limiters: [.fingerStrength], day: 0)
@@ -230,5 +362,47 @@ final class ProgressEngineTests: XCTestCase {
         let totals = ProgressEngine.periodTotals([s1, s2], discipline: .boulder, monthsBack: nil)
         XCTAssertEqual(totals.sends, 2)      // nur Tops
         XCTAssertEqual(totals.climbDays, 2)  // zwei verschiedene Tage
+    }
+
+    // MARK: - monthRecap (MO-6)   (Basis-Datum date(0) = 2023-11-14 → Monat November)
+
+    func testMonthRecap_monthBoundariesExclusive() {
+        let inMonth = session([ascent(.fontainebleau, "6A", day: 0)], day: 0)     // Nov 14
+        let before = session([ascent(.fontainebleau, "7A", day: -14)], day: -14)  // Okt 31
+        let after = session([ascent(.fontainebleau, "7B", day: 17)], day: 17)     // Dez 1
+        let r = ProgressEngine.monthRecap([inMonth, before, after], month: date(0))
+        XCTAssertEqual(r.boulder.climbDays, 1)
+        XCTAssertEqual(r.boulder.sends, 1)
+        XCTAssertEqual(r.boulder.hardestGrade, "6A")   // nur der November-Send
+    }
+
+    func testMonthRecap_disciplineSeparation() {
+        let b = session([ascent(.fontainebleau, "6A", day: 0)], type: .boulder, day: 0)
+        let r = session([ascent(.french, "6a", day: 1)], type: .lead, day: 1)
+        let recap = ProgressEngine.monthRecap([b, r], month: date(0))
+        XCTAssertEqual(recap.boulder.climbDays, 1)
+        XCTAssertEqual(recap.boulder.sends, 1)
+        XCTAssertEqual(recap.rope.climbDays, 1)
+        XCTAssertEqual(recap.rope.sends, 1)
+    }
+
+    func testMonthRecap_firstSendCountRespectsHistory() {
+        let prior = session([ascent(.fontainebleau, "6A", day: -20)], day: -20)  // Okt 25
+        let now = session([
+            ascent(.fontainebleau, "6A", day: 2),   // Wiederholung → kein Erst-Send
+            ascent(.fontainebleau, "7A", day: 3)     // Erst-Send im November
+        ], day: 2)
+        let r = ProgressEngine.monthRecap([prior, now], month: date(0))
+        XCTAssertEqual(r.boulder.firstSendCount, 1)   // nur 7A
+    }
+
+    func testMonthRecap_isEmptyWithoutClimbSession() {
+        let training = session([], type: .training, day: 0)
+        XCTAssertTrue(ProgressEngine.monthRecap([training], month: date(0)).isEmpty)
+    }
+
+    func testMonthRecap_notEmptyWithClimbSession() {
+        let b = session([ascent(.fontainebleau, "6A", day: 0)], day: 0)
+        XCTAssertFalse(ProgressEngine.monthRecap([b], month: date(0)).isEmpty)
     }
 }

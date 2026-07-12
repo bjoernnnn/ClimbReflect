@@ -1,10 +1,26 @@
+> **Archiviert (EP-12):** Nie implementiert, ersetzt durch `TODO13-ERFOLGE-PREMIUM.md`
+> (Konzept: `ERFOLGE-KONZEPT-V2.md`). Nur als historische Referenz belassen.
+
 # TODO11 – Erfolgssystem-Neuaufbau (Konzept: ERFOLGE-KONZEPT.md)
 
 Basis: `dev` @ e5f6e02. Ein Task = ein Commit.
-**Abhängigkeiten aus TODO10:** ER-2/ER-3 sauber erst nach RP-7 (ladderIndex,
-für C1–C4) und RP-12 (Projekt-Relation, für E1). RP-5 (`isGraded`) wird von
-C1–C4 vorausgesetzt. Reihenfolge: TODO10-Block-B vorziehen oder ER-3 die
-betroffenen Definitionen (C*, E1) zunächst deaktiviert lassen.
+**Motivations-Bezug:** Dieses System ist der einzige Feier-Kanal (ER-5-Overlay)
+und untersteht Prinzip **S33** (CLAUDE.md, MO-14): gefeiert werden ausschließlich
+echte, aus den Daten belegte Ereignisse, genau einmal. TODO13 (Motivations-Layer)
+macht Fortschritt *sichtbar*, feiert ihn aber nicht – neue Haptik/Overlays bleiben
+allein hier.
+
+**Abhängigkeiten aus TODO10 – Stand `dev` @ af06c56 (alle erfüllt):**
+- **RP-5 (`isGraded`)** existiert (`Ascent.isGraded`) → C1–C4 nutzbar.
+- **RP-7 (kanonische Grad-Ordnung)** ist umgesetzt, aber **nicht** als
+  „ladderIndex": skalenübergreifende Vergleiche laufen über `Ascent.canonicalOrder`
+  + `GradeConverter` (S30). Alle C-Definitionen darauf beziehen, nicht auf
+  `sortOrder`.
+- **RP-12 (Projekt-Relation)** existiert: echte `Project ↔ [Ascent]`-Relationship
+  (`deleteRule: .nullify`, S7) → E1–E3 über die Relation, nicht über `projectName`.
+
+Damit entfällt die frühere Reihenfolge-Auflage (C*/E1 zunächst deaktivieren) –
+die Definitionen können direkt scharf gebaut werden.
 
 ---
 
@@ -121,13 +137,14 @@ PB-Historie (C1) zeigt alle Backfill-Ereignisse chronologisch.
 **Fertig-wenn:** Board zeigt korrekte Bestwerte mit Datum; Reichweite-Karten
 aktualisieren sich nach neuem Datenstand.
 
-### ER-8: Integration Today / SessionDetail / WeeklyRecap
-**Dateien:** `Views/TodayView.swift`, `Views/SessionDetailView.swift`,
-`Views/WeeklyRecapView.swift`
+### ER-8: Integration Today / SessionDetail
+**Dateien:** `Views/TodayView.swift`, `Views/SessionDetailView.swift`
 **Aufgabe:** TodayView: „Nächster Erfolg"-Karte (höchster Fortschritt) mit
 Mini-Ring → Link auf Erfolge-Tab. SessionDetail: Badge-Zeile „In dieser
-Session freigeschaltet" (Unlocks mit passender `sessionID`). WeeklyRecap:
-Zähler Unlocks der Woche.
+Session freigeschaltet" (Unlocks mit passender `sessionID`).
+**Hinweis:** `WeeklyRecapView` existiert nicht mehr (in TODO12/FO-14 entfernt) –
+der frühere Wochen-Zähler entfällt. Ein monatlicher Unlock-Zähler ist als
+optionaler, deaktivierter Nachtrag in TODO13/MO-13 (MonthRecapCard) vorbereitet.
 **Fertig-wenn:** Session mit Unlock → Badge in der Detailansicht; Today zeigt
 sinnvollen nächsten Erfolg.
 
@@ -143,8 +160,8 @@ bestehendes `isEnabled`-Flag.
 im Vordergrund → nur Overlay, keine Notification.
 
 ### ER-10: Grad-/Projekt-Erfolge aktivieren + Tests migrieren
-**Kontext:** C1–C4 (ladderIndex, RP-7), E1–E3 (Relation, RP-12), `isGraded`
-(RP-5) — nach deren Umsetzung.
+**Kontext:** C1–C4 (`canonicalOrder`, RP-7), E1–E3 (Relation, RP-12), `isGraded`
+(RP-5) — alle Grundlagen existieren bereits (siehe Kopf), also direkt scharf baubar.
 **Dateien:** `Services/AchievementEngine.swift`, `AchievementEngineTests.swift`,
 `Models/Achievement.swift` (alte Ableitungen entfernen),
 `ClimbReflectTests/StatsEngineTests.swift`

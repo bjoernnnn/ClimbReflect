@@ -26,6 +26,31 @@ struct FortschrittView: View {
         ProgressEngine.comfortGrade(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
 
+    private var comfortCandidate: (grade: String, sample: Int)? {
+        ProgressEngine.comfortCandidate(sessions, discipline: discipline, monthsBack: period.monthsBack)
+    }
+
+    private var highlights: ProgressEngine.Highlights {
+        ProgressEngine.periodHighlights(sessions, discipline: discipline, monthsBack: period.monthsBack)
+    }
+
+    // DS-2: bei „Alles" ist isAllTimeBest trivial immer wahr (Zeitraum ==
+    // Gesamthistorie) — die Feier gilt nur für einen echten Zeitraum-Fund
+    // (Konsens-Punkt 2, wie zuvor bei den Erst-Send-Chips).
+    private var celebratesSend: Bool {
+        period != .all && highlights.isAllTimeBest && highlights.hardestSend != nil
+    }
+
+    // MO-8: Basis = historischer Höchst-Send, Zählung = gewählter Zeitraum.
+    private var nextGrade: String? {
+        bests.send.flatMap { ProgressEngine.nextGrade(afterOrder: $0.order, discipline: discipline) }
+    }
+
+    private var nextGradeTries: Int {
+        guard let nextGrade else { return 0 }
+        return pyramidRows.first { $0.grade == nextGrade }?.failedTries ?? 0
+    }
+
     private var timeline: [ProgressEngine.TimelinePoint] {
         ProgressEngine.gradeTimeline(sessions, discipline: discipline, monthsBack: period.monthsBack)
     }
@@ -40,6 +65,11 @@ struct FortschrittView: View {
 
     private var totals: (sends: Int, climbDays: Int) {
         ProgressEngine.periodTotals(sessions, discipline: discipline, monthsBack: period.monthsBack)
+    }
+
+    // MO-12: „Damals"-Rückblick (disziplin-übergreifend, deterministisch pro Woche).
+    private var throwback: ClimbSession? {
+        StatsEngine.throwbackSession(sessions)
     }
 
     /// Für die Empty-State-Entscheidung: gibt es überhaupt Begehungen der Disziplin?
@@ -63,21 +93,31 @@ struct FortschrittView: View {
     @ViewBuilder private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                ProgressDisciplinePicker(discipline: disciplineBinding)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                if hasData {
-                    HStack {
-                        Spacer()
+                // DS-1: eine Kopfzeile statt drei Ausrichtungen — Disziplin führend,
+                // Zeitraum rechts. Kein Element zentriert außer dem Nav-Titel.
+                HStack {
+                    ProgressDisciplinePicker(discipline: disciplineBinding)
+                    Spacer()
+                    if hasData {
                         ProgressPeriodPicker(selection: $period)
                     }
+                }
+
+                if hasData {
                     LevelHeaderView(send: bests.send, flash: bests.flash,
-                                    comfortGrade: comfortGrade, discipline: discipline)
+                                    comfortGrade: comfortGrade, discipline: discipline,
+                                    nextGrade: nextGrade, nextGradeTries: nextGradeTries,
+                                    comfortCandidate: comfortCandidate,
+                                    celebratesSend: celebratesSend,
+                                    firstSends: highlights.firstSends)
                     GradeTimelineChart(points: timeline, discipline: discipline)
                     PyramidChart(rows: pyramidRows)
                     ClimbDaysCard(monthlyDays: monthlyDays, sends: totals.sends,
                                   climbDays: totals.climbDays, discipline: discipline)
                     styleLink
+                    if let throwback {
+                        ThrowbackCard(session: throwback)
+                    }
                 } else {
                     emptyState
                 }
@@ -127,10 +167,28 @@ struct FortschrittView: View {
     }
 }
 
-#Preview {
+// DS-5: Abnahme-Netz mit realistischen deutschen Strings — der Chip-Umbruch
+// (DS-1..DS-4-Anlass) wäre hier sofort sichtbar gewesen.
+
+#Preview("Voll") {
     let container = try! ModelContainer(
         for: ClimbSession.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    MockData.seedIfNeeded(container.mainContext)
+    for s in MockData.makeFullProgressScenario() { container.mainContext.insert(s) }
+    return FortschrittView().modelContainer(container)
+}
+
+#Preview("Spärlich") {
+    let container = try! ModelContainer(
+        for: ClimbSession.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    for s in MockData.makeSparseProgressScenario() { container.mainContext.insert(s) }
+    return FortschrittView().modelContainer(container)
+}
+
+#Preview("Leer") {
+    let container = try! ModelContainer(
+        for: ClimbSession.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     return FortschrittView().modelContainer(container)
 }

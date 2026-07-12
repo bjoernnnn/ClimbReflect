@@ -4,6 +4,9 @@ struct StatTile: View {
     let value: String
     let label: String
     let symbol: String
+    // MO-10: optionale vierte Zeile (z. B. „Rekord: 9 Wo."). Default nil hält
+    // Kacheln ohne Detail pixel-identisch (Höhenangleich über maxHeight: .infinity).
+    var detail: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -17,6 +20,12 @@ struct StatTile: View {
                 .font(.caption)
                 .foregroundStyle(Theme.textSecondary)
                 .lineLimit(2, reservesSpace: true)
+            if let detail {
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.textTertiary)
+                    .lineLimit(1)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .card(padding: 14)

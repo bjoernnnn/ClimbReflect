@@ -105,11 +105,15 @@ struct AttemptLogView: View {
         .padding(.top, 4)
         .background(WatchTheme.bg)
         .onAppear {
-            // FB-2: Projekt-Grad vorbelegen, sonst Mitte der Skala
+            // FB-2/GR-1: Projekt-Grad vorbelegen. Fallback ohne Projekt/Grad: Index 0
+            // statt Leiter-Mitte – bei der 18-teiligen French-Leiter landete das
+            // bislang immer auf "7a" und wirkte wie ein echter, plausibler Wert.
+            // Ein klar zu niedriger Startwert signalisiert stattdessen ehrlich, dass
+            // hier per Krone nachjustiert werden muss.
             if workoutManager.selectedProject?.grade != nil {
                 prefillFromProject()
             } else {
-                gradeIndex = gradeSystem.grades.count / 2
+                gradeIndex = 0
             }
             DiagnosticLog.shared.logVerbose("AttemptLogView appear mem=\(MemoryFootprint.residentMB())MB")
         }
