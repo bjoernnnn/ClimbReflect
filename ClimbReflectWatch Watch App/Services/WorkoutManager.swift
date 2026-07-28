@@ -518,6 +518,11 @@ final class WorkoutManager: NSObject, ObservableObject {
                      result: WatchAscentResult?,
                      style: WatchAscentStyle?) async {
         DiagnosticLog.shared.log("ascentTracking stop mem=\(MemoryFootprint.residentMB())MB")
+        // Läuft der Versuch beim Klassifizieren noch (Timer nicht gestoppt), gilt jetzt
+        // als Endzeit – Klassifizieren beendet den Versuch also mit (vergessenes Stoppen).
+        if case .active(let startTime) = attemptState {
+            lastAttemptDurationSeconds = Date().timeIntervalSince(startTime)
+        }
         let gain = await altimeter.stopAscentTracking()
         let duration = lastAttemptDurationSeconds
         lastAttemptDurationSeconds = nil
@@ -535,7 +540,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         )
         attempts.append(attempt)
         savePendingSnapshot()
-        if attemptState == .awaitingResult { attemptState = .idle }
+        // Nach dem Banken immer zurück in den Ruhezustand – auch wenn der Versuch
+        // beim Klassifizieren noch aktiv war (siehe oben) oder auf ein Ergebnis wartete.
+        attemptState = .idle
         switch result {
         case .top:     WKInterfaceDevice.current().play(.success)
         case .attempt: WKInterfaceDevice.current().play(.click)

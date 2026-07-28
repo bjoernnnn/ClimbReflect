@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 // Versuch klassifizieren — Grad wählen + Ergebnis antippen = sofort banken
 // RP-4: Grad-Skala leitet sich aus dem Session-Typ ab (Seil → french, Boulder →
@@ -8,7 +9,11 @@ struct AttemptLogView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     let onBank: () -> Void
 
-    @State private var gradeIndex: Int = 0
+    // nil = noch kein Grad gewählt → Klassifizieren ist gesperrt, bis per Krone ein
+    // Grad ausgewählt wurde (oder ein Projekt-Grad vorbelegt ist).
+    @State private var gradeIndex: Int? = nil
+    // Kurzes rotes Aufblinken des Grad-Rahmens als Signal „Grad fehlt".
+    @State private var gradeMissingFlash = false
 
     // FB-2: aktives Projekt mit Grad → dessen System (sonst Session-Default, RP-4)
     private var gradeSystem: WatchGradeSystem {
@@ -48,26 +53,42 @@ struct AttemptLogView: View {
         VStack(spacing: 6) {
             // Grad per Digital Crown
             HStack {
-                Text(gradeSystem.grades[gradeIndex])
+                Text(gradeIndex.map { gradeSystem.grades[$0] } ?? "–")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(WatchTheme.accent)
-                    .padding(.leading, 12)
+                    .foregroundStyle(gradeIndex == nil ? WatchTheme.textTert : WatchTheme.accent)
+                    .padding(.horizontal, 12)
                     .padding(.vertical, 4)
+                    // Roter Rahmen: normal leer (nur Kontur), blinkt bei fehlendem Grad
+                    // kurz gefüllt auf.
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(WatchTheme.danger.opacity(gradeMissingFlash ? 0.55 : 0))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(WatchTheme.danger, lineWidth: 1.5)
+                    )
                     .focusable(true)
                     .digitalCrownRotation(
-                        Binding(get: { Double(gradeIndex) },
+                        Binding(get: { Double(gradeIndex ?? 0) },
                                 set: { gradeIndex = min(max(Int($0.rounded()), 0), gradeSystem.grades.count - 1) }),
                         from: 0, through: Double(gradeSystem.grades.count - 1), by: 1,
                         sensitivity: .low, isContinuous: false)
                 Spacer(minLength: 0)
             }
             .padding(.top, -6)
+            .padding(.leading, 3)
 
             // Outcome-Grid
             LazyVGrid(columns: columns, spacing: 6) {
                 ForEach(outcomes) { outcome in
                     Button {
-                        let grade = gradeSystem.grades[gradeIndex]
+                        // Ohne gewählten Grad kein Tracken: rotes Signal geben, nicht banken.
+                        guard let idx = gradeIndex else {
+                            signalMissingGrade()
+                            return
+                        }
+                        let grade = gradeSystem.grades[idx]
                         Task {
                             await workoutManager.bankAttempt(
                                 gradeSystem: gradeSystem,
@@ -105,20 +126,28 @@ struct AttemptLogView: View {
         .padding(.top, 4)
         .background(WatchTheme.bg)
         .onAppear {
-            // FB-2/GR-1: Projekt-Grad vorbelegen. Fallback ohne Projekt/Grad: Index 0
-            // statt Leiter-Mitte – bei der 18-teiligen French-Leiter landete das
-            // bislang immer auf "7a" und wirkte wie ein echter, plausibler Wert.
-            // Ein klar zu niedriger Startwert signalisiert stattdessen ehrlich, dass
-            // hier per Krone nachjustiert werden muss.
+            // FB-2/GR-1: Projekt-Grad vorbelegen. Ohne Projekt/Grad bleibt gradeIndex
+            // nil („–") → der Nutzer muss vor dem Klassifizieren aktiv per Krone einen
+            // Grad wählen (roter Rahmen signalisiert die Pflicht).
             if workoutManager.selectedProject?.grade != nil {
                 prefillFromProject()
             } else {
-                gradeIndex = 0
+                gradeIndex = nil
             }
             DiagnosticLog.shared.logVerbose("AttemptLogView appear mem=\(MemoryFootprint.residentMB())MB")
         }
         .onDisappear {
             DiagnosticLog.shared.logVerbose("AttemptLogView disappear mem=\(MemoryFootprint.residentMB())MB")
+        }
+    }
+
+    /// Kein Grad gewählt: kurzes rotes Aufblinken des Rahmens + Fehler-Haptik.
+    private func signalMissingGrade() {
+        WKInterfaceDevice.current().play(.failure)
+        withAnimation(.easeIn(duration: 0.1)) { gradeMissingFlash = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 260_000_000)
+            withAnimation(.easeOut(duration: 0.25)) { gradeMissingFlash = false }
         }
     }
 }
