@@ -22,6 +22,7 @@ struct SessionDetailView: View {
     @State private var pendingDeleteAscent: Ascent? = nil   // VT-1
     @State private var reflectionExpanded = false   // EF-5
     @State private var showRecap = false   // FS-7
+    @State private var reflectionJustCompleted = false   // HM-1
     @FocusState private var isTextFieldFocused: Bool
 
     // ST-2: distinct gymNames aus allen Sessions
@@ -133,6 +134,7 @@ struct SessionDetailView: View {
         .sheet(isPresented: $showRecap) {
             SessionRecapSheet(session: session)
         }
+        .sensoryFeedback(.success, trigger: reflectionJustCompleted)
         .task {
             // VT-8: aus dem Projekt heraus neu angelegte Session → Erfassen-Sheet direkt öffnen.
             if let project = autoAddAscentProject, !didAutoOpenAddAscent {
@@ -855,6 +857,7 @@ struct SessionDetailView: View {
                 }
             }
         }
+        .sensoryFeedback(.selection, trigger: session.perceivedEffort)
     }
 
     // E18: eine Accent-Intensitätsskala statt Gold/Rot-Stufen – eine harte Session ist kein Fehler.
@@ -933,6 +936,7 @@ struct SessionDetailView: View {
                 }
             }
         }
+        .sensoryFeedback(.selection, trigger: session.limiterRaw)
     }
 
     private func toggleLimiter(_ limiter: Limiter) {
@@ -960,6 +964,7 @@ struct SessionDetailView: View {
             session.improveNext != nil
         if !wasCompleted && session.reflectionCompleted {
             NotificationService.shared.cancelReminder(for: session.id)
+            reflectionJustCompleted.toggle()   // HM-1: .success-Haptik
         }
     }
 
@@ -1011,6 +1016,7 @@ struct SessionDetailView: View {
                 }
             }
         }
+        .sensoryFeedback(.selection, trigger: session.techniqueFocusesRaw)
     }
 
     // MARK: - Fokus-Bewertung (A7)
@@ -1056,6 +1062,7 @@ struct SessionDetailView: View {
                 }
             }
         }
+        .sensoryFeedback(.selection, trigger: session.focusRating)
     }
 
     private func focusRatingLabel(_ r: Int) -> String {

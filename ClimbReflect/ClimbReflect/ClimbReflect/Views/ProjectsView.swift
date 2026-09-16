@@ -9,6 +9,7 @@ struct ProjectsView: View {
     @State private var newProjectName = ""
     @State private var pendingDeleteProject: Project? = nil   // VT-2
     @State private var duplicateName: String? = nil   // VT-2
+    @State private var pinTrigger = false   // HM-1
 
     private var pinnedProjects: [Project] {
         projects.filter { $0.isPinned && $0.isActive }
@@ -60,6 +61,7 @@ struct ProjectsView: View {
                 createProject(name: name, gradeSystemRaw: systemRaw, targetGradeRaw: targetRaw)
             }
         }
+        .sensoryFeedback(.impact(weight: .light), trigger: pinTrigger)
     }
 
     // MARK: - Listen
@@ -218,6 +220,7 @@ struct ProjectsView: View {
             if project.isActive {
                 Button {
                     project.isPinned.toggle()
+                    pinTrigger.toggle()
                     try? context.save()
                     WatchSessionReceiver.shared.pushProjectsToWatch()
                 } label: {

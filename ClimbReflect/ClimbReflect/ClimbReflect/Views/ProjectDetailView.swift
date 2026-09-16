@@ -153,6 +153,8 @@ struct ProjectDetailView: View {
         .sheet(isPresented: $showNewSessionForProject) {
             ManualSessionView(preselectedProject: project)
         }
+        .sensoryFeedback(.impact(weight: .light), trigger: project.isPinned)
+        .sensoryFeedback(.impact(weight: .medium), trigger: project.statusRaw)
     }
 
     // MARK: - Header

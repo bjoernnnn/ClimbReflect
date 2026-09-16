@@ -112,6 +112,7 @@ struct TodayView: View {
         }
         .sheet(isPresented: $showAddSession) { ManualSessionView() }
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .sensoryFeedback(.impact(weight: .light), trigger: monthRecapDismissed)
     }
 
     // MARK: - Sections

@@ -140,6 +140,7 @@ struct ManualSessionView: View {
                             }
                             .padding(.vertical, 4)
                         }
+                        .sensoryFeedback(.selection, trigger: gymName)
                     }
                 }
             } header: {

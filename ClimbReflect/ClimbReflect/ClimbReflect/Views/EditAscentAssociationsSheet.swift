@@ -22,6 +22,8 @@ struct EditAscentAssociationsSheet: View {
     @State private var didLoad = false
     @State private var showDeleteConfirm = false
     @State private var showDetails = true   // EF-3: beim Bearbeiten aufgeklappt
+    @State private var savedTrigger = false   // HM-1
+    @State private var deletedTrigger = false   // HM-1
 
     // VT-1: Ursprungswerte für Abbrechen-Erkennung
     @State private var originalSystemRaw: String = GradeSystem.fontainebleau.rawValue
@@ -67,7 +69,7 @@ struct EditAscentAssociationsSheet: View {
                     Button("Abbrechen") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Fertig") { save(); dismiss() }
+                    Button("Fertig") { save(); savedTrigger.toggle(); dismiss() }
                         .fontWeight(.semibold)
                         .foregroundStyle(Theme.accent)
                 }
@@ -77,6 +79,7 @@ struct EditAscentAssociationsSheet: View {
                 Button("Löschen", role: .destructive) {
                     context.delete(ascent)
                     try? context.save()
+                    deletedTrigger.toggle()
                     dismiss()
                 }
                 Button("Abbrechen", role: .cancel) {}
@@ -86,6 +89,8 @@ struct EditAscentAssociationsSheet: View {
         }
         .interactiveDismissDisabled(hasChanges)
         .tint(Theme.accent)
+        .sensoryFeedback(.success, trigger: savedTrigger)
+        .sensoryFeedback(.impact(weight: .medium), trigger: deletedTrigger)
     }
 
     // MARK: - Grad

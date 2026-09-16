@@ -138,6 +138,8 @@ struct FortschrittView: View {
             .padding(.bottom, 40)
             .animation(.snappy, value: disciplineRaw)
             .animation(.snappy, value: period)
+            .sensoryFeedback(.selection, trigger: disciplineRaw)
+            .sensoryFeedback(.selection, trigger: period)
         }
     }
 

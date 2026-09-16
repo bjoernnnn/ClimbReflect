@@ -27,6 +27,7 @@ struct AddAscentView: View {
     @State private var selectedShoe: Shoe? = nil
     @State private var showDetails = false
     @State private var lastSavedFeedback: String? = nil
+    @State private var savedCount = 0   // HM-1: Trigger für .sensoryFeedback(.success)
 
     @Query(sort: \Shoe.startYear, order: .reverse) private var allShoes: [Shoe]
     private var activeShoes: [Shoe] { allShoes.filter { !$0.isRetired } }
@@ -109,6 +110,7 @@ struct AddAscentView: View {
             }
         }
         .tint(Theme.accent)
+        .sensoryFeedback(.success, trigger: savedCount)
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(outcome != nil)
         .onAppear {
@@ -348,6 +350,7 @@ struct AddAscentView: View {
                 }
             }
         }
+        .sensoryFeedback(.selection, trigger: selection.wrappedValue)
     }
 
     // MARK: - Bottom-Bar
@@ -410,12 +413,9 @@ struct AddAscentView: View {
         try? context.save()
         AchievementService.shared.checkNow(context: context)   // EP-3
 
-        // VT-3: Ein Feier-Kanal (S33) – AchievementUnlockOverlay übernimmt PB/Erst-Top/Projekt-Top.
-        if outcome.result == .top {
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-        } else {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        }
+        // VT-3/HM-1: Ein Feier-Kanal (S33) – AchievementUnlockOverlay übernimmt
+        // PB/Erst-Top/Projekt-Top; hier nur die Speicher-Bestätigung.
+        savedCount += 1
 
         guard keepOpen else { dismiss(); return }
 
