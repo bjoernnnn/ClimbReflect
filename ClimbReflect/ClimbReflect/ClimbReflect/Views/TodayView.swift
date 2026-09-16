@@ -256,36 +256,27 @@ struct TodayView: View {
 
     private var recentSessions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Letzte Sessions")
-                    .font(.headline)
-                    .foregroundStyle(Theme.textPrimary)
-                Spacer()
-                NavigationLink(destination: AllSessionsView()) {
-                    Text("Alle")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
-                }
-            }
             if sessions.isEmpty {
-                Button { showAddSession = true } label: {
-                    VStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 44))
-                            .foregroundStyle(Theme.accent)
-                        Text("Erste Session anlegen")
-                            .font(.headline)
-                            .foregroundStyle(Theme.textPrimary)
-                        Text("Oder importiere deine Einheiten aus Apple Health")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textSecondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 32)
+                ContentUnavailableView {
+                    Label("Deine erste Session", systemImage: "applewatch")
+                } description: {
+                    Text("Starte eine Session auf der Apple Watch – sie erscheint danach automatisch hier.")
+                } actions: {
+                    Button("Session nachtragen") { showAddSession = true }
+                        .buttonStyle(.bordered)
                 }
-                .buttonStyle(.plain)
             } else {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Letzte Sessions")
+                        .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    NavigationLink(destination: AllSessionsView()) {
+                        Text("Alle")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.accent)
+                    }
+                }
                 ForEach(sessions.prefix(5)) { session in
                     NavigationLink(destination: SessionDetailView(session: session)) {
                         SessionRow(session: session)

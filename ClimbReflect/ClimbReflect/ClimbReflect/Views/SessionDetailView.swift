@@ -531,12 +531,14 @@ struct SessionDetailView: View {
 
             let sorted = session.ascents.sorted { $0.createdAt < $1.createdAt }
             if sorted.isEmpty {
-                Text("Noch keine Begehungen erfasst.\nTippe auf + um Boulder oder Routen hinzuzufügen.")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                Button {
+                    addAscentRequest = AddAscentRequest(project: nil)
+                } label: {
+                    Label("Erste Begehung erfassen", systemImage: "plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             } else {
                 VStack(spacing: 0) {
                     ForEach(sorted) { ascent in

@@ -146,20 +146,12 @@ struct FortschrittView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 48))
-                .foregroundStyle(Theme.textTertiary)
-            Text("Noch keine Daten")
-                .font(.headline)
-                .foregroundStyle(Theme.textPrimary)
-            Text("Erfasse Begehungen dieser Disziplin, um deinen Fortschritt zu sehen.")
-                .font(.subheadline)
-                .foregroundStyle(Theme.textSecondary)
-                .multilineTextAlignment(.center)
+        ContentUnavailableView {
+            Label("Noch kein Fortschritt", systemImage: "chart.line.uptrend.xyaxis")
+        } description: {
+            Text("Sobald du \(discipline == .boulder ? "Boulder" : "Seil")-Begehungen erfasst, siehst du hier, wo du stehst.")
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 60)
+        .padding(.top, 40)
     }
 }
 

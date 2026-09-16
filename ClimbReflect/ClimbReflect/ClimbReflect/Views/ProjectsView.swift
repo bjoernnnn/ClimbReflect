@@ -120,26 +120,13 @@ struct ProjectsView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "target")
-                .font(.system(size: 48))
-                .foregroundStyle(Theme.textTertiary)
-            Text("Keine Projekte")
-                .font(.headline)
-                .foregroundStyle(Theme.textPrimary)
-            Text("Tippe auf + um ein neues Projekt anzulegen, oder wähle beim Erfassen einer Begehung ein Projekt aus.")
-                .font(.subheadline)
-                .foregroundStyle(Theme.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            Button {
-                showAddProject = true
-            } label: {
-                Label("Projekt anlegen", systemImage: "plus.circle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.accent)
-            }
-            .padding(.top, 4)
+        ContentUnavailableView {
+            Label("Keine Projekte", systemImage: "target")
+        } description: {
+            Text("Ein Projekt ist ein Boulder oder eine Route, an der du dranbleiben willst.")
+        } actions: {
+            Button("Projekt anlegen") { showAddProject = true }
+                .buttonStyle(.borderedProminent)
         }
     }
 
