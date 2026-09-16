@@ -7,6 +7,8 @@ struct ProjectsView: View {
 
     @State private var showAddProject = false
     @State private var newProjectName = ""
+    @State private var pendingDeleteProject: Project? = nil   // VT-2
+    @State private var duplicateName: String? = nil   // VT-2
 
     private var pinnedProjects: [Project] {
         projects.filter { $0.isPinned && $0.isActive }
@@ -62,50 +64,51 @@ struct ProjectsView: View {
                     sectionHeader("Angepinnt", count: pinnedProjects.count)
                     ForEach(pinnedProjects) { project in
                         projectRow(project, showSentDate: false)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) { deleteProject(project) } label: {
-                                    Label("Löschen", systemImage: "trash")
-                                }
-                            }
                     }
                 }
                 if !activeProjects.isEmpty {
                     sectionHeader("In Arbeit", count: activeProjects.count)
                     ForEach(activeProjects) { project in
                         projectRow(project, showSentDate: false)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) { deleteProject(project) } label: {
-                                    Label("Löschen", systemImage: "trash")
-                                }
-                            }
                     }
                 }
                 if !sentProjects.isEmpty {
                     sectionHeader("Gesendet ✓", count: sentProjects.count)
                     ForEach(sentProjects) { project in
                         projectRow(project, showSentDate: true)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) { deleteProject(project) } label: {
-                                    Label("Löschen", systemImage: "trash")
-                                }
-                            }
                     }
                 }
                 if !abandonedProjects.isEmpty {
                     sectionHeader("Aufgegeben", count: abandonedProjects.count)
                     ForEach(abandonedProjects) { project in
                         projectRow(project, showSentDate: false)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) { deleteProject(project) } label: {
-                                    Label("Löschen", systemImage: "trash")
-                                }
-                            }
                     }
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
             .padding(.bottom, 40)
+        }
+        .confirmationDialog(
+            "Projekt löschen?",
+            isPresented: Binding(get: { pendingDeleteProject != nil }, set: { if !$0 { pendingDeleteProject = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Löschen", role: .destructive) {
+                if let project = pendingDeleteProject { deleteProject(project) }
+                pendingDeleteProject = nil
+            }
+            Button("Abbrechen", role: .cancel) { pendingDeleteProject = nil }
+        } message: {
+            Text("Begehungen bleiben in der Statistik erhalten, verlieren aber die Projekt-Zuordnung.")
+        }
+        .alert(
+            "Projekt existiert bereits",
+            isPresented: Binding(get: { duplicateName != nil }, set: { if !$0 { duplicateName = nil } })
+        ) {
+            Button("OK") { duplicateName = nil }
+        } message: {
+            Text("„\(duplicateName ?? "")“ ist schon in deiner Liste.")
         }
     }
 
@@ -216,12 +219,31 @@ struct ProjectsView: View {
             .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            if project.isActive {
+                Button {
+                    project.isPinned.toggle()
+                    try? context.save()
+                    WatchSessionReceiver.shared.pushProjectsToWatch()
+                } label: {
+                    Label(project.isPinned ? "Anpinnen aufheben" : "Anpinnen",
+                          systemImage: project.isPinned ? "pin.slash" : "pin")
+                }
+                Divider()
+            }
+            Button(role: .destructive) {
+                pendingDeleteProject = project
+            } label: {
+                Label("Löschen", systemImage: "trash")
+            }
+        }
     }
 
     private func createProject(name: String, gradeSystemRaw: String? = nil, targetGradeRaw: String? = nil) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { newProjectName = ""; return }
         guard !projects.contains(where: { $0.name.lowercased() == trimmed.lowercased() }) else {
+            duplicateName = trimmed
             newProjectName = ""
             return
         }
