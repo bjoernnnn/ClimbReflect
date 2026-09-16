@@ -29,7 +29,7 @@ struct AddAscentView: View {
     @State private var setName: String = ""
     @State private var selectedPhoto: PhotosPickerItem? = nil
     @State private var photoData: Data? = nil
-    @State private var showCelebration = false
+    @State private var isSaving = false
 
     private var activeProjects: [Project] { allProjects.filter(\.isActive) }
 
@@ -244,12 +244,6 @@ struct AddAscentView: View {
                     .listRowBackground(Theme.surface)
                 }
                 .scrollContentBackground(.hidden)
-
-                // P3.2 - Send-Feier Animation
-                if showCelebration {
-                    CelebrationOverlay()
-                        .allowsHitTesting(false)
-                }
             }
             .navigationTitle("Begehung erfassen")
             .navigationBarTitleDisplayMode(.inline)
@@ -263,6 +257,7 @@ struct AddAscentView: View {
                     Button("Speichern") { save() }
                         .fontWeight(.semibold)
                         .foregroundStyle(Theme.accent)
+                        .disabled(isSaving)
                 }
             }
         }
@@ -381,6 +376,9 @@ struct AddAscentView: View {
     }
 
     private func save() {
+        guard !isSaving else { return }
+        isSaving = true
+
         let ascent = Ascent(
             gradeSystem: gradeSystem,
             grade: selectedGrade,
@@ -403,59 +401,16 @@ struct AddAscentView: View {
         ascent.photoData = photoData
         context.insert(ascent)
 
-        // Send → Projekt automatisch auf "gesendet" (auto aus isSent)
-        if result == .top, let project = selectedProject {
-            // statusRaw bleibt nil → isSent wird auto aus Ascents abgeleitet
-            _ = project
-        }
-
         try? context.save()
         AchievementService.shared.checkNow(context: context)   // EP-3
 
+        // VT-3: Ein Feier-Kanal (S33) – AchievementUnlockOverlay übernimmt PB/Erst-Top/Projekt-Top.
         if result == .top {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                showCelebration = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-                dismiss()
-            }
         } else {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            dismiss()
         }
-    }
-}
-
-// MARK: - Send-Feier (P3.2)
-
-struct CelebrationOverlay: View {
-    @State private var scale: CGFloat = 0.3
-    @State private var opacity: Double = 0
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.45).ignoresSafeArea()
-
-            VStack(spacing: 16) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 80))
-                    .foregroundStyle(Theme.accent)
-                    .scaleEffect(scale)
-                Text("Top!")
-                    .font(.system(size: 40, weight: .black, design: .rounded))
-                    .foregroundStyle(Theme.textPrimary)
-                    .opacity(opacity)
-            }
-        }
-        .onAppear {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.55)) {
-                scale = 1.0
-            }
-            withAnimation(.easeIn(duration: 0.25).delay(0.15)) {
-                opacity = 1.0
-            }
-        }
+        dismiss()
     }
 }
 
