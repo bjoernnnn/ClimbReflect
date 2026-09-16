@@ -143,6 +143,9 @@ struct AchievementsView: View {
                 .foregroundStyle(active ? Theme.bg : Theme.textSecondary)
         }
         .buttonStyle(.plain)
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 
     // MARK: - Grid

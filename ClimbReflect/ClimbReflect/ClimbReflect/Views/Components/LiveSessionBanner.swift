@@ -96,6 +96,7 @@ struct LiveSessionBanner: View {
                         .background(Circle().fill(Theme.surfaceRaised))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(status.isPaused ? "Fortsetzen" : "Pausieren")
 
                 Button {
                     showEndConfirm = true   // RP-15: Rückfrage statt Sofort-Ende
@@ -107,6 +108,7 @@ struct LiveSessionBanner: View {
                         .background(Circle().fill(Theme.danger.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Session beenden")
             }
         }
     }
@@ -125,6 +127,7 @@ struct LiveSessionBanner: View {
                     .foregroundStyle(Theme.textTertiary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Hinweis schließen")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

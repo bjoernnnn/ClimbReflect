@@ -10,6 +10,15 @@ struct PyramidChart: View {
         rows.map { $0.sends + $0.failedTries }.max() ?? 1
     }
 
+    // AX-1: Kernaussage statt einzelner Balken – die Pyramide ist als Chart
+    // ohne echten Nutzen abzuklappern, aber „meiste Tops in Grad X" trägt.
+    private var accessibilitySummary: String {
+        guard let top = rows.max(by: { $0.sends < $1.sends }), top.sends > 0 else {
+            return "Noch keine bewerteten Begehungen im Zeitraum."
+        }
+        return "Meiste Tops in \(top.grade)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Pyramide")
@@ -30,6 +39,9 @@ struct PyramidChart: View {
         }
         .animation(.snappy, value: rows)
         .card()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Pyramide")
+        .accessibilityValue(accessibilitySummary)
     }
 }
 

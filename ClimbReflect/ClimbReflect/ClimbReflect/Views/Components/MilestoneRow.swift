@@ -47,8 +47,17 @@ struct MilestoneRow: View {
         )
     }
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    // AX-1: bei sehr großer Schrift HStack -> VStack, damit nichts abgeschnitten wird.
+    private var layout: AnyLayout {
+        dynamicTypeSize >= .accessibility1
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
+        layout {
             if let current, let target {
                 ProgressRing(current: current, target: target)
             } else {

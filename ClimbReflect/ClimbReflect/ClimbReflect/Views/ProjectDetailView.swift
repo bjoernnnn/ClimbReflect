@@ -104,6 +104,7 @@ struct ProjectDetailView: View {
                     Image(systemName: "ellipsis.circle")
                         .foregroundStyle(Theme.textSecondary)
                 }
+                .accessibilityLabel("Weitere Aktionen")
             }
         }
         .confirmationDialog("Projekt löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
@@ -375,6 +376,7 @@ struct ProjectDetailView: View {
                         .foregroundStyle(.white)
                         .shadow(radius: 2)
                 }
+                .accessibilityLabel("Foto löschen")
                 .padding(4)
             }
 

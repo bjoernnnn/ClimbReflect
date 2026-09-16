@@ -346,6 +346,9 @@ struct AddAscentView: View {
                                 .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
                         }
                         .buttonStyle(.plain)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                        .accessibilityAddTraits(selected ? .isSelected : [])
                     }
                 }
             }

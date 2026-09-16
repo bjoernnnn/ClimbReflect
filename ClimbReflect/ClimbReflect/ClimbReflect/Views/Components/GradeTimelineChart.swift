@@ -56,6 +56,16 @@ struct GradeTimelineChart: View {
 
     private var flashLabel: String { discipline == .rope ? "Flash · Onsight" : "Flash" }
 
+    // AX-1: Kernaussage statt Linien-/Punktdetails, die als Chart ohnehin nicht
+    // sinnvoll abklapperbar sind.
+    private var accessibilitySummary: String {
+        guard let latest = points.last, let order = latest.sendOrder else {
+            return "Ab zwei Monaten mit Tops erscheint hier dein Verlauf."
+        }
+        let grade = ProgressEngine.gradeLabel(forOrder: order, discipline: discipline)
+        return "Härtester Top zuletzt \(grade) im \(latest.month.formatted(.dateTime.month(.wide)))"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Grad-Verlauf")
@@ -73,6 +83,9 @@ struct GradeTimelineChart: View {
         }
         .animation(.snappy, value: points)
         .card()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Grad-Verlauf")
+        .accessibilityValue(accessibilitySummary)
     }
 
     private var chart: some View {

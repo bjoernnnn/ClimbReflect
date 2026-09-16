@@ -42,5 +42,6 @@ struct ClimbDaysCard: View {
                 .foregroundStyle(Theme.textSecondary)
         }
         .card()
+        .accessibilityElement(children: .combine)
     }
 }

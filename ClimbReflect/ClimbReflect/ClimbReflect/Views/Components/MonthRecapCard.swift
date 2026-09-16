@@ -33,10 +33,14 @@ struct MonthRecapCard: View {
                             .foregroundStyle(Theme.textTertiary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Monatsrückblick schließen")
                 }
             }
-            disciplineRow("Bouldern", recap.boulder)
-            disciplineRow("Seil", recap.rope)
+            VStack(alignment: .leading, spacing: 4) {
+                disciplineRow("Bouldern", recap.boulder)
+                disciplineRow("Seil", recap.rope)
+            }
+            .accessibilityElement(children: .combine)
 
             // Optionaler Nachtrag (nur nach Umsetzung von TODO11/ER-2): Anzahl der
             // im Vormonat freigeschalteten Erfolge aus einem AchievementUnlock-Fetch.

@@ -4,12 +4,20 @@ import SwiftUI
 /// zählt für das Fortschrittsgefühl mehr als die reine Belastung (S31).
 struct SessionRow: View {
     let session: ClimbSession
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var tops: [Ascent] { session.ascents.filter { $0.result == .top } }
     private var hardestTop: Ascent? { ProgressEngine.hardest(tops.filter(\.isGraded)) }
 
+    // AX-1: bei sehr großer Schrift HStack -> VStack, damit nichts abgeschnitten wird.
+    private var layout: AnyLayout {
+        dynamicTypeSize >= .accessibility1
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 14))
+    }
+
     var body: some View {
-        HStack(spacing: 14) {
+        layout {
             ZStack {
                 RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
                     .fill(Theme.surfaceRaised)

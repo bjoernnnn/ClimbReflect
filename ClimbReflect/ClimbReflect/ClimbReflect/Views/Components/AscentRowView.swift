@@ -110,6 +110,7 @@ struct AscentRowView: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
     }
 
     private func formatDuration(_ t: Double) -> String {

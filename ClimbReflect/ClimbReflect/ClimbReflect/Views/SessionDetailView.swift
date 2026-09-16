@@ -121,6 +121,7 @@ struct SessionDetailView: View {
                     Image(systemName: "ellipsis.circle")
                         .foregroundStyle(Theme.textSecondary)
                 }
+                .accessibilityLabel("Weitere Aktionen")
             }
         }
         .toolbar {
@@ -354,6 +355,7 @@ struct SessionDetailView: View {
                     .foregroundStyle(session.outdoor || (session.gymName != nil) ? Theme.accent2 : Theme.textTertiary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Standort bearbeiten")
         }
         .padding(.top, 8)
         .sheet(isPresented: $showLocationEditor) {
@@ -551,6 +553,7 @@ struct SessionDetailView: View {
                         .font(.title3)
                         .foregroundStyle(Theme.accent)
                 }
+                .accessibilityLabel("Begehung hinzufügen")
             }
 
             let sorted = session.ascents.sorted { $0.createdAt < $1.createdAt }
@@ -644,6 +647,7 @@ struct SessionDetailView: View {
                         .font(.title3)
                         .foregroundStyle(Theme.accent)
                 }
+                .accessibilityLabel("Trainingssatz hinzufügen")
             }
 
             let sorted = session.trainingSets.sorted { $0.date < $1.date }
@@ -712,6 +716,7 @@ struct SessionDetailView: View {
                 Image(systemName: "trash").font(.caption).foregroundStyle(Theme.danger.opacity(0.7))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Trainingssatz löschen")
         }
         .padding(.vertical, 6)
     }

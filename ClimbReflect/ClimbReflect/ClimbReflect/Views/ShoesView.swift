@@ -41,6 +41,7 @@ struct ShoesView: View {
                 Button { showAddShoe = true } label: {
                     Image(systemName: "plus").foregroundStyle(Theme.accent)
                 }
+                .accessibilityLabel("Schuh hinzufügen")
             }
         }
         .sheet(isPresented: $showAddShoe) {

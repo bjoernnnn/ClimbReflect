@@ -40,5 +40,6 @@ struct IntentFollowUpCard: View {
             .card()
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
     }
 }

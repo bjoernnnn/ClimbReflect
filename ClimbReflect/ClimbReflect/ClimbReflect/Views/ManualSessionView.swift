@@ -103,6 +103,9 @@ struct ManualSessionView: View {
                                     .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
                             }
                             .buttonStyle(.plain)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                            .accessibilityAddTraits(selected ? .isSelected : [])
                             .sensoryFeedback(.selection, trigger: durationMinutes)
                         }
                     }
@@ -136,6 +139,8 @@ struct ManualSessionView: View {
                                             .foregroundStyle(Theme.textSecondary)
                                     }
                                     .buttonStyle(.plain)
+                                    .frame(minHeight: 44)
+                                    .contentShape(Rectangle())
                                 }
                             }
                             .padding(.vertical, 4)
