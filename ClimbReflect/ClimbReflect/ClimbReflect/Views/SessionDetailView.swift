@@ -20,6 +20,8 @@ struct SessionDetailView: View {
     @State private var showLocationEditor = false
     @State private var editedAscent: Ascent? = nil
     @State private var pendingDeleteAscent: Ascent? = nil   // VT-1
+    @State private var reflectionExpanded = false   // EF-5
+    @FocusState private var isTextFieldFocused: Bool
 
     // ST-2: distinct gymNames aus allen Sessions
     @Query(sort: \ClimbSession.date, order: .reverse) private var allSessions: [ClimbSession]
@@ -54,11 +56,13 @@ struct SessionDetailView: View {
                         trainingSetsCard
                     }
                     ascentsSection
+                    quickCheckCard
                     reflectionCard
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 40)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -90,14 +94,29 @@ struct SessionDetailView: View {
                     Button("Fertig", action: onFertig)
                         .fontWeight(.semibold)
                         .foregroundStyle(Theme.accent)
-                } else {
-                    Button(role: .destructive) {
-                        showDeleteConfirm = true
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                    .foregroundStyle(Theme.danger)
                 }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Art der Session", selection: sessionTypeBinding) {
+                        ForEach(SessionType.allCases.filter { $0 != .unknown }) { type in
+                            Label(type.label, systemImage: type.symbol).tag(type)
+                        }
+                    }
+                    Divider()
+                    Button("Session löschen", role: .destructive) {
+                        showDeleteConfirm = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Fertig") { isTextFieldFocused = false }
             }
         }
         .sheet(item: $addAscentRequest) { request in
@@ -128,6 +147,14 @@ struct SessionDetailView: View {
         }
     }
 
+    // EF-5: Session-Typ direkt aus dem Header-Menü änderbar (ersetzt typePicker im Kurz-Check).
+    private var sessionTypeBinding: Binding<SessionType> {
+        Binding(
+            get: { session.sessionType },
+            set: { session.sessionTypeRaw = $0.rawValue; session.updatedAt = .now }
+        )
+    }
+
     // VT-5: keine Ascents/Sets/Reflexion → gerade erst angelegte, leere Session.
     private var isPristine: Bool {
         session.ascents.isEmpty && session.trainingSets.isEmpty && !session.reflectionCompleted
@@ -145,21 +172,6 @@ struct SessionDetailView: View {
             let showAlt = ropeTypes.contains(session.sessionType) && session.altitudeTotalGain > 0
             if session.avgHeartRate != nil || session.activeEnergyKcal != nil || showAlt {
                 healthCard
-            }
-            // Kurzstat-Leiste
-            let tops = session.ascents.filter { $0.result == .top }.count
-            let total = session.ascents.count
-            if total > 0 {
-                HStack(spacing: 12) {
-                    Label("\(tops) Top\(tops == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(Theme.accent)
-                    Label("\(total - tops) Versuch\(total - tops == 1 ? "" : "e")",
-                          systemImage: "arrow.clockwise.circle")
-                        .foregroundStyle(Theme.gold)
-                    Spacer()
-                }
-                .font(.subheadline.weight(.semibold))
-                .card()
             }
             // SI-2/SI-3: Session-Insights
             insightsSection
@@ -692,109 +704,105 @@ struct SessionDetailView: View {
         kg.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(kg))" : String(format: "%.2g", kg)
     }
 
-    // MARK: - Tagebuch / Reflexion
+    // MARK: - EF-5: Kurz-Check
 
-    private var reflectionCard: some View {
+    private var quickCheckCard: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Label("Reflexion", systemImage: "pencil.and.list.clipboard")
+            Text("Kurz-Check")
                 .font(.headline)
                 .foregroundStyle(Theme.textPrimary)
 
-            typePicker
-
             if session.sessionFocusLabel != nil || session.energyLabel != nil {
-                Divider().background(Theme.separator)
                 watchQuestionnaireChips
+                Divider().background(Theme.separator)
             }
-
-            Divider().background(Theme.separator)
 
             rpePicker
 
             Divider().background(Theme.separator)
 
             limiterPicker
-
-            // FB-6: Technik-/Fokus-Picker sind kletterspezifisch → bei Training aus
-            if session.isClimbing {
-                Divider().background(Theme.separator)
-
-                techniqueFocusPicker
-
-                Divider().background(Theme.separator)
-
-                focusRatingPicker
-            }
-
-            Divider().background(Theme.separator)
-
-            reflectionField(
-                "Was habe ich gelernt?",
-                icon: "lightbulb.fill",
-                placeholder: session.isClimbing
-                    ? "z. B. Hüfteinsatz beim Überhang verbessert…"
-                    : "z. B. Max-Hangs erstmals an 10 mm gehalten…",
-                text: Binding(
-                    get: { session.learned ?? "" },
-                    set: { session.learned = $0.isEmpty ? nil : $0 }
-                )
-            )
-
-            reflectionField(
-                "Was war am schwersten?",
-                icon: "exclamationmark.triangle.fill",
-                placeholder: session.isClimbing
-                    ? "z. B. Fingerkraft am Ende der Session…"
-                    : "z. B. Letzter Satz Repeaters…",
-                text: Binding(
-                    get: { session.hardestPart ?? "" },
-                    set: { session.hardestPart = $0.isEmpty ? nil : $0 }
-                )
-            )
-
-            reflectionField(
-                "Was will ich verbessern?",
-                icon: "arrow.up.circle.fill",
-                placeholder: session.isClimbing
-                    ? "z. B. Mehr Fokus auf Füße und Balance…"
-                    : "z. B. Nächstes Mal 2 kg mehr Zusatzlast…",
-                text: Binding(
-                    get: { session.improveNext ?? "" },
-                    set: { session.improveNext = $0.isEmpty ? nil : $0 }
-                )
-            )
         }
         .card()
     }
 
-    // MARK: - Session-Typ
+    // MARK: - EF-5: Reflexion
 
-    private var typePicker: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Art der Session")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.textSecondary)
+    /// Bereits erfasste Inhalte → Karte startet aufgeklappt statt eingeklappt.
+    private var hasReflectionContent: Bool {
+        (session.isClimbing && (!session.techniqueFocusesRaw.isEmpty || session.focusRating != nil))
+            || !(session.learned ?? "").isEmpty
+            || !(session.hardestPart ?? "").isEmpty
+            || !(session.improveNext ?? "").isEmpty
+    }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], spacing: 8) {
-                ForEach(SessionType.allCases.filter { $0 != .unknown }) { type in
-                    let selected = session.sessionType == type
-                    Button {
-                        session.sessionTypeRaw = type.rawValue
-                        session.updatedAt = .now
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: type.symbol)
-                            Text(type.label)
-                        }
-                        .font(.caption.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
-                        .background(Capsule().fill(selected ? Theme.accent : Theme.surfaceRaised))
-                        .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                }
+    private var reflectionCard: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                Text("Reflexion")
+                    .font(.headline)
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Image(systemName: session.reflectionCompleted ? "checkmark.seal.fill" : "checkmark.seal")
+                    .foregroundStyle(session.reflectionCompleted ? Theme.gold : Theme.textTertiary)
             }
+
+            if reflectionExpanded {
+                if session.isClimbing {
+                    techniqueFocusPicker
+                    Divider().background(Theme.separator)
+                    focusRatingPicker
+                    Divider().background(Theme.separator)
+                }
+
+                reflectionField(
+                    "Was habe ich gelernt?",
+                    icon: "lightbulb.fill",
+                    placeholder: session.isClimbing
+                        ? "z. B. Hüfteinsatz beim Überhang verbessert…"
+                        : "z. B. Max-Hangs erstmals an 10 mm gehalten…",
+                    text: Binding(
+                        get: { session.learned ?? "" },
+                        set: { session.learned = $0.isEmpty ? nil : $0 }
+                    )
+                )
+
+                reflectionField(
+                    "Was war am schwersten?",
+                    icon: "exclamationmark.triangle.fill",
+                    placeholder: session.isClimbing
+                        ? "z. B. Fingerkraft am Ende der Session…"
+                        : "z. B. Letzter Satz Repeaters…",
+                    text: Binding(
+                        get: { session.hardestPart ?? "" },
+                        set: { session.hardestPart = $0.isEmpty ? nil : $0 }
+                    )
+                )
+
+                reflectionField(
+                    "Was will ich verbessern?",
+                    icon: "arrow.up.circle.fill",
+                    placeholder: session.isClimbing
+                        ? "z. B. Mehr Fokus auf Füße und Balance…"
+                        : "z. B. Nächstes Mal 2 kg mehr Zusatzlast…",
+                    text: Binding(
+                        get: { session.improveNext ?? "" },
+                        set: { session.improveNext = $0.isEmpty ? nil : $0 }
+                    )
+                )
+            } else {
+                Text("Was hast du gelernt, was war schwer, was nimmst du mit?")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textSecondary)
+                Button("Reflexion schreiben") {
+                    withAnimation(.snappy) { reflectionExpanded = true }
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .card()
+        .onAppear {
+            if hasReflectionContent { reflectionExpanded = true }
         }
     }
 
@@ -838,12 +846,9 @@ struct SessionDetailView: View {
         }
     }
 
+    // E18: eine Accent-Intensitätsskala statt Gold/Rot-Stufen – eine harte Session ist kein Fehler.
     private func rpeColor(_ rpe: Int) -> Color {
-        switch rpe {
-        case 1...4: return Theme.accent
-        case 5...7: return Theme.gold
-        default:    return Theme.danger
-        }
+        Theme.accent.opacity(0.35 + Double(rpe) * 0.065)
     }
 
     // MARK: - Limiter
@@ -1060,27 +1065,16 @@ struct SessionDetailView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.textSecondary)
 
-            ZStack(alignment: .topLeading) {
-                if text.wrappedValue.isEmpty {
-                    Text(placeholder)
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.textTertiary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 18)
-                        .allowsHitTesting(false)
+            TextField(placeholder, text: text, axis: .vertical)
+                .font(.subheadline)
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(2...8)
+                .focused($isTextFieldFocused)
+                .inset()
+                .onChange(of: text.wrappedValue) { _, _ in
+                    updateReflectionCompleted()
+                    session.updatedAt = .now
                 }
-                TextEditor(text: text)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textPrimary)
-                    .scrollContentBackground(.hidden)
-                    .frame(minHeight: 72)
-                    .padding(10)
-            }
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
-            .onChange(of: text.wrappedValue) { _, _ in
-                updateReflectionCompleted()
-                session.updatedAt = .now
-            }
         }
     }
 }
