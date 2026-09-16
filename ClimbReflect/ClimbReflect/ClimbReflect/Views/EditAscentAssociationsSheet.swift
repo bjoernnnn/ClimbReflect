@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 
+/// EF-3: gleicher Aufbau wie das Quick-Log (AddAscentView) – GradeRuler +
+/// OutcomePicker sichtbar, Rest unter „Details" (beim Bearbeiten aufgeklappt).
 struct EditAscentAssociationsSheet: View {
     @Bindable var ascent: Ascent
     @Environment(\.dismiss) private var dismiss
@@ -15,120 +17,49 @@ struct EditAscentAssociationsSheet: View {
     // FB-3: Grad/Ergebnis/Stil/Versuche lokal editieren, auf „Fertig" schreiben
     @State private var systemRaw: String = GradeSystem.fontainebleau.rawValue
     @State private var gradeRaw: String = Ascent.ungraded
-    @State private var resultRaw: String = AscentResult.attempt.rawValue
-    @State private var styleRaw: String? = nil
+    @State private var outcome: AscentOutcome? = nil
     @State private var attempts: Int = 1
     @State private var didLoad = false
     @State private var showDeleteConfirm = false
+    @State private var showDetails = true   // EF-3: beim Bearbeiten aufgeklappt
 
     // VT-1: Ursprungswerte für Abbrechen-Erkennung
     @State private var originalSystemRaw: String = GradeSystem.fontainebleau.rawValue
     @State private var originalGradeRaw: String = Ascent.ungraded
-    @State private var originalResultRaw: String = AscentResult.attempt.rawValue
-    @State private var originalStyleRaw: String? = nil
+    @State private var originalOutcome: AscentOutcome? = nil
     @State private var originalAttempts: Int = 1
 
     private var system: GradeSystem { GradeSystem(rawValue: systemRaw) ?? .fontainebleau }
-    private var result: AscentResult { AscentResult(rawValue: resultRaw) ?? .attempt }
+    private var discipline: ProgressEngine.Discipline { system.isBoulder ? .boulder : .rope }
+
+    private var outcomeOptions: [AscentOutcome] {
+        var opts = AscentOutcome.quick(for: discipline)
+        if let outcome, !opts.contains(outcome) {
+            opts.append(outcome)
+        }
+        return opts
+    }
 
     private var hasChanges: Bool {
         systemRaw != originalSystemRaw || gradeRaw != originalGradeRaw
-            || resultRaw != originalResultRaw || styleRaw != originalStyleRaw
-            || attempts != originalAttempts
+            || outcome != originalOutcome || attempts != originalAttempts
     }
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Theme.bg.ignoresSafeArea()
-                Form {
-                    // FB-3: Grad + System
-                    Section {
-                        Picker("System", selection: $systemRaw) {
-                            ForEach(GradeSystem.allCases) { s in
-                                Text(s.label).tag(s.rawValue)
-                            }
-                        }
-                        .onChange(of: systemRaw) { _, _ in
-                            if !system.grades.contains(gradeRaw) {
-                                gradeRaw = system.grades.first ?? Ascent.ungraded
-                            }
-                        }
-                        Picker("Grad", selection: $gradeRaw) {
-                            ForEach(system.grades, id: \.self) { g in Text(g).tag(g) }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(height: 90)
-                    } header: {
-                        Text("Grad").foregroundStyle(Theme.textTertiary)
+            ScrollView {
+                VStack(spacing: 24) {
+                    gradeBlock
+                    OutcomePicker(options: outcomeOptions, selection: $outcome)
+                    DisclosureGroup("Details", isExpanded: $showDetails) {
+                        detailsContent
                     }
-                    .listRowBackground(Theme.surface)
-
-                    // FB-3: Ergebnis + Stil + Versuche
-                    Section {
-                        Picker("Ergebnis", selection: $resultRaw) {
-                            ForEach(AscentResult.allCases) { r in
-                                Text(r.label).tag(r.rawValue)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        if result == .top {
-                            Picker("Stil", selection: styleBinding) {
-                                Text("—").tag(String?.none)
-                                ForEach([AscentStyle.flash, .onsight, .redpoint]) { s in
-                                    Text(s.label).tag(String?.some(s.rawValue))
-                                }
-                            }
-                        }
-                        Stepper("Versuche: \(attempts)", value: $attempts, in: 1...99)
-                    } header: {
-                        Text("Ergebnis").foregroundStyle(Theme.textTertiary)
-                    }
-                    .listRowBackground(Theme.surface)
-
-                    // Projekt-Zuordnung
-                    Section {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                projectChip(nil, label: "Kein Projekt")
-                                ForEach(activeProjects) { p in
-                                    projectChip(p, label: p.name)
-                                }
-                            }
-                            .padding(.vertical, 4)
-                        }
-                    } header: {
-                        Text("Projekt").foregroundStyle(Theme.textTertiary)
-                    }
-                    .listRowBackground(Theme.surface)
-
-                    // Schuh-Zuordnung
-                    if !activeShoes.isEmpty || ascent.shoeName != nil {
-                        Section {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(activeShoes) { s in
-                                        shoeChip(s, label: s.name)
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        } header: {
-                            Text("Schuh").foregroundStyle(Theme.textTertiary)
-                        }
-                        .listRowBackground(Theme.surface)
-                    }
-
-                    // VT-1: Begehung löschen
-                    Section {
-                        Button("Begehung löschen", role: .destructive) {
-                            showDeleteConfirm = true
-                        }
-                    }
-                    .listRowBackground(Theme.surface)
+                    .tint(Theme.textPrimary)
+                    .card()
                 }
-                .scrollContentBackground(.hidden)
+                .padding(20)
             }
+            .background(Theme.bg)
             .navigationTitle("Begehung bearbeiten")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -157,8 +88,79 @@ struct EditAscentAssociationsSheet: View {
         .tint(Theme.accent)
     }
 
-    private var styleBinding: Binding<String?> {
-        Binding(get: { styleRaw }, set: { styleRaw = $0 })
+    // MARK: - Grad
+
+    private var gradeBlock: some View {
+        VStack(spacing: 10) {
+            Text(gradeRaw)
+                .font(Theme.Typo.metricHero)
+                .foregroundStyle(Theme.textPrimary)
+                .contentTransition(.interpolate)
+                .animation(.snappy, value: gradeRaw)
+            Text(system.label)
+                .font(.caption)
+                .foregroundStyle(Theme.textTertiary)
+            GradeRuler(grades: system.grades, selection: $gradeRaw)
+        }
+    }
+
+    // MARK: - Details
+
+    @ViewBuilder
+    private var detailsContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Picker("Grad-System", selection: $systemRaw) {
+                ForEach(GradeSystem.allCases) { s in
+                    Text(s.label).tag(s.rawValue)
+                }
+            }
+            .pickerStyle(.menu)
+            .foregroundStyle(Theme.textPrimary)
+            .onChange(of: systemRaw) { _, _ in
+                if !system.grades.contains(gradeRaw) {
+                    gradeRaw = system.grades.first ?? Ascent.ungraded
+                }
+            }
+
+            Stepper("Versuche: \(attempts)", value: $attempts, in: 1...99)
+                .foregroundStyle(Theme.textPrimary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Projekt")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.textTertiary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        projectChip(nil, label: "Kein Projekt")
+                        ForEach(activeProjects) { p in
+                            projectChip(p, label: p.name)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            if !activeShoes.isEmpty || ascent.shoeName != nil {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Schuh")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.textTertiary)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(activeShoes) { s in
+                                shoeChip(s, label: s.name)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+
+            Button("Begehung löschen", role: .destructive) {
+                showDeleteConfirm = true
+            }
+        }
+        .padding(.top, 8)
     }
 
     // FB-3: aktuelle Werte in die lokalen States laden (einmalig)
@@ -167,22 +169,22 @@ struct EditAscentAssociationsSheet: View {
         didLoad = true
         systemRaw = ascent.gradeSystemRaw
         gradeRaw = ascent.gradeRaw
-        resultRaw = ascent.resultRaw
-        styleRaw = ascent.styleRaw
         attempts = ascent.attempts
+        let loadedResult = AscentResult(rawValue: ascent.resultRaw) ?? .attempt
+        let loadedStyle = ascent.styleRaw.flatMap(AscentStyle.init(rawValue:))
+        outcome = AscentOutcome(result: loadedResult, style: loadedStyle)
         originalSystemRaw = systemRaw
         originalGradeRaw = gradeRaw
-        originalResultRaw = resultRaw
-        originalStyleRaw = styleRaw
         originalAttempts = attempts
+        originalOutcome = outcome
     }
 
     private func save() {
+        guard let outcome else { return }
         ascent.gradeSystemRaw = systemRaw
         ascent.gradeRaw = gradeRaw
-        ascent.resultRaw = resultRaw
-        // Stil nur bei Top sinnvoll
-        ascent.styleRaw = (result == .top) ? styleRaw : nil
+        ascent.resultRaw = outcome.result.rawValue
+        ascent.styleRaw = outcome.style?.rawValue
         ascent.attempts = max(1, attempts)
         ascent.session?.updatedAt = .now
         try? context.save()
