@@ -3,6 +3,7 @@ import SwiftData
 
 struct ProjectsView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Project.createdAt) private var projects: [Project]
 
     @State private var showAddProject = false
@@ -73,27 +74,32 @@ struct ProjectsView: View {
                     sectionHeader("Angepinnt", count: pinnedProjects.count)
                     ForEach(pinnedProjects) { project in
                         projectRow(project, showSentDate: false)
+                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                     }
                 }
                 if !activeProjects.isEmpty {
                     sectionHeader("In Arbeit", count: activeProjects.count)
                     ForEach(activeProjects) { project in
                         projectRow(project, showSentDate: false)
+                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                     }
                 }
                 if !sentProjects.isEmpty {
                     sectionHeader("Geschafft", count: sentProjects.count)
                     ForEach(sentProjects) { project in
                         projectRow(project, showSentDate: true)
+                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                     }
                 }
                 if !abandonedProjects.isEmpty {
                     sectionHeader("Aufgegeben", count: abandonedProjects.count)
                     ForEach(abandonedProjects) { project in
                         projectRow(project, showSentDate: false)
+                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                     }
                 }
             }
+            .animation(reduceMotion ? nil : .snappy, value: projects.map(\.id))
             .padding(.horizontal, 20)
             .padding(.top, 8)
             .padding(.bottom, 40)
@@ -167,6 +173,7 @@ struct ProjectsView: View {
                                          : project.isAbandoned ? Theme.textTertiary
                                          : project.isPinned ? Theme.gold
                                          : Theme.textSecondary)
+                        .symbolEffect(.bounce, value: project.isPinned)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {

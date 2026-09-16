@@ -3,6 +3,7 @@ import SwiftData
 
 struct TodayView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \ClimbSession.date, order: .reverse) private var sessions: [ClimbSession]
     @Query(sort: \Project.name) private var allProjects: [Project]
     @Query private var unlocks: [AchievementUnlock]
@@ -198,9 +199,11 @@ struct TodayView: View {
                         SessionRow(session: session)
                     }
                     .buttonStyle(.plain)
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                 }
             }
         }
+        .animation(reduceMotion ? nil : .snappy, value: sessions.prefix(5).map(\.id))
     }
 
 }

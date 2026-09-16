@@ -12,6 +12,7 @@ struct SessionDetailView: View {
     var onFertig: (() -> Void)? = nil
     var autoAddAscentProject: Project? = nil   // VT-8
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
     @State private var addAscentRequest: AddAscentRequest? = nil
@@ -580,11 +581,13 @@ struct SessionDetailView: View {
                                     Label("Löschen", systemImage: "trash")
                                 }
                             }
+                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                         if ascent.id != sorted.last?.id {
                             Divider().background(Theme.separator)
                         }
                     }
                 }
+                .animation(reduceMotion ? nil : .snappy, value: sorted.map(\.id))
                 .sheet(item: $editedAscent) { ascent in
                     EditAscentAssociationsSheet(ascent: ascent)
                 }
@@ -758,6 +761,7 @@ struct SessionDetailView: View {
                 Spacer()
                 Image(systemName: session.reflectionCompleted ? "checkmark.seal.fill" : "checkmark.seal")
                     .foregroundStyle(session.reflectionCompleted ? Theme.gold : Theme.textTertiary)
+                    .symbolEffect(.bounce, value: session.reflectionCompleted)
             }
 
             if reflectionExpanded {

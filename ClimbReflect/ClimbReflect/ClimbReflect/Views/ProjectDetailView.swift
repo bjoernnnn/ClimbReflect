@@ -196,6 +196,7 @@ struct ProjectDetailView: View {
                     Image(systemName: "pin.fill")
                         .font(.caption)
                         .foregroundStyle(Theme.gold)
+                        .symbolEffect(.bounce, value: project.isPinned)
                 }
             }
 

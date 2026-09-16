@@ -76,7 +76,7 @@ struct LevelHeroCard: View {
                         Text(pb?.grade ?? "—")
                             .font(Theme.Typo.metricHero)
                             .foregroundStyle(pb != nil ? Theme.gold : Theme.textTertiary)
-                            .contentTransition(.numericText())
+                            .contentTransition(.interpolate)
                         if let nextGradeValue {
                             Image(systemName: "arrow.right")
                                 .font(.subheadline)
@@ -129,6 +129,7 @@ struct LevelHeroCard: View {
         }
         .buttonStyle(.plain)
         .card()
+        .animation(.snappy, value: pb?.grade)
         .accessibilityHint("Öffnet Fortschritt")
     }
 }

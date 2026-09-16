@@ -35,6 +35,7 @@ struct ClimbDaysCard: View {
                 }
             }
             .frame(height: 80)
+            .animation(.snappy, value: monthlyDays.map(\.days))
 
             Text("\(sends) Tops · \(climbDays) Klettertage")
                 .font(.subheadline)

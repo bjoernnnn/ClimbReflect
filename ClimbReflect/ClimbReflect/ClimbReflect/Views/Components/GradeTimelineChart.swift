@@ -71,6 +71,7 @@ struct GradeTimelineChart: View {
                 legend
             }
         }
+        .animation(.snappy, value: points)
         .card()
     }
 

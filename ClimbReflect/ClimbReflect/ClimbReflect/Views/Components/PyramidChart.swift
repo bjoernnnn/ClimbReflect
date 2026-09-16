@@ -28,6 +28,7 @@ struct PyramidChart: View {
                 }
             }
         }
+        .animation(.snappy, value: rows)
         .card()
     }
 }

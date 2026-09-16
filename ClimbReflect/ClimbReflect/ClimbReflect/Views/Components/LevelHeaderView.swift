@@ -29,6 +29,8 @@ struct LevelHeaderView: View {
             }
             factCard
         }
+        .animation(.snappy, value: send?.grade)
+        .animation(.snappy, value: flash?.grade)
     }
 
     private var flashTitle: String {
@@ -106,6 +108,7 @@ struct LevelHeaderView: View {
                         .font(Theme.Typo.metricHero)
                         .foregroundStyle(Theme.textPrimary)
                         .monospacedDigit()
+                        .contentTransition(.interpolate)
                     if showStyleBadge, let style = best.style {
                         Text(style.label)
                             .font(.caption2.weight(.bold))
