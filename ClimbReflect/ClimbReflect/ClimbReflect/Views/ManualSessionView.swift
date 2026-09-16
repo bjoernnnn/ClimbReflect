@@ -130,7 +130,7 @@ struct ManualSessionView: View {
                                         Text(c.rawValue).font(.caption.weight(.semibold))
                                     }
                                     .padding(.horizontal, 12).padding(.vertical, 6)
-                                    .background(Capsule().fill(sel ? Theme.accent : Theme.bgElevated))
+                                    .background(Capsule().fill(sel ? Theme.accent : Theme.surfaceRaised))
                                     .foregroundStyle(sel ? Theme.bg : Theme.textSecondary)
                                 }
                                 .buttonStyle(.plain)

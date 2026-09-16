@@ -66,7 +66,7 @@ struct BetaLibraryView: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.textTertiary)
                     .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(Capsule().fill(Theme.bgElevated))
+                    .background(Capsule().fill(Theme.surfaceRaised))
                 if let name = ascent.projectName {
                     Text(name)
                         .font(.caption.weight(.semibold))

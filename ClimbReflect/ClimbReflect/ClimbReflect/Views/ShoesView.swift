@@ -134,7 +134,7 @@ private struct ShoeRowView: View {
                         .font(.caption2)
                         .foregroundStyle(Theme.textTertiary)
                         .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Capsule().fill(Theme.bgElevated))
+                        .background(Capsule().fill(Theme.surfaceRaised))
                 }
                 Image(systemName: "chevron.right")
                     .font(.caption2)
@@ -277,7 +277,7 @@ struct ShoeFormView: View {
                                     .background(
                                         Capsule().fill(
                                             selected ? Theme.accent :
-                                            takenByOther ? Theme.bgElevated.opacity(0.5) : Theme.bgElevated
+                                            takenByOther ? Theme.surfaceRaised.opacity(0.5) : Theme.surfaceRaised
                                         )
                                     )
                                     .foregroundStyle(

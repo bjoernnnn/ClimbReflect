@@ -42,7 +42,7 @@ struct ProgressPeriodPicker: View {
             }
         }
         .padding(2)
-        .background(Capsule().fill(Theme.bgElevated))
+        .background(Capsule().fill(Theme.surfaceRaised))
     }
 }
 
@@ -56,7 +56,7 @@ struct ProgressDisciplinePicker: View {
             segment("Seil", active: discipline == .rope) { discipline = .rope }
         }
         .padding(2)
-        .background(Capsule().fill(Theme.bgElevated))
+        .background(Capsule().fill(Theme.surfaceRaised))
     }
 
     private func segment(_ label: String, active: Bool, action: @escaping () -> Void) -> some View {

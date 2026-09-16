@@ -54,6 +54,6 @@ struct ChartPeriodPicker: View {
             }
         }
         .padding(2)
-        .background(Capsule().fill(Theme.bgElevated))
+        .background(Capsule().fill(Theme.surfaceRaised))
     }
 }

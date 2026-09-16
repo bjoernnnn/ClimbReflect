@@ -48,7 +48,7 @@ struct AchievementDetailSheet: View {
             .padding(.bottom, 30)
             .frame(maxWidth: .infinity)
         }
-        .background(Theme.bgElevated.ignoresSafeArea())
+        .background(Theme.surfaceRaised.ignoresSafeArea())
     }
 
     private var medallionWithAura: some View {
@@ -125,7 +125,7 @@ struct AchievementDetailSheet: View {
                         .foregroundStyle(Theme.textTertiary)
                 }
                 .padding(.top, 9)
-                .overlay(alignment: .top) { Divider().overlay(Theme.surfaceStroke) }
+                .overlay(alignment: .top) { Divider().overlay(Theme.separator) }
             }
         }
         .padding(.top, 8)

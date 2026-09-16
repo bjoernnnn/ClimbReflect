@@ -35,6 +35,6 @@ struct NextAchievementsCard: View {
                 .foregroundStyle(Theme.textTertiary)
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Theme.bgElevated))
+        .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surfaceRaised))
     }
 }

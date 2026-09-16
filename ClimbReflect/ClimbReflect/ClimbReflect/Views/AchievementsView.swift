@@ -41,7 +41,7 @@ struct AchievementsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                MountainBackground()
+                AppBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
                         header
@@ -88,8 +88,10 @@ struct AchievementsView: View {
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Theme.bgElevated)
-                    Capsule().fill(Theme.accentGradient)
+                    Capsule().fill(Theme.surfaceRaised)
+                    // DZ-2: Ausnahme – Sammlungs-Balken behält den Zwei-Farben-Verlauf inline.
+                    Capsule().fill(LinearGradient(colors: [Theme.accent, Theme.accent2],
+                                                  startPoint: .leading, endPoint: .trailing))
                         .frame(width: geo.size.width * CGFloat(unlockedCount) / CGFloat(max(1, totalCount)))
                 }
             }
@@ -125,8 +127,7 @@ struct AchievementsView: View {
                             .monospacedDigit()
                     }
                     .padding(11)
-                    .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surface))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.surfaceStroke, lineWidth: 1))
+                    .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surfaceRaised))
                 }
                 .buttonStyle(.plain)
             }
@@ -155,7 +156,7 @@ struct AchievementsView: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Capsule().fill(active ? Theme.accent : Theme.bgElevated))
+                .background(Capsule().fill(active ? Theme.accent : Theme.surfaceRaised))
                 .foregroundStyle(active ? Theme.bg : Theme.textSecondary)
         }
         .buttonStyle(.plain)

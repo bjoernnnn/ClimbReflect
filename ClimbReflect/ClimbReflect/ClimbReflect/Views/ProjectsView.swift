@@ -28,7 +28,7 @@ struct ProjectsView: View {
 
     var body: some View {
         ZStack {
-            MountainBackground()
+            AppBackground()
             if projects.isEmpty {
                 emptyState
             } else {
@@ -145,7 +145,7 @@ struct ProjectsView: View {
                 .foregroundStyle(Theme.textTertiary)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 2)
-                .background(Capsule().fill(Theme.bgElevated))
+                .background(Capsule().fill(Theme.surfaceRaised))
         }
     }
 
@@ -160,7 +160,7 @@ struct ProjectsView: View {
             HStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(project.isSent ? Theme.accent.opacity(0.15) : Theme.bgElevated)
+                        .fill(project.isSent ? Theme.accent.opacity(0.15) : Theme.surfaceRaised)
                         .frame(width: 44, height: 44)
                     Image(systemName: project.isSent ? "checkmark.circle.fill"
                           : project.isAbandoned ? "xmark.circle"

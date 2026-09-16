@@ -7,7 +7,7 @@ struct AllSessionsView: View {
 
     var body: some View {
         ZStack {
-            MountainBackground()
+            Theme.bg.ignoresSafeArea()
 
             if sessions.isEmpty {
                 Text("Noch keine Sessions.")

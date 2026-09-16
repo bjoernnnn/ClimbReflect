@@ -28,7 +28,7 @@ struct SessionTimeDonut: View {
                         innerRadius: .ratio(0.62),
                         angularInset: 1.5
                     )
-                    .foregroundStyle(Theme.bgElevated)
+                    .foregroundStyle(Theme.surfaceRaised)
                     .cornerRadius(4)
                 }
                 .chartBackground { _ in
@@ -40,20 +40,17 @@ struct SessionTimeDonut: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     legendRow(color: Theme.accent, label: "Aktiv geklettert", minutes: activeMin)
-                    legendRow(color: Theme.bgElevated.opacity(0.6), label: "Pause", minutes: pauseMin, border: true)
+                    legendRow(color: Theme.surfaceRaised, label: "Pause", minutes: pauseMin)
                 }
             }
         }
         .card()
     }
 
-    private func legendRow(color: Color, label: String, minutes: Int, border: Bool = false) -> some View {
+    private func legendRow(color: Color, label: String, minutes: Int) -> some View {
         HStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 3)
                 .fill(color)
-                .overlay(
-                    border ? RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.surfaceStroke, lineWidth: 1) : nil
-                )
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 1) {
                 Text(label)

@@ -63,7 +63,7 @@ struct ProjectDetailView: View {
 
     var body: some View {
         ZStack {
-            MountainBackground()
+            Theme.bg.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     headerCard
@@ -400,7 +400,7 @@ struct ProjectDetailView: View {
                         .font(.subheadline)
                         .foregroundStyle(Theme.textPrimary)
                         .padding(12)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.surfaceRaised))
                         .padding(.horizontal)
                     Spacer()
                 }
@@ -458,7 +458,7 @@ struct ProjectDetailView: View {
                                     }
                                 }
                             if ascent.id != group.ascents.last?.id {
-                                Divider().background(Theme.surfaceStroke)
+                                Divider().background(Theme.separator)
                             }
                         }
                     }
@@ -534,7 +534,7 @@ struct ProjectDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
+        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.surfaceRaised))
     }
 }
 

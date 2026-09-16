@@ -68,7 +68,7 @@ struct AchievementTile: View {
             HStack(spacing: 5) {
                 ForEach(tiers.indices, id: \.self) { i in
                     let reached = i <= (data.currentTierIndex ?? -1)
-                    let color = reached ? Theme.materialColor(tiers[i].material) : Theme.surfaceStroke
+                    let color = reached ? Theme.materialColor(tiers[i].material) : Theme.textTertiary.opacity(0.4)
                     Circle().fill(reached ? color : Color.clear)
                         .overlay(Circle().stroke(color, lineWidth: 1))
                         .frame(width: 6, height: 6)

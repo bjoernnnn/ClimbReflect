@@ -116,12 +116,12 @@ struct LevelHeaderView: View {
                         }
                         .padding(.vertical, 10)
                         if index < rows.count - 1 {
-                            Divider().overlay(Theme.surfaceStroke)
+                            Divider().overlay(Theme.separator)
                         }
                     }
                 }
                 .padding(.horizontal, 14)
-                .background(RoundedRectangle(cornerRadius: 16).fill(Theme.bgElevated))
+                .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surfaceRaised))
 
                 if showsComfortCandidateFootnote {
                     Text("Wohlfühl-Grad ab \(ProgressEngine.minSampleSize) Begehungen je Grad")
@@ -168,7 +168,7 @@ struct LevelHeaderView: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Theme.bgElevated)
+                .fill(Theme.surfaceRaised)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .stroke(celebrates ? Theme.gold.opacity(0.35) : Color.clear, lineWidth: 1)

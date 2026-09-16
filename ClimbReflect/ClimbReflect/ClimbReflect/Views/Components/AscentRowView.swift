@@ -21,7 +21,7 @@ struct AscentRowView: View {
                             .foregroundStyle(Theme.textTertiary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Theme.bgElevated))
+                            .background(Capsule().fill(Theme.surfaceRaised))
                     } else {
                         // RP-5: ungegradete Begehung – Grad über den Editor nachtragbar
                         Text("Unbewertet")

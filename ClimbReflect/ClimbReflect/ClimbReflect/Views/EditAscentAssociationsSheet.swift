@@ -200,7 +200,7 @@ struct EditAscentAssociationsSheet: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Capsule().fill(selected ? Theme.accent : Theme.bgElevated))
+                .background(Capsule().fill(selected ? Theme.accent : Theme.surfaceRaised))
                 .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
         }
         .buttonStyle(.plain)
@@ -217,7 +217,7 @@ struct EditAscentAssociationsSheet: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Capsule().fill(selected ? Theme.accent2 : Theme.bgElevated))
+                .background(Capsule().fill(selected ? Theme.accent2 : Theme.surfaceRaised))
                 .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
         }
         .buttonStyle(.plain)

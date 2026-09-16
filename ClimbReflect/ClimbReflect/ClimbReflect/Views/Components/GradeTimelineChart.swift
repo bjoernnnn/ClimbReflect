@@ -108,7 +108,7 @@ struct GradeTimelineChart: View {
         }
         .chartYAxis {
             AxisMarks(values: yTicks) { value in
-                AxisGridLine().foregroundStyle(Theme.surfaceStroke.opacity(0.4))
+                AxisGridLine().foregroundStyle(Theme.separator)
                 AxisValueLabel {
                     if let order = value.as(Int.self) {
                         Text(ProgressEngine.gradeLabel(forOrder: order, discipline: discipline))

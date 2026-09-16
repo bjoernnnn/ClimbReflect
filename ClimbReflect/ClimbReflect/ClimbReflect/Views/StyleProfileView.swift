@@ -24,7 +24,7 @@ struct StyleProfileView: View {
 
     var body: some View {
         ZStack {
-            MountainBackground()
+            Theme.bg.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     if rates.isEmpty && pending.isEmpty {
@@ -82,7 +82,7 @@ struct StyleProfileView: View {
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Theme.bgElevated)
+                    Capsule().fill(Theme.surfaceRaised)
                     Capsule().fill(Theme.accent)
                         .frame(width: geo.size.width * CGFloat(rate.sendRate))
                 }
@@ -116,7 +116,7 @@ struct StyleProfileView: View {
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Theme.bgElevated)
+                    Capsule().fill(Theme.surfaceRaised)
                     Capsule().fill(Theme.textTertiary.opacity(0.35))
                         .frame(width: geo.size.width
                                * CGFloat(group.sample) / CGFloat(ProgressEngine.minSampleSize))

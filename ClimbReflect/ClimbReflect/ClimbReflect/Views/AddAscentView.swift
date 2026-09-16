@@ -193,7 +193,7 @@ struct AddAscentView: View {
                                         .font(.system(size: 20))
                                         .foregroundStyle(Theme.accent)
                                         .frame(width: 60, height: 60)
-                                        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bgElevated))
+                                        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.surfaceRaised))
                                 }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(photoData != nil ? "Foto ändern" : "Foto hinzufügen")
@@ -296,7 +296,7 @@ struct AddAscentView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(Capsule().fill(selected ? Theme.accent2 : Theme.bgElevated))
+            .background(Capsule().fill(selected ? Theme.accent2 : Theme.surfaceRaised))
             .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
         }
         .buttonStyle(.plain)
@@ -314,7 +314,7 @@ struct AddAscentView: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Capsule().fill(selected ? Theme.accent : Theme.bgElevated))
+                .background(Capsule().fill(selected ? Theme.accent : Theme.surfaceRaised))
                 .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
         }
         .buttonStyle(.plain)
@@ -358,7 +358,7 @@ struct AddAscentView: View {
                                 .font(.caption.weight(.semibold))
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
-                                .background(Capsule().fill(selected ? Theme.accent : Theme.bgElevated))
+                                .background(Capsule().fill(selected ? Theme.accent : Theme.surfaceRaised))
                                 .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
                         }
                         .buttonStyle(.plain)

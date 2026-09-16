@@ -76,7 +76,7 @@ struct TodayView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                MountainBackground()
+                AppBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         header

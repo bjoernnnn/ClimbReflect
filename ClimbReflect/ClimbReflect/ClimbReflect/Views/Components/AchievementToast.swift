@@ -31,8 +31,7 @@ struct AchievementToast: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(Capsule().fill(Theme.bgElevated))
-        .overlay(Capsule().stroke(Theme.surfaceStroke, lineWidth: 1))
+        .background(Capsule().fill(Theme.surfaceRaised))
         .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
         .opacity(appear ? 1 : 0)
         .offset(y: appear ? 0 : -16)

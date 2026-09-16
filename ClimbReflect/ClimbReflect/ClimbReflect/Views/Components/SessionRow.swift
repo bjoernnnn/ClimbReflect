@@ -14,7 +14,7 @@ struct SessionRow: View {
         HStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Theme.bgElevated)
+                    .fill(Theme.surfaceRaised)
                     .frame(width: 44, height: 44)
                 Image(systemName: session.sessionType.symbol)
                     .font(.system(size: 18, weight: .semibold))

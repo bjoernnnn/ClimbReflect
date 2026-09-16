@@ -12,7 +12,7 @@ struct DisciplinePicker: View {
             segment(label: "Seil", active: showRoutes) { showRoutes = true }
         }
         .padding(2)
-        .background(Capsule().fill(Theme.bgElevated))
+        .background(Capsule().fill(Theme.surfaceRaised))
     }
 
     private func segment(label: String, active: Bool, action: @escaping () -> Void) -> some View {

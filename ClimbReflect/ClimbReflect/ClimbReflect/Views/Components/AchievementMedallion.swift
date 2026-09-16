@@ -17,7 +17,7 @@ struct AchievementMedallion: View {
     var body: some View {
         ZStack {
             glow
-            Circle().fill(Theme.bgElevated)
+            Circle().fill(Theme.surfaceRaised)
             ridge
             ring.padding(size * 0.03)
             Image(systemName: symbol)
@@ -52,7 +52,7 @@ struct AchievementMedallion: View {
             Circle().strokeBorder(Theme.materialRing(material), lineWidth: 2.5)
         case .locked(let progress):
             ZStack {
-                Circle().stroke(Theme.surfaceStroke, lineWidth: 3)
+                Circle().stroke(Color.white.opacity(0.08), lineWidth: 3)
                 if let progress {
                     Circle()
                         .trim(from: 0, to: max(0, min(1, progress)))

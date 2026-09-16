@@ -93,7 +93,7 @@ struct LiveSessionBanner: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
                         .frame(width: 44, height: 44)
-                        .background(Circle().fill(Theme.bgElevated))
+                        .background(Circle().fill(Theme.surfaceRaised))
                 }
                 .buttonStyle(.plain)
 
@@ -128,7 +128,7 @@ struct LiveSessionBanner: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Capsule().fill(Theme.bgElevated))
+        .background(Capsule().fill(Theme.surfaceRaised))
     }
 
     private func liveElapsedFormatted() -> String {
