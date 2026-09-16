@@ -1,14 +1,12 @@
 import SwiftUI
 
+/// FS-4: zeigt Fortschritt (härtester Top) statt Aufwand (Dauer/RPE) – das
+/// zählt für das Fortschrittsgefühl mehr als die reine Belastung (S31).
 struct SessionRow: View {
     let session: ClimbSession
 
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "EEE, dd.MM."
-        return f
-    }()
+    private var tops: [Ascent] { session.ascents.filter { $0.result == .top } }
+    private var hardestTop: Ascent? { ProgressEngine.hardest(tops.filter(\.isGraded)) }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -20,32 +18,45 @@ struct SessionRow: View {
                     .font(.title3)
                     .foregroundStyle(Theme.accent)
             }
+            .overlay(alignment: .topTrailing) {
+                if !session.reflectionCompleted && session.isClimbing {
+                    Circle()
+                        .fill(Theme.accent)
+                        .frame(width: 8, height: 8)
+                }
+            }
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(session.sessionType.label)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.textPrimary)
-                Text(Self.dateFormatter.string(from: session.date))
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
+                HStack(spacing: 0) {
+                    Text(session.sessionType.label)
+                    if session.outdoor {
+                        Text(" · Outdoor")
+                    } else if let gym = session.gymName, !gym.isEmpty {
+                        Text(" · \(gym)")
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
+
+                HStack(spacing: 0) {
+                    Text(session.date.formatted(.dateTime.weekday(.abbreviated).day().month(.twoDigits)))
+                    if session.isClimbing && !tops.isEmpty {
+                        Text(" · \(tops.count) Top\(tops.count == 1 ? "" : "s")")
+                    }
+                    Text(" · \(session.durationMinutes) Min")
+                }
+                .font(.caption)
+                .foregroundStyle(Theme.textSecondary)
             }
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 3) {
-                Text("\(session.durationMinutes) Min")
-                    .font(.subheadline.weight(.medium))
+            if let hardestTop {
+                Text(GradeConverter.display(grade: hardestTop.gradeRaw, storedIn: hardestTop.gradeSystem))
+                    .font(Theme.Typo.metric)
                     .foregroundStyle(Theme.textPrimary)
-                if let rpe = session.perceivedEffort {
-                    Text("RPE \(rpe)")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Theme.textTertiary)
-                }
-                if !session.reflectionCompleted {
-                    Text("Reflexion offen")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.accent.opacity(0.8))
-                }
+                    .monospacedDigit()
             }
         }
         .padding(.vertical, 10)
@@ -54,5 +65,6 @@ struct SessionRow: View {
             RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
                 .fill(Theme.surface.opacity(0.75))
         )
+        .accessibilityElement(children: .combine)
     }
 }
