@@ -89,11 +89,11 @@ struct FortschrittView: View {
     @ViewBuilder private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // DS-1: eine Kopfzeile statt drei Ausrichtungen — Disziplin führend,
-                // Zeitraum rechts. Kein Element zentriert außer dem Nav-Titel.
-                HStack {
+                // DZ-5: zwei volle Segmented-Control-Zeilen statt einer Pill-Zeile
+                // mit Spacer — native Trefferfläche, kein Element zentriert außer
+                // dem Nav-Titel.
+                VStack(spacing: 10) {
                     ProgressDisciplinePicker(discipline: disciplineBinding)
-                    Spacer()
                     if hasData {
                         ProgressPeriodPicker(selection: $period)
                     }

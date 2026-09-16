@@ -20,29 +20,18 @@ enum ProgressPeriod: String, CaseIterable, Identifiable {
     }
 }
 
-/// Pill-Segment-Auswahl für den Zeitraum (analog ChartPeriodPicker, aber mit den
-/// Fortschritt-Perioden 3M · 6M · 1J · Alles).
+/// DZ-5: nativer Segmented-Control statt Pill-Eigenbau – volle 44-pt-Trefferfläche,
+/// System-Haptik und Gleit-Animation inklusive.
 struct ProgressPeriodPicker: View {
     @Binding var selection: ProgressPeriod
 
     var body: some View {
-        HStack(spacing: 2) {
+        Picker("Zeitraum", selection: $selection) {
             ForEach(ProgressPeriod.allCases) { period in
-                let active = selection == period
-                Button { selection = period } label: {
-                    Text(period.rawValue)
-                        .font(.caption2.weight(active ? .bold : .regular))
-                        .foregroundStyle(active ? Theme.bg : Theme.textTertiary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(active ? Theme.accent : Color.clear))
-                }
-                .buttonStyle(.plain)
-                .animation(.easeInOut(duration: 0.15), value: selection)
+                Text(period.rawValue).tag(period)
             }
         }
-        .padding(2)
-        .background(Capsule().fill(Theme.surfaceRaised))
+        .pickerStyle(.segmented)
     }
 }
 
@@ -51,24 +40,10 @@ struct ProgressDisciplinePicker: View {
     @Binding var discipline: ProgressEngine.Discipline
 
     var body: some View {
-        HStack(spacing: 2) {
-            segment("Boulder", active: discipline == .boulder) { discipline = .boulder }
-            segment("Seil", active: discipline == .rope) { discipline = .rope }
+        Picker("Disziplin", selection: $discipline) {
+            Text("Boulder").tag(ProgressEngine.Discipline.boulder)
+            Text("Seil").tag(ProgressEngine.Discipline.rope)
         }
-        .padding(2)
-        .background(Capsule().fill(Theme.surfaceRaised))
-    }
-
-    private func segment(_ label: String, active: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.footnote.weight(active ? .bold : .regular))
-                .foregroundStyle(active ? Theme.bg : Theme.textTertiary)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
-                .background(Capsule().fill(active ? Theme.accent : Color.clear))
-        }
-        .buttonStyle(.plain)
-        .animation(.easeInOut(duration: 0.15), value: discipline)
+        .pickerStyle(.segmented)
     }
 }
