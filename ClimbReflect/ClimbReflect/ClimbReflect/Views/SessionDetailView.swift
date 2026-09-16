@@ -28,9 +28,7 @@ struct SessionDetailView: View {
     private var sessionUnlocks: [AchievementUnlock] {
         allUnlocks.filter { $0.sessionID == session.id }.sorted { $0.unlockedAt < $1.unlockedAt }
     }
-    private var knownGymNames: [String] {
-        Array(Set(allSessions.compactMap(\.gymName).filter { !$0.isEmpty })).sorted()
-    }
+    private var knownGymNames: [String] { ClimbSession.knownGymNames(allSessions) }
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
