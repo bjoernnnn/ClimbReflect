@@ -47,7 +47,6 @@ struct AchievementsView: View {
                     if !inReach.isEmpty { inReachSection }
                     categoryChips
                     grid
-                    betaLibraryLink
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -171,33 +170,5 @@ struct AchievementsView: View {
                 .buttonStyle(.plain)
             }
         }
-    }
-
-    private var betaLibraryLink: some View {
-        NavigationLink(destination: BetaLibraryView()) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(Theme.accent.opacity(0.12)).frame(width: 44, height: 44)
-                    Image(systemName: "text.magnifyingglass")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Theme.accent)
-                }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Beta-Bibliothek")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.textPrimary)
-                    Text("Tipps & Techniken für Kletterprobleme")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.textTertiary)
-            }
-            .padding(14)
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surface))
-        }
-        .buttonStyle(.plain)
     }
 }

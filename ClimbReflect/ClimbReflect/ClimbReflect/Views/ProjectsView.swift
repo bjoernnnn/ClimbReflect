@@ -38,11 +38,20 @@ struct ProjectsView: View {
         .navigationTitle("Projekte")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { showAddProject = true } label: {
-                    Image(systemName: "plus")
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                // DZ-6: Beta-Bibliothek gehört zu Projekten, nicht zu Erfolgen.
+                NavigationLink { BetaLibraryView() } label: {
+                    Image(systemName: "books.vertical")
                 }
                 .tint(Theme.accent)
+                .accessibilityLabel("Beta-Bibliothek")
+
+                Button { showAddProject = true } label: {
+                    Image(systemName: "plus")
+                        .fontWeight(.semibold)
+                }
+                .tint(Theme.accent)
+                .accessibilityLabel("Projekt hinzufügen")
             }
         }
         .sheet(isPresented: $showAddProject) {

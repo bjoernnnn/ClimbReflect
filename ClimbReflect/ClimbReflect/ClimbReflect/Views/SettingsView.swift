@@ -47,6 +47,17 @@ struct SettingsView: View {
             ZStack {
                 Theme.bg.ignoresSafeArea()
                 Form {
+                    // MARK: Ausrüstung (DZ-6: an die erste Stelle)
+                    Section {
+                        NavigationLink(destination: ShoesView()) {
+                            Label("Schuhe verwalten", systemImage: "shoeprints.fill")
+                                .foregroundStyle(Theme.textPrimary)
+                        }
+                    } header: {
+                        Text("Ausrüstung").foregroundStyle(Theme.textTertiary)
+                    }
+                    .listRowBackground(Theme.surface)
+
                     // MARK: Health / Sync
                     if healthKitAvailable {
                         Section {
@@ -210,17 +221,6 @@ struct SettingsView: View {
                     }
                     .listRowBackground(Theme.surface)
 
-                    // MARK: Schuhe (SH-2)
-                    Section {
-                        NavigationLink(destination: ShoesView()) {
-                            Label("Schuhe verwalten", systemImage: "shoeprints.fill")
-                                .foregroundStyle(Theme.textPrimary)
-                        }
-                    } header: {
-                        Text("Ausrüstung").foregroundStyle(Theme.textTertiary)
-                    }
-                    .listRowBackground(Theme.surface)
-
                     // MARK: Diagnose
                     Section {
                         NavigationLink(destination: WatchDiagnosticsView()) {
@@ -250,7 +250,7 @@ struct SettingsView: View {
                         }
                         #endif
                     } header: {
-                        Text("Entwicklung").foregroundStyle(Theme.textTertiary)
+                        Text("Support & Diagnose").foregroundStyle(Theme.textTertiary)
                     } footer: {
                         Text("Standardmäßig aus, damit die Uhr im Alltag schlank bleibt. Bei Bedarf hier aktivieren.")
                             .foregroundStyle(Theme.textTertiary)
