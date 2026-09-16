@@ -21,6 +21,7 @@ struct SessionDetailView: View {
     @State private var editedAscent: Ascent? = nil
     @State private var pendingDeleteAscent: Ascent? = nil   // VT-1
     @State private var reflectionExpanded = false   // EF-5
+    @State private var showRecap = false   // FS-7
     @FocusState private var isTextFieldFocused: Bool
 
     // ST-2: distinct gymNames aus allen Sessions
@@ -103,6 +104,13 @@ struct SessionDetailView: View {
                             Label(type.label, systemImage: type.symbol).tag(type)
                         }
                     }
+                    // FS-7: dieselbe Zusammenfassung wie nach einer neu empfangenen
+                    // Watch-Session, hier jederzeit manuell aufrufbar.
+                    if session.isClimbing && !session.ascents.isEmpty {
+                        Button("Zusammenfassung", systemImage: "sparkles") {
+                            showRecap = true
+                        }
+                    }
                     Divider()
                     Button("Session löschen", role: .destructive) {
                         showDeleteConfirm = true
@@ -121,6 +129,9 @@ struct SessionDetailView: View {
         }
         .sheet(item: $addAscentRequest) { request in
             AddAscentView(session: session, preselectedProject: request.project)
+        }
+        .sheet(isPresented: $showRecap) {
+            SessionRecapSheet(session: session)
         }
         .task {
             // VT-8: aus dem Projekt heraus neu angelegte Session → Erfassen-Sheet direkt öffnen.

@@ -309,5 +309,11 @@ final class WatchSessionReceiver: NSObject, WCSessionDelegate, ObservableObject 
 
         try? ctx.save()
         AchievementService.shared.checkNow(context: ctx)   // EP-3
+
+        // FS-7: nur echte Neu-Zustellungen einer Klettersession lösen das
+        // Recap-Sheet aus (nicht der Upsert-Pfad oben, nicht Training).
+        if sessionType != .training {
+            UserDefaults.standard.set(climbSession.id.uuidString, forKey: "pendingRecapSessionID")
+        }
     }
 }

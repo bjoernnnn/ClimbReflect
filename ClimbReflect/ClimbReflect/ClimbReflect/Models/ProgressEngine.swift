@@ -509,6 +509,82 @@ enum ProgressEngine {
         return result
     }
 
+    // MARK: - FS-7: Session-Recap (Zusammenfassung nach einer Watch-Session)
+
+    struct SessionRecap: Equatable {
+        let hardestTop: String?          // Anzeige-Grad
+        let tops: Int
+        let ascents: Int
+        let firstTopGrades: [String]     // in dieser Session erstmals überhaupt getoppt, absteigend
+        let projectsCompleted: [String]  // Projektnamen, deren erster Top in dieser Session liegt
+        let discipline: Discipline?
+    }
+
+    /// Zusammenfassung einer Session für das Recap-Sheet. Statisch – keine
+    /// Prognose, nur was in den Daten steht (S32/S33).
+    static func sessionRecap(_ session: ClimbSession, allSessions: [ClimbSession]) -> SessionRecap {
+        let ascents = session.ascents
+        let tops = ascents.filter { $0.result == .top }
+        let discipline: Discipline? = {
+            switch session.sessionType {
+            case .boulder:                     return .boulder
+            case .lead, .topRope, .autoBelay:  return .rope
+            default:                           return nil
+            }
+        }()
+
+        guard let discipline else {
+            return SessionRecap(hardestTop: nil, tops: tops.count, ascents: ascents.count,
+                                firstTopGrades: [], projectsCompleted: [], discipline: nil)
+        }
+
+        let target = discipline.displaySystem
+        let gradedTops = tops.filter { discipline.matches($0) && $0.isGraded }
+        let hardestTop = hardest(gradedTops).map {
+            GradeConverter.display(grade: $0.gradeRaw, storedIn: $0.gradeSystem)
+        }
+
+        // Erst-Top: frühester Send seines Anzeige-Grads über die gesamte Historie
+        // ist eine Begehung dieser Session.
+        let allTops = allSessions.flatMap(\.ascents)
+            .filter { discipline.matches($0) && $0.result == .top && $0.isGraded }
+        var earliestByGrade: [String: Ascent] = [:]
+        for a in allTops {
+            guard let key = GradeConverter.convert(grade: a.gradeRaw, from: a.gradeSystem, to: target) else { continue }
+            if let current = earliestByGrade[key] {
+                if (a.date, a.createdAt) < (current.date, current.createdAt) { earliestByGrade[key] = a }
+            } else {
+                earliestByGrade[key] = a
+            }
+        }
+        let sessionAscentIDs = Set(gradedTops.map(\.id))
+        let firstTopGrades = earliestByGrade.compactMap { grade, ascent -> (grade: String, order: Int)? in
+            guard sessionAscentIDs.contains(ascent.id) else { return nil }
+            let order = GradeConverter.canonicalIndex(grade: grade, system: target) ?? 0
+            return (grade, order)
+        }
+        .sorted { $0.order > $1.order }
+        .map(\.grade)
+
+        // Projekt-Abschluss: Projekte, deren ERSTER Top (über die gesamte Historie)
+        // in dieser Session liegt.
+        let projectIDs = Set(gradedTops.compactMap { $0.project?.id })
+        var projectsCompleted: [String] = []
+        for pid in projectIDs {
+            guard let project = gradedTops.first(where: { $0.project?.id == pid })?.project else { continue }
+            let allProjectTops = project.ascents.filter { $0.result == .top }
+            guard let firstTop = allProjectTops.min(by: { ($0.date, $0.createdAt) < ($1.date, $1.createdAt) })
+            else { continue }
+            if sessionAscentIDs.contains(firstTop.id) {
+                projectsCompleted.append(project.name)
+            }
+        }
+
+        return SessionRecap(hardestTop: hardestTop, tops: tops.count, ascents: ascents.count,
+                            firstTopGrades: firstTopGrades, projectsCompleted: projectsCompleted,
+                            discipline: discipline)
+    }
+
     // MARK: - FO-14: Wochen-Zählung (entkoppelt von weeklyMinutes)
 
     /// Anzahl Kletter-Sessions in der laufenden Kalenderwoche (Montag-Start).
