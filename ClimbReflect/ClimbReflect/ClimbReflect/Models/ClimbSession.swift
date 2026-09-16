@@ -118,6 +118,12 @@ extension ClimbSession {
     var isClimbing: Bool { sessionType != .training }
     var conditions: OutdoorConditions? { conditionsRaw.flatMap(OutdoorConditions.init(rawValue:)) }
 
+    // EF-4: distinct gymNames aus allen Sessions – gemeinsame Quelle für
+    // SessionDetailView und ManualSessionView statt zweier Kopien.
+    static func knownGymNames(_ sessions: [ClimbSession]) -> [String] {
+        Array(Set(sessions.compactMap(\.gymName).filter { !$0.isEmpty })).sorted()
+    }
+
     // RP-2: Deutsche Anzeige-Labels für den Watch-Fragebogen (Watch-Enums liegen
     // nicht im iPhone-Target → Mapping hier). nil, wenn kein/unbekannter Wert.
     var sessionFocusLabel: String? {

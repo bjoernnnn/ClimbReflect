@@ -24,7 +24,7 @@ enum HealthError: LocalizedError {
         case .unavailable:
             "HealthKit ist auf diesem Gerät nicht verfügbar. Der Import funktioniert nur auf einem echten iPhone."
         case .noClimbingWorkouts:
-            "Keine Kletter-Workouts in Apple Health gefunden. Stelle sicher, dass Redpoint Workouts nach Apple Health exportiert (Redpoint → Einstellungen → Apple Health aktivieren)."
+            "Keine Kletter-Workouts in Apple Health gefunden. Stelle sicher, dass die App, die deine Sessions aufzeichnet, sie nach Apple Health exportiert."
         }
     }
 }

@@ -1,18 +1,13 @@
 import SwiftUI
 import SwiftData
-import Charts
 import PhotosUI
-
-private struct AttemptPoint: Identifiable {
-    let date: Date
-    let count: Int
-    var id: Date { date }
-}
 
 struct ProjectDetailView: View {
     @Bindable var project: Project
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+
+    @Query(sort: \ClimbSession.date, order: .reverse) private var allSessions: [ClimbSession]   // VT-8
 
     @State private var editingBetaNotes = false
     @State private var betaNotesDraft = ""
@@ -22,6 +17,32 @@ struct ProjectDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var showGradeEditor = false   // FB-1
     @State private var editedAscent: Ascent? = nil   // GR-2
+    @State private var pendingDeleteAscent: Ascent? = nil   // VT-1
+    @State private var showSessionChoice = false   // VT-8
+    @State private var addAscentSession: ClimbSession? = nil   // VT-8
+    @State private var showNewSessionForProject = false   // VT-8
+
+    // VT-8: Klettersessions der letzten 3 Kalendertage, deren Disziplin zum Projekt passt.
+    private var candidateSessions: [ClimbSession] {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -3, to: Calendar.current.startOfDay(for: .now)) ?? .distantPast
+        let projectIsBoulder = project.gradeSystem?.isBoulder
+        return allSessions
+            .filter { $0.isClimbing && $0.date >= cutoff }
+            .filter { session in
+                guard let projectIsBoulder else { return true }
+                return GradeDefaults.discipline(for: session.sessionType).isBoulder == projectIsBoulder
+            }
+            .sorted { $0.date > $1.date }
+            .prefix(3)
+            .map { $0 }
+    }
+
+    private func relativeDayLabel(_ date: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(date) { return "heute" }
+        if cal.isDateInYesterday(date) { return "gestern" }
+        return date.formatted(.dateTime.weekday(.wide))
+    }
 
     private var sortedAscents: [Ascent] {
         project.ascents.sorted { $0.date > $1.date }
@@ -36,27 +57,20 @@ struct ProjectDetailView: View {
         }
     }
 
-    private var attemptHistory: [AttemptPoint] {
-        ascentsGroupedBySession.map { group in
-            AttemptPoint(date: group.date,
-                         count: group.ascents.reduce(0) { $0 + $1.attempts })
-        }
-        .sorted { $0.date < $1.date }
-    }
-
     private var sortedMedia: [ProjectMedia] {
         project.media.sorted { $0.createdAt < $1.createdAt }
     }
 
     var body: some View {
         ZStack {
-            MountainBackground()
+            Theme.bg.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     headerCard
-                    if attemptHistory.count > 1 {
-                        progressChart
+                    if !project.isAbandoned {
+                        addAscentButton
                     }
+                    ProjectDayTimeline(project: project)
                     betaNotesCard
                     mediaGallery
                     if !ascentsGroupedBySession.isEmpty {
@@ -70,7 +84,6 @@ struct ProjectDetailView: View {
         }
         .navigationTitle(project.name)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -91,6 +104,7 @@ struct ProjectDetailView: View {
                     Image(systemName: "ellipsis.circle")
                         .foregroundStyle(Theme.textSecondary)
                 }
+                .accessibilityLabel("Weitere Aktionen")
             }
         }
         .confirmationDialog("Projekt löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
@@ -125,7 +139,23 @@ struct ProjectDetailView: View {
         .onChange(of: selectedPhotos) { _, items in
             Task { await addPhotos(items) }
         }
-        .preferredColorScheme(.dark)
+        .confirmationDialog("Zu welcher Session?", isPresented: $showSessionChoice, titleVisibility: .visible) {
+            ForEach(candidateSessions) { session in
+                Button("\(session.sessionType.label) · \(relativeDayLabel(session.date))") {
+                    addAscentSession = session
+                }
+            }
+            Button("Neue Session …") { showNewSessionForProject = true }
+            Button("Abbrechen", role: .cancel) {}
+        }
+        .sheet(item: $addAscentSession) { session in
+            AddAscentView(session: session, preselectedProject: project)
+        }
+        .sheet(isPresented: $showNewSessionForProject) {
+            ManualSessionView(preselectedProject: project)
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: project.isPinned)
+        .sensoryFeedback(.impact(weight: .medium), trigger: project.statusRaw)
     }
 
     // MARK: - Header
@@ -138,7 +168,7 @@ struct ProjectDetailView: View {
                         .fill(statusColor.opacity(0.15))
                         .frame(width: 48, height: 48)
                     Image(systemName: statusSymbol)
-                        .font(.system(size: 20))
+                        .font(.title3)
                         .foregroundStyle(statusColor)
                 }
                 VStack(alignment: .leading, spacing: 4) {
@@ -165,21 +195,18 @@ struct ProjectDetailView: View {
                 Spacer()
                 if project.isPinned {
                     Image(systemName: "pin.fill")
-                        .font(.system(size: 14))
+                        .font(.caption)
                         .foregroundStyle(Theme.gold)
+                        .symbolEffect(.bounce, value: project.isPinned)
                 }
             }
 
             HStack(spacing: 12) {
                 let tops = project.ascents.filter { $0.result == .top }.count
-                let attempts = project.ascents.reduce(0) { $0 + $1.attempts }
-                let days = Set(project.ascents.map {
-                    Calendar.current.startOfDay(for: $0.date)
-                }).count
 
-                statPill(value: "\(attempts)", label: "Versuche")
+                statPill(value: "\(project.distinctDays)", label: "Tage")
+                statPill(value: "\(project.ascents.count)", label: "Begehungen")
                 statPill(value: "\(tops)", label: "Tops")
-                statPill(value: "\(days)", label: "Tage")
             }
 
             if project.isAbandoned {
@@ -207,41 +234,18 @@ struct ProjectDetailView: View {
         .card()
     }
 
-    // MARK: - Progress Chart
+    // MARK: - VT-8: Begehung direkt aus dem Projekt
 
-    private var progressChart: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Versuche pro Session")
-                .font(.headline)
-                .foregroundStyle(Theme.textPrimary)
-
-            Chart(attemptHistory) { point in
-                BarMark(
-                    x: .value("Datum", point.date, unit: .day),
-                    y: .value("Versuche", point.count)
-                )
-                .cornerRadius(4)
-                .foregroundStyle(Theme.accentGradient)
-            }
-            .chartXAxis {
-                // CH-1: .stride(by: .day) erzeugte über lange Projekt-Zeitspannen ein
-                // Label pro Tag (hunderte, unlesbar). .automatic verteilt selbst sinnvoll.
-                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                    AxisGridLine().foregroundStyle(Theme.surfaceStroke.opacity(0.3))
-                    AxisValueLabel(format: .dateTime.day().month(.twoDigits))
-                        .foregroundStyle(Theme.textTertiary)
-                }
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading) { value in
-                    AxisGridLine().foregroundStyle(Theme.surfaceStroke.opacity(0.5))
-                    AxisValueLabel()
-                        .foregroundStyle(Theme.textTertiary)
-                }
-            }
-            .frame(height: 120)
+    private var addAscentButton: some View {
+        Button {
+            showSessionChoice = true
+        } label: {
+            Label("Begehung erfassen", systemImage: "plus.circle.fill")
+                .frame(maxWidth: .infinity)
         }
-        .card()
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .tint(Theme.accent)
     }
 
     // MARK: - Beta Notes
@@ -315,7 +319,6 @@ struct ProjectDetailView: View {
                     .foregroundStyle(Theme.accent)
                 }
             }
-            .preferredColorScheme(.dark)
         }
     }
 
@@ -357,8 +360,8 @@ struct ProjectDetailView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(height: 100)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .contentShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
+                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
                     .onTapGesture {
                         captionDraft = media.caption ?? ""
                         editingCaption = media
@@ -369,10 +372,11 @@ struct ProjectDetailView: View {
                     try? context.save()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
+                        .font(.title3)
                         .foregroundStyle(.white)
                         .shadow(radius: 2)
                 }
+                .accessibilityLabel("Foto löschen")
                 .padding(4)
             }
 
@@ -394,14 +398,14 @@ struct ProjectDetailView: View {
                         Image(uiImage: uiImage)
                             .resizable()
                             .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium))
                             .padding(.horizontal)
                     }
                     TextField("Beschriftung (optional)", text: $captionDraft)
                         .font(.subheadline)
                         .foregroundStyle(Theme.textPrimary)
                         .padding(12)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
+                        .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
                         .padding(.horizontal)
                     Spacer()
                 }
@@ -424,7 +428,6 @@ struct ProjectDetailView: View {
                     .foregroundStyle(Theme.accent)
                 }
             }
-            .preferredColorScheme(.dark)
         }
     }
 
@@ -447,26 +450,44 @@ struct ProjectDetailView: View {
                             AscentRowView(ascent: ascent)
                                 .contentShape(Rectangle())
                                 .onTapGesture { editedAscent = ascent }   // GR-2: Grad/Ergebnis/Stil korrigierbar
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                .contextMenu {
+                                    Button {
+                                        editedAscent = ascent
+                                    } label: {
+                                        Label("Bearbeiten", systemImage: "pencil")
+                                    }
                                     Button(role: .destructive) {
-                                        deleteAscent(ascent)
+                                        pendingDeleteAscent = ascent
                                     } label: {
                                         Label("Löschen", systemImage: "trash")
                                     }
                                 }
                             if ascent.id != group.ascents.last?.id {
-                                Divider().background(Theme.surfaceStroke)
+                                Divider().background(Theme.separator)
                             }
                         }
                     }
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Theme.surface))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surface))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
                 }
             }
         }
         .card()
         .sheet(item: $editedAscent) { ascent in
             EditAscentAssociationsSheet(ascent: ascent)
+        }
+        .confirmationDialog(
+            "Begehung löschen?",
+            isPresented: Binding(get: { pendingDeleteAscent != nil }, set: { if !$0 { pendingDeleteAscent = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Löschen", role: .destructive) {
+                if let ascent = pendingDeleteAscent { deleteAscent(ascent) }
+                pendingDeleteAscent = nil
+            }
+            Button("Abbrechen", role: .cancel) { pendingDeleteAscent = nil }
+        } message: {
+            Text("Die Begehung wird aus Statistik und Projekt entfernt. Freigeschaltete Erfolge bleiben erhalten.")
         }
     }
 
@@ -490,7 +511,7 @@ struct ProjectDetailView: View {
     }
 
     private var statusLabel: String {
-        if project.isSent { return "Gesendet" }
+        if project.isSent { return "Geschafft" }
         if project.isAbandoned { return "Aufgegeben" }
         return "Aktiv"
     }
@@ -512,13 +533,14 @@ struct ProjectDetailView: View {
             Text(value)
                 .font(.title3.weight(.bold))
                 .foregroundStyle(Theme.textPrimary)
+                .monospacedDigit()
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(Theme.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
     }
 }
 

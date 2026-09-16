@@ -40,6 +40,22 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1158B599305B2050005F9294 /* Exceptions for "ClimbReflectWatch Watch App" folder in "ClimbReflect" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"ClimbReflect-Usability-Review.md",
+				"TODO17-PREMIUM-UX.md",
+			);
+			target = 1151C11D2FE094D600D73FFD /* ClimbReflect */;
+		};
+		1158B59A305B2050005F9294 /* Exceptions for "ClimbReflectWatch Watch App" folder in "ClimbReflectWatch Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"ClimbReflect-Usability-Review.md",
+				"TODO17-PREMIUM-UX.md",
+			);
+			target = 113652292FE132CA007A638C /* ClimbReflectWatch Watch App */;
+		};
 		11632D892FE1928D000AE643 /* Exceptions for "ClimbReflect" folder in "ClimbReflect" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -52,6 +68,10 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1136522B2FE132CA007A638C /* ClimbReflectWatch Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1158B599305B2050005F9294 /* Exceptions for "ClimbReflectWatch Watch App" folder in "ClimbReflect" target */,
+				1158B59A305B2050005F9294 /* Exceptions for "ClimbReflectWatch Watch App" folder in "ClimbReflectWatch Watch App" target */,
+			);
 			path = "ClimbReflectWatch Watch App";
 			sourceTree = "<group>";
 		};
@@ -452,6 +472,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -490,6 +511,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

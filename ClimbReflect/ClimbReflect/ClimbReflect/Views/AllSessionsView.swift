@@ -7,7 +7,7 @@ struct AllSessionsView: View {
 
     var body: some View {
         ZStack {
-            MountainBackground()
+            Theme.bg.ignoresSafeArea()
 
             if sessions.isEmpty {
                 Text("Noch keine Sessions.")
@@ -35,9 +35,7 @@ struct AllSessionsView: View {
         }
         .navigationTitle("Alle Sessions")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar { EditButton() }
-        .preferredColorScheme(.dark)
         .tint(Theme.accent)
     }
 

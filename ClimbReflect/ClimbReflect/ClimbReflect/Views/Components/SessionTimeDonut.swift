@@ -28,32 +28,30 @@ struct SessionTimeDonut: View {
                         innerRadius: .ratio(0.62),
                         angularInset: 1.5
                     )
-                    .foregroundStyle(Theme.bgElevated)
+                    .foregroundStyle(Theme.surfaceRaised)
                     .cornerRadius(4)
                 }
                 .chartBackground { _ in
                     Text("\(Int(insights.activeShare * 100))%")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(Theme.Typo.metric)
                         .foregroundStyle(Theme.textPrimary)
+                        .monospacedDigit()
                 }
                 .frame(width: 90, height: 90)
 
                 VStack(alignment: .leading, spacing: 10) {
                     legendRow(color: Theme.accent, label: "Aktiv geklettert", minutes: activeMin)
-                    legendRow(color: Theme.bgElevated.opacity(0.6), label: "Pause", minutes: pauseMin, border: true)
+                    legendRow(color: Theme.surfaceRaised, label: "Pause", minutes: pauseMin)
                 }
             }
         }
         .card()
     }
 
-    private func legendRow(color: Color, label: String, minutes: Int, border: Bool = false) -> some View {
+    private func legendRow(color: Color, label: String, minutes: Int) -> some View {
         HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 3)
+            RoundedRectangle(cornerRadius: Theme.Radius.small)
                 .fill(color)
-                .overlay(
-                    border ? RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.surfaceStroke, lineWidth: 1) : nil
-                )
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 1) {
                 Text(label)

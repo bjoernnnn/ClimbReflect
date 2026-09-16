@@ -36,12 +36,12 @@ struct ShoesView: View {
         }
         .navigationTitle("Schuhe")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showAddShoe = true } label: {
                     Image(systemName: "plus").foregroundStyle(Theme.accent)
                 }
+                .accessibilityLabel("Schuh hinzufügen")
             }
         }
         .sheet(isPresented: $showAddShoe) {
@@ -50,7 +50,6 @@ struct ShoesView: View {
         .sheet(item: $editingShoe) { shoe in
             ShoeFormView(shoe: shoe, allShoes: shoes, onSave: save)
         }
-        .preferredColorScheme(.dark)
         .onAppear { ensureDefaultShoe() }
     }
 
@@ -135,7 +134,7 @@ private struct ShoeRowView: View {
                         .font(.caption2)
                         .foregroundStyle(Theme.textTertiary)
                         .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Capsule().fill(Theme.bgElevated))
+                        .background(Capsule().fill(Theme.surfaceRaised))
                 }
                 Image(systemName: "chevron.right")
                     .font(.caption2)
@@ -147,7 +146,7 @@ private struct ShoeRowView: View {
 
     private func conditionChip(_ c: ShoeCondition) -> some View {
         HStack(spacing: 3) {
-            Image(systemName: c.symbol).font(.system(size: 9))
+            Image(systemName: c.symbol).font(.caption2)
             Text(c.rawValue).font(.caption2.weight(.semibold))
         }
         .foregroundStyle(c.color)
@@ -237,7 +236,7 @@ struct ShoeFormView: View {
                                     let selected = condition == c
                                     Button { condition = c } label: {
                                         HStack(spacing: 4) {
-                                            Image(systemName: c.symbol).font(.system(size: 11))
+                                            Image(systemName: c.symbol).font(.caption2)
                                             Text(c.rawValue).font(.caption.weight(.semibold))
                                         }
                                         .foregroundStyle(selected ? Theme.bg : c.color)
@@ -270,7 +269,7 @@ struct ShoeFormView: View {
                                     }
                                 } label: {
                                     HStack(spacing: 4) {
-                                        Image(systemName: type.symbol).font(.system(size: 11))
+                                        Image(systemName: type.symbol).font(.caption2)
                                         Text(type.label).font(.caption.weight(.semibold))
                                     }
                                     .frame(maxWidth: .infinity)
@@ -278,7 +277,7 @@ struct ShoeFormView: View {
                                     .background(
                                         Capsule().fill(
                                             selected ? Theme.accent :
-                                            takenByOther ? Theme.bgElevated.opacity(0.5) : Theme.bgElevated
+                                            takenByOther ? Theme.surfaceRaised.opacity(0.5) : Theme.surfaceRaised
                                         )
                                     )
                                     .foregroundStyle(
@@ -316,7 +315,6 @@ struct ShoeFormView: View {
             }
             .navigationTitle(shoe == nil ? "Schuh anlegen" : "Schuh bearbeiten")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }
@@ -336,7 +334,6 @@ struct ShoeFormView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
         .tint(Theme.accent)
     }
 }

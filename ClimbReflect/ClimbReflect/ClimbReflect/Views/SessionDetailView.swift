@@ -1,16 +1,30 @@
 import SwiftUI
 import SwiftData
 
+// VT-8: sheet(item:) statt Bool-Flag, damit das Projekt gleich mitgegeben werden kann.
+private struct AddAscentRequest: Identifiable {
+    let id = UUID()
+    let project: Project?
+}
+
 struct SessionDetailView: View {
     @Bindable var session: ClimbSession
     var onFertig: (() -> Void)? = nil
+    var autoAddAscentProject: Project? = nil   // VT-8
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
-    @State private var showAddAscent = false
+    @State private var addAscentRequest: AddAscentRequest? = nil
+    @State private var didAutoOpenAddAscent = false   // VT-8
     @State private var showAddTrainingSet = false
     @State private var showLocationEditor = false
-    @State private var editedShoe: Ascent? = nil
+    @State private var editedAscent: Ascent? = nil
+    @State private var pendingDeleteAscent: Ascent? = nil   // VT-1
+    @State private var reflectionExpanded = false   // EF-5
+    @State private var showRecap = false   // FS-7
+    @State private var reflectionJustCompleted = false   // HM-1
+    @FocusState private var isTextFieldFocused: Bool
 
     // ST-2: distinct gymNames aus allen Sessions
     @Query(sort: \ClimbSession.date, order: .reverse) private var allSessions: [ClimbSession]
@@ -19,9 +33,7 @@ struct SessionDetailView: View {
     private var sessionUnlocks: [AchievementUnlock] {
         allUnlocks.filter { $0.sessionID == session.id }.sorted { $0.unlockedAt < $1.unlockedAt }
     }
-    private var knownGymNames: [String] {
-        Array(Set(allSessions.compactMap(\.gymName).filter { !$0.isEmpty })).sorted()
-    }
+    private var knownGymNames: [String] { ClimbSession.knownGymNames(allSessions) }
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -36,7 +48,7 @@ struct SessionDetailView: View {
 
     var body: some View {
         ZStack {
-            MountainBackground()
+            Theme.bg.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     overviewSection
@@ -47,11 +59,13 @@ struct SessionDetailView: View {
                         trainingSetsCard
                     }
                     ascentsSection
+                    quickCheckCard
                     reflectionCard
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 40)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -65,25 +79,70 @@ struct SessionDetailView: View {
                 }
             }
         }
-        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                // VT-5: leere, gerade erst angelegte manuelle Session verwerfen statt
+                // als „Leiche" in der Historie zu behalten.
+                if onFertig != nil && isPristine {
+                    Button("Verwerfen", role: .destructive) {
+                        NotificationService.shared.cancelReminder(for: session.id)
+                        context.delete(session)
+                        try? context.save()
+                        onFertig?()
+                    }
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 if let onFertig {
                     Button("Fertig", action: onFertig)
                         .fontWeight(.semibold)
                         .foregroundStyle(Theme.accent)
-                } else {
-                    Button(role: .destructive) {
-                        showDeleteConfirm = true
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                    .foregroundStyle(Theme.danger)
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Art der Session", selection: sessionTypeBinding) {
+                        ForEach(SessionType.allCases.filter { $0 != .unknown }) { type in
+                            Label(type.label, systemImage: type.symbol).tag(type)
+                        }
+                    }
+                    // FS-7: dieselbe Zusammenfassung wie nach einer neu empfangenen
+                    // Watch-Session, hier jederzeit manuell aufrufbar.
+                    if session.isClimbing && !session.ascents.isEmpty {
+                        Button("Zusammenfassung", systemImage: "sparkles") {
+                            showRecap = true
+                        }
+                    }
+                    Divider()
+                    Button("Session löschen", role: .destructive) {
+                        showDeleteConfirm = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .accessibilityLabel("Weitere Aktionen")
+            }
         }
-        .sheet(isPresented: $showAddAscent) {
-            AddAscentView(session: session)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Fertig") { isTextFieldFocused = false }
+            }
+        }
+        .sheet(item: $addAscentRequest) { request in
+            AddAscentView(session: session, preselectedProject: request.project)
+        }
+        .sheet(isPresented: $showRecap) {
+            SessionRecapSheet(session: session)
+        }
+        .sensoryFeedback(.success, trigger: reflectionJustCompleted)
+        .task {
+            // VT-8: aus dem Projekt heraus neu angelegte Session → Erfassen-Sheet direkt öffnen.
+            if let project = autoAddAscentProject, !didAutoOpenAddAscent {
+                didAutoOpenAddAscent = true
+                addAscentRequest = AddAscentRequest(project: project)
+            }
         }
         // EP-3: deckt Reflexion-/Ascent-Änderungen ab, die in dieser Ansicht
         // ohne einzelnen Save-Aufruf passieren (Limiter-Toggle, Notizfelder …).
@@ -92,14 +151,32 @@ struct SessionDetailView: View {
         }
         .confirmationDialog("Session löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Löschen", role: .destructive) {
+                NotificationService.shared.cancelReminder(for: session.id)
                 context.delete(session)
+                try? context.save()
                 dismiss()
             }
             Button("Abbrechen", role: .cancel) {}
         } message: {
             Text("Die Session und alle Reflexionsdaten werden unwiderruflich gelöscht.")
         }
-        .preferredColorScheme(.dark)
+    }
+
+    // EF-5: Session-Typ direkt aus dem Header-Menü änderbar (ersetzt typePicker im Kurz-Check).
+    private var sessionTypeBinding: Binding<SessionType> {
+        Binding(
+            get: { session.sessionType },
+            set: { session.sessionTypeRaw = $0.rawValue; session.updatedAt = .now }
+        )
+    }
+
+    // VT-5: keine Ascents/Sets/Reflexion → gerade erst angelegte, leere Session.
+    private var isPristine: Bool {
+        session.ascents.isEmpty && session.trainingSets.isEmpty && !session.reflectionCompleted
+            && session.perceivedEffort == nil && session.limiterRaw.isEmpty
+            && (session.learned?.isEmpty ?? true) && (session.hardestPart?.isEmpty ?? true)
+            && (session.improveNext?.isEmpty ?? true) && session.techniqueFocusesRaw.isEmpty
+            && session.focusRating == nil
     }
 
     // MARK: - Übersicht (erster Screen)
@@ -109,22 +186,7 @@ struct SessionDetailView: View {
             sessionHeader
             let showAlt = ropeTypes.contains(session.sessionType) && session.altitudeTotalGain > 0
             if session.avgHeartRate != nil || session.activeEnergyKcal != nil || showAlt {
-                redpointCard
-            }
-            // Kurzstat-Leiste
-            let tops = session.ascents.filter { $0.result == .top }.count
-            let total = session.ascents.count
-            if total > 0 {
-                HStack(spacing: 12) {
-                    Label("\(tops) Top\(tops == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(Theme.accent)
-                    Label("\(total - tops) Versuch\(total - tops == 1 ? "" : "e")",
-                          systemImage: "arrow.clockwise.circle")
-                        .foregroundStyle(Theme.gold)
-                    Spacer()
-                }
-                .font(.subheadline.weight(.semibold))
-                .card()
+                healthCard
             }
             // SI-2/SI-3: Session-Insights
             insightsSection
@@ -241,10 +303,10 @@ struct SessionDetailView: View {
         HStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(Theme.bgElevated)
+                    .fill(Theme.surfaceRaised)
                     .frame(width: 56, height: 56)
                 Image(systemName: session.sessionType.symbol)
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(Theme.accent)
             }
             VStack(alignment: .leading, spacing: 4) {
@@ -289,10 +351,11 @@ struct SessionDetailView: View {
                 showLocationEditor.toggle()
             } label: {
                 Image(systemName: "mappin.and.ellipse")
-                    .font(.system(size: 16))
+                    .font(.body)
                     .foregroundStyle(session.outdoor || (session.gymName != nil) ? Theme.accent2 : Theme.textTertiary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Standort bearbeiten")
         }
         .padding(.top, 8)
         .sheet(isPresented: $showLocationEditor) {
@@ -328,11 +391,11 @@ struct SessionDetailView: View {
                                         session.updatedAt = .now
                                     } label: {
                                         HStack(spacing: 4) {
-                                            Image(systemName: c.symbol).font(.system(size: 12))
+                                            Image(systemName: c.symbol).font(.caption2)
                                             Text(c.rawValue).font(.caption.weight(.semibold))
                                         }
                                         .padding(.horizontal, 12).padding(.vertical, 6)
-                                        .background(Capsule().fill(sel ? Theme.accent : Theme.bgElevated))
+                                        .background(Capsule().fill(sel ? Theme.accent : Theme.surfaceRaised))
                                         .foregroundStyle(sel ? Theme.bg : Theme.textSecondary)
                                     }
                                     .buttonStyle(.plain)
@@ -349,7 +412,7 @@ struct SessionDetailView: View {
                                 Text("°C").foregroundStyle(Theme.textTertiary)
                             }
                             .padding(12)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
+                            .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
                         }
                     } else if !session.outdoor {
                         VStack(alignment: .leading, spacing: 10) {
@@ -363,7 +426,7 @@ struct SessionDetailView: View {
                             ))
                             .foregroundStyle(Theme.textPrimary)
                             .padding(12)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
+                            .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
 
                             // Quick-Pick aus bekannten Hallen
                             if !knownGymNames.isEmpty {
@@ -379,7 +442,7 @@ struct SessionDetailView: View {
                                                     .padding(.horizontal, 12)
                                                     .padding(.vertical, 6)
                                                     .background(Capsule().fill(
-                                                        session.gymName == gym ? Theme.accent : Theme.bgElevated
+                                                        session.gymName == gym ? Theme.accent : Theme.surfaceRaised
                                                     ))
                                                     .foregroundStyle(session.gymName == gym ? Theme.bg : Theme.textSecondary)
                                             }
@@ -397,7 +460,6 @@ struct SessionDetailView: View {
             }
             .navigationTitle("Standort")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Fertig") { showLocationEditor = false }
@@ -405,12 +467,11 @@ struct SessionDetailView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - Vitalwerte
 
-    private var redpointCard: some View {
+    private var healthCard: some View {
         let showAlt = ropeTypes.contains(session.sessionType) && session.altitudeTotalGain > 0
         let metricCount = (session.avgHeartRate != nil ? 1 : 0)
             + (session.maxHeartRate != nil ? 1 : 0)
@@ -458,7 +519,7 @@ struct SessionDetailView: View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: symbol)
                 .foregroundStyle(color)
-                .font(.system(size: 15))
+                .font(.body)
             // lineLimit(1) + Skalierung: kein Umbruch → alle Kacheln einer Reihe gleich hoch
             Text(value)
                 .font(.subheadline.weight(.semibold))
@@ -473,7 +534,7 @@ struct SessionDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bgElevated))
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surfaceRaised))
     }
 
     // MARK: - Begehungen (P3.1)
@@ -486,35 +547,68 @@ struct SessionDetailView: View {
                     .foregroundStyle(Theme.textPrimary)
                 Spacer()
                 Button {
-                    showAddAscent = true
+                    addAscentRequest = AddAscentRequest(project: nil)
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.title3)
                         .foregroundStyle(Theme.accent)
                 }
+                .accessibilityLabel("Begehung hinzufügen")
             }
 
             let sorted = session.ascents.sorted { $0.createdAt < $1.createdAt }
             if sorted.isEmpty {
-                Text("Noch keine Begehungen erfasst.\nTippe auf + um Boulder oder Routen hinzuzufügen.")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                Button {
+                    addAscentRequest = AddAscentRequest(project: nil)
+                } label: {
+                    Label("Erste Begehung erfassen", systemImage: "plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             } else {
                 VStack(spacing: 0) {
                     ForEach(sorted) { ascent in
                         AscentRowView(ascent: ascent)
                             .contentShape(Rectangle())
-                            .onTapGesture { editedShoe = ascent }
+                            .onTapGesture { editedAscent = ascent }
+                            .contextMenu {
+                                Button {
+                                    editedAscent = ascent
+                                } label: {
+                                    Label("Bearbeiten", systemImage: "pencil")
+                                }
+                                Button(role: .destructive) {
+                                    pendingDeleteAscent = ascent
+                                } label: {
+                                    Label("Löschen", systemImage: "trash")
+                                }
+                            }
+                            .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                         if ascent.id != sorted.last?.id {
-                            Divider().background(Theme.surfaceStroke)
+                            Divider().background(Theme.separator)
                         }
                     }
                 }
-                .sheet(item: $editedShoe) { ascent in
+                .animation(reduceMotion ? nil : .snappy, value: sorted.map(\.id))
+                .sheet(item: $editedAscent) { ascent in
                     EditAscentAssociationsSheet(ascent: ascent)
+                }
+                .confirmationDialog(
+                    "Begehung löschen?",
+                    isPresented: Binding(get: { pendingDeleteAscent != nil }, set: { if !$0 { pendingDeleteAscent = nil } }),
+                    titleVisibility: .visible
+                ) {
+                    Button("Löschen", role: .destructive) {
+                        if let ascent = pendingDeleteAscent {
+                            context.delete(ascent)
+                            try? context.save()
+                        }
+                        pendingDeleteAscent = nil
+                    }
+                    Button("Abbrechen", role: .cancel) { pendingDeleteAscent = nil }
+                } message: {
+                    Text("Die Begehung wird aus Statistik und Projekt entfernt. Freigeschaltete Erfolge bleiben erhalten.")
                 }
 
                 let tops = sorted.filter { $0.result == .top }
@@ -553,6 +647,7 @@ struct SessionDetailView: View {
                         .font(.title3)
                         .foregroundStyle(Theme.accent)
                 }
+                .accessibilityLabel("Trainingssatz hinzufügen")
             }
 
             let sorted = session.trainingSets.sorted { $0.date < $1.date }
@@ -568,7 +663,7 @@ struct SessionDetailView: View {
                     ForEach(sorted) { t in
                         trainingSetRow(t)
                         if t.id != sorted.last?.id {
-                            Divider().background(Theme.surfaceStroke)
+                            Divider().background(Theme.separator)
                         }
                     }
                 }
@@ -583,7 +678,7 @@ struct SessionDetailView: View {
     private func trainingSetRow(_ t: TrainingSet) -> some View {
         HStack(spacing: 10) {
             Image(systemName: t.kind.symbol)
-                .font(.system(size: 16))
+                .font(.body)
                 .foregroundStyle(Theme.accent)
                 .frame(width: 22)
 
@@ -621,6 +716,7 @@ struct SessionDetailView: View {
                 Image(systemName: "trash").font(.caption).foregroundStyle(Theme.danger.opacity(0.7))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Trainingssatz löschen")
         }
         .padding(.vertical, 6)
     }
@@ -629,109 +725,106 @@ struct SessionDetailView: View {
         kg.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(kg))" : String(format: "%.2g", kg)
     }
 
-    // MARK: - Tagebuch / Reflexion
+    // MARK: - EF-5: Kurz-Check
 
-    private var reflectionCard: some View {
+    private var quickCheckCard: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Label("Mein Tagebuch", systemImage: "pencil.and.list.clipboard")
+            Text("Kurz-Check")
                 .font(.headline)
                 .foregroundStyle(Theme.textPrimary)
 
-            typePicker
-
             if session.sessionFocusLabel != nil || session.energyLabel != nil {
-                Divider().background(Theme.surfaceStroke)
                 watchQuestionnaireChips
+                Divider().background(Theme.separator)
             }
-
-            Divider().background(Theme.surfaceStroke)
 
             rpePicker
 
-            Divider().background(Theme.surfaceStroke)
+            Divider().background(Theme.separator)
 
             limiterPicker
-
-            // FB-6: Technik-/Fokus-Picker sind kletterspezifisch → bei Training aus
-            if session.isClimbing {
-                Divider().background(Theme.surfaceStroke)
-
-                techniqueFocusPicker
-
-                Divider().background(Theme.surfaceStroke)
-
-                focusRatingPicker
-            }
-
-            Divider().background(Theme.surfaceStroke)
-
-            reflectionField(
-                "Was habe ich gelernt?",
-                icon: "lightbulb.fill",
-                placeholder: session.isClimbing
-                    ? "z. B. Hüfteinsatz beim Überhang verbessert…"
-                    : "z. B. Max-Hangs erstmals an 10 mm gehalten…",
-                text: Binding(
-                    get: { session.learned ?? "" },
-                    set: { session.learned = $0.isEmpty ? nil : $0 }
-                )
-            )
-
-            reflectionField(
-                "Was war am schwersten?",
-                icon: "exclamationmark.triangle.fill",
-                placeholder: session.isClimbing
-                    ? "z. B. Fingerkraft am Ende der Session…"
-                    : "z. B. Letzter Satz Repeaters…",
-                text: Binding(
-                    get: { session.hardestPart ?? "" },
-                    set: { session.hardestPart = $0.isEmpty ? nil : $0 }
-                )
-            )
-
-            reflectionField(
-                "Was will ich verbessern?",
-                icon: "arrow.up.circle.fill",
-                placeholder: session.isClimbing
-                    ? "z. B. Mehr Fokus auf Füße und Balance…"
-                    : "z. B. Nächstes Mal 2 kg mehr Zusatzlast…",
-                text: Binding(
-                    get: { session.improveNext ?? "" },
-                    set: { session.improveNext = $0.isEmpty ? nil : $0 }
-                )
-            )
         }
         .card()
     }
 
-    // MARK: - Session-Typ
+    // MARK: - EF-5: Reflexion
 
-    private var typePicker: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Art der Session")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.textSecondary)
+    /// Bereits erfasste Inhalte → Karte startet aufgeklappt statt eingeklappt.
+    private var hasReflectionContent: Bool {
+        (session.isClimbing && (!session.techniqueFocusesRaw.isEmpty || session.focusRating != nil))
+            || !(session.learned ?? "").isEmpty
+            || !(session.hardestPart ?? "").isEmpty
+            || !(session.improveNext ?? "").isEmpty
+    }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], spacing: 8) {
-                ForEach(SessionType.allCases.filter { $0 != .unknown }) { type in
-                    let selected = session.sessionType == type
-                    Button {
-                        session.sessionTypeRaw = type.rawValue
-                        session.updatedAt = .now
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: type.symbol)
-                            Text(type.label)
-                        }
-                        .font(.caption.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
-                        .background(Capsule().fill(selected ? Theme.accent : Theme.bgElevated))
-                        .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                }
+    private var reflectionCard: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                Text("Reflexion")
+                    .font(.headline)
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Image(systemName: session.reflectionCompleted ? "checkmark.seal.fill" : "checkmark.seal")
+                    .foregroundStyle(session.reflectionCompleted ? Theme.gold : Theme.textTertiary)
+                    .symbolEffect(.bounce, value: session.reflectionCompleted)
             }
+
+            if reflectionExpanded {
+                if session.isClimbing {
+                    techniqueFocusPicker
+                    Divider().background(Theme.separator)
+                    focusRatingPicker
+                    Divider().background(Theme.separator)
+                }
+
+                reflectionField(
+                    "Was habe ich gelernt?",
+                    icon: "lightbulb.fill",
+                    placeholder: session.isClimbing
+                        ? "z. B. Hüfteinsatz beim Überhang verbessert…"
+                        : "z. B. Max-Hangs erstmals an 10 mm gehalten…",
+                    text: Binding(
+                        get: { session.learned ?? "" },
+                        set: { session.learned = $0.isEmpty ? nil : $0 }
+                    )
+                )
+
+                reflectionField(
+                    "Was war am schwersten?",
+                    icon: "exclamationmark.triangle.fill",
+                    placeholder: session.isClimbing
+                        ? "z. B. Fingerkraft am Ende der Session…"
+                        : "z. B. Letzter Satz Repeaters…",
+                    text: Binding(
+                        get: { session.hardestPart ?? "" },
+                        set: { session.hardestPart = $0.isEmpty ? nil : $0 }
+                    )
+                )
+
+                reflectionField(
+                    "Was will ich verbessern?",
+                    icon: "arrow.up.circle.fill",
+                    placeholder: session.isClimbing
+                        ? "z. B. Mehr Fokus auf Füße und Balance…"
+                        : "z. B. Nächstes Mal 2 kg mehr Zusatzlast…",
+                    text: Binding(
+                        get: { session.improveNext ?? "" },
+                        set: { session.improveNext = $0.isEmpty ? nil : $0 }
+                    )
+                )
+            } else {
+                Text("Was hast du gelernt, was war schwer, was nimmst du mit?")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textSecondary)
+                Button("Reflexion schreiben") {
+                    withAnimation(.snappy) { reflectionExpanded = true }
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .card()
+        .onAppear {
+            if hasReflectionContent { reflectionExpanded = true }
         }
     }
 
@@ -764,8 +857,8 @@ struct SessionDetailView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 9)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(selected ? rpeColor(value) : Theme.bgElevated)
+                                RoundedRectangle(cornerRadius: Theme.Radius.small)
+                                    .fill(selected ? rpeColor(value) : Theme.surfaceRaised)
                             )
                             .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
                     }
@@ -773,14 +866,12 @@ struct SessionDetailView: View {
                 }
             }
         }
+        .sensoryFeedback(.selection, trigger: session.perceivedEffort)
     }
 
+    // E18: eine Accent-Intensitätsskala statt Gold/Rot-Stufen – eine harte Session ist kein Fehler.
     private func rpeColor(_ rpe: Int) -> Color {
-        switch rpe {
-        case 1...4: return Theme.accent
-        case 5...7: return Theme.gold
-        default:    return Theme.danger
-        }
+        Theme.accent.opacity(0.35 + Double(rpe) * 0.065)
     }
 
     // MARK: - Limiter
@@ -820,7 +911,7 @@ struct SessionDetailView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 8).fill(Theme.bgElevated)
+            RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised)
         )
     }
 
@@ -841,10 +932,10 @@ struct SessionDetailView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(active ? Theme.accent2.opacity(0.2) : Theme.bgElevated)
+                                RoundedRectangle(cornerRadius: Theme.Radius.small)
+                                    .fill(active ? Theme.accent2.opacity(0.2) : Theme.surfaceRaised)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
+                                        RoundedRectangle(cornerRadius: Theme.Radius.small)
                                             .stroke(active ? Theme.accent2 : Color.clear, lineWidth: 1)
                                     )
                             )
@@ -854,6 +945,7 @@ struct SessionDetailView: View {
                 }
             }
         }
+        .sensoryFeedback(.selection, trigger: session.limiterRaw)
     }
 
     private func toggleLimiter(_ limiter: Limiter) {
@@ -881,6 +973,7 @@ struct SessionDetailView: View {
             session.improveNext != nil
         if !wasCompleted && session.reflectionCompleted {
             NotificationService.shared.cancelReminder(for: session.id)
+            reflectionJustCompleted.toggle()   // HM-1: .success-Haptik
         }
     }
 
@@ -925,13 +1018,14 @@ struct SessionDetailView: View {
                         .font(.caption.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 7)
-                        .background(Capsule().fill(selected ? Theme.accent2 : Theme.bgElevated))
+                        .background(Capsule().fill(selected ? Theme.accent2 : Theme.surfaceRaised))
                         .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
             }
         }
+        .sensoryFeedback(.selection, trigger: session.techniqueFocusesRaw)
     }
 
     // MARK: - Fokus-Bewertung (A7)
@@ -963,8 +1057,8 @@ struct SessionDetailView: View {
                         session.updatedAt = .now
                     } label: {
                         Image(systemName: active ? "star.fill" : "star")
-                            .font(.system(size: 26))
-                            .foregroundStyle(active ? Theme.gold : Theme.bgElevated)
+                            .font(.title3)
+                            .foregroundStyle(active ? Theme.gold : Theme.surfaceRaised)
                     }
                     .buttonStyle(.plain)
                     .animation(.easeInOut(duration: 0.1), value: session.focusRating)
@@ -977,6 +1071,7 @@ struct SessionDetailView: View {
                 }
             }
         }
+        .sensoryFeedback(.selection, trigger: session.focusRating)
     }
 
     private func focusRatingLabel(_ r: Int) -> String {
@@ -997,27 +1092,16 @@ struct SessionDetailView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.textSecondary)
 
-            ZStack(alignment: .topLeading) {
-                if text.wrappedValue.isEmpty {
-                    Text(placeholder)
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.textTertiary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 18)
-                        .allowsHitTesting(false)
+            TextField(placeholder, text: text, axis: .vertical)
+                .font(.subheadline)
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(2...8)
+                .focused($isTextFieldFocused)
+                .inset()
+                .onChange(of: text.wrappedValue) { _, _ in
+                    updateReflectionCompleted()
+                    session.updatedAt = .now
                 }
-                TextEditor(text: text)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textPrimary)
-                    .scrollContentBackground(.hidden)
-                    .frame(minHeight: 72)
-                    .padding(10)
-            }
-            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgElevated))
-            .onChange(of: text.wrappedValue) { _, _ in
-                updateReflectionCompleted()
-                session.updatedAt = .now
-            }
         }
     }
 }

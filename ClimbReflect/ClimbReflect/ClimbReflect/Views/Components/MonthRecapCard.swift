@@ -7,7 +7,7 @@ import SwiftUI
 /// bleibt bei TODO11/ER-5, S33).
 struct MonthRecapCard: View {
     let recap: ProgressEngine.MonthRecap
-    let onDismiss: () -> Void
+    var onDismiss: (() -> Void)? = nil   // FS-5: im Fortschritt-Tab dauerhaft ohne Dismiss
 
     private var monthName: String {
         recap.month.formatted(.dateTime.month(.wide))
@@ -19,22 +19,28 @@ struct MonthRecapCard: View {
                 ZStack {
                     Circle().fill(Theme.gold.opacity(0.12)).frame(width: 36, height: 36)
                     Image(systemName: "calendar")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.gold)
                 }
                 Text("Dein \(monthName)")
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)
                 Spacer()
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textTertiary)
+                if let onDismiss {
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Monatsrückblick schließen")
                 }
-                .buttonStyle(.plain)
             }
-            disciplineRow("Bouldern", recap.boulder)
-            disciplineRow("Seil", recap.rope)
+            VStack(alignment: .leading, spacing: 4) {
+                disciplineRow("Bouldern", recap.boulder)
+                disciplineRow("Seil", recap.rope)
+            }
+            .accessibilityElement(children: .combine)
 
             // Optionaler Nachtrag (nur nach Umsetzung von TODO11/ER-2): Anzahl der
             // im Vormonat freigeschalteten Erfolge aus einem AchievementUnlock-Fetch.
@@ -53,7 +59,7 @@ struct MonthRecapCard: View {
                                _ d: ProgressEngine.MonthRecap.DisciplineRecap) -> some View {
         if d.climbDays > 0 {
             let hardest = d.hardestGrade.map { " · härtester \($0)" } ?? ""
-            (Text("\(name) — \(d.climbDays) Tage · \(d.sends) Sends\(hardest)")
+            (Text("\(name) — \(d.climbDays) Tage · \(d.sends) Tops\(hardest)")
                 .foregroundStyle(Theme.textSecondary)
              + firstSendText(d.firstSendCount))
                 .font(.subheadline)

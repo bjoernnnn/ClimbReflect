@@ -38,14 +38,25 @@ struct AttemptLogView: View {
         let style: WatchAscentStyle?
     }
 
-    private let outcomes: [Outcome] = [
-        Outcome(label: "Flash",    symbol: "bolt.fill",              color: WatchTheme.gold,   result: .top,     style: .flash),
-        Outcome(label: "Onsight",  symbol: "eye.fill",               color: .cyan,             result: .top,     style: .onsight),
-        Outcome(label: "Rotpunkt", symbol: "checkmark.circle.fill",  color: WatchTheme.accent, result: .top,     style: .redpoint),
-        Outcome(label: "Top",      symbol: "checkmark.circle",       color: WatchTheme.accent, result: .top,     style: nil),
-        Outcome(label: "Versuch",  symbol: "arrow.clockwise.circle", color: WatchTheme.gold,   result: .attempt, style: nil),
-        Outcome(label: "Abbruch",  symbol: "xmark.circle.fill",      color: WatchTheme.danger, result: .quit,    style: nil),
-    ]
+    // WT-2: Onsight ist beim Bouldern kein gebräuchlicher Stil – weniger Fehltipps
+    // am Handgelenk (Boulder: Flash · Top · Versuch · Abbruch, 2×2).
+    private var isBoulderDiscipline: Bool {
+        gradeSystem == .fontainebleau || gradeSystem == .vScale
+    }
+
+    private var outcomes: [Outcome] {
+        let all = [
+            Outcome(label: "Flash",    symbol: "bolt.fill",              color: WatchTheme.gold,   result: .top,     style: .flash),
+            Outcome(label: "Onsight",  symbol: "eye.fill",               color: .cyan,             result: .top,     style: .onsight),
+            Outcome(label: "Rotpunkt", symbol: "checkmark.circle.fill",  color: WatchTheme.accent, result: .top,     style: .redpoint),
+            Outcome(label: "Top",      symbol: "checkmark.circle",       color: WatchTheme.accent, result: .top,     style: nil),
+            Outcome(label: "Versuch",  symbol: "arrow.clockwise.circle", color: WatchTheme.gold,   result: .attempt, style: nil),
+            // WT-2: neutrale Farbe – ein Abbruch ist kein Fehler.
+            Outcome(label: "Abbruch",  symbol: "xmark.circle.fill",      color: WatchTheme.textSecond, result: .quit, style: nil),
+        ]
+        guard isBoulderDiscipline else { return all }
+        return all.filter { $0.label != "Onsight" && $0.label != "Rotpunkt" }
+    }
 
     private let columns = [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)]
 
@@ -126,13 +137,15 @@ struct AttemptLogView: View {
         .padding(.top, 4)
         .background(WatchTheme.bg)
         .onAppear {
-            // FB-2/GR-1: Projekt-Grad vorbelegen. Ohne Projekt/Grad bleibt gradeIndex
-            // nil („–") → der Nutzer muss vor dem Klassifizieren aktiv per Krone einen
-            // Grad wählen (roter Rahmen signalisiert die Pflicht).
-            if workoutManager.selectedProject?.grade != nil {
+            // WT-1/E5: letzte Session-Begehung → Projekt → 0 (S37).
+            if let last = workoutManager.attempts.last(where: { $0.grade != nil && $0.gradeSystem == gradeSystem }),
+               let grade = last.grade,
+               let idx = gradeSystem.grades.firstIndex(of: grade) {
+                gradeIndex = idx
+            } else if workoutManager.selectedProject?.grade != nil {
                 prefillFromProject()
             } else {
-                gradeIndex = nil
+                gradeIndex = 0
             }
             DiagnosticLog.shared.logVerbose("AttemptLogView appear mem=\(MemoryFootprint.residentMB())MB")
         }

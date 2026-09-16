@@ -47,6 +47,17 @@ struct SettingsView: View {
             ZStack {
                 Theme.bg.ignoresSafeArea()
                 Form {
+                    // MARK: Ausrüstung (DZ-6: an die erste Stelle)
+                    Section {
+                        NavigationLink(destination: ShoesView()) {
+                            Label("Schuhe verwalten", systemImage: "shoeprints.fill")
+                                .foregroundStyle(Theme.textPrimary)
+                        }
+                    } header: {
+                        Text("Ausrüstung").foregroundStyle(Theme.textTertiary)
+                    }
+                    .listRowBackground(Theme.surface)
+
                     // MARK: Health / Sync
                     if healthKitAvailable {
                         Section {
@@ -80,7 +91,7 @@ struct SettingsView: View {
                         } header: {
                             Text("Apple Health (optional)").foregroundStyle(Theme.textTertiary)
                         } footer: {
-                            Text("Importiert Kletter-Workouts aus Apple Health / Redpoint. Die Watch-Aufzeichnung ist die primäre Quelle — dieser Import ist optional.")
+                            Text("Importiert Kletter-Workouts aus Apple Health. Die Watch-Aufzeichnung ist die primäre Quelle — dieser Import ist optional.")
                                 .foregroundStyle(Theme.textTertiary)
                         }
                         .listRowBackground(Theme.surface)
@@ -199,7 +210,7 @@ struct SettingsView: View {
                         HStack(alignment: .top, spacing: 12) {
                             Image(systemName: "lock.shield.fill")
                                 .foregroundStyle(Theme.accent)
-                                .font(.system(size: 20))
+                                .font(.body)
                             Text("Alle deine Daten bleiben ausschließlich auf deinem Gerät gespeichert. Es werden keine Daten an externe Server übertragen.")
                                 .font(.subheadline)
                                 .foregroundStyle(Theme.textSecondary)
@@ -207,17 +218,6 @@ struct SettingsView: View {
                         .padding(.vertical, 4)
                     } header: {
                         Text("Datenschutz").foregroundStyle(Theme.textTertiary)
-                    }
-                    .listRowBackground(Theme.surface)
-
-                    // MARK: Schuhe (SH-2)
-                    Section {
-                        NavigationLink(destination: ShoesView()) {
-                            Label("Schuhe verwalten", systemImage: "shoeprints.fill")
-                                .foregroundStyle(Theme.textPrimary)
-                        }
-                    } header: {
-                        Text("Ausrüstung").foregroundStyle(Theme.textTertiary)
                     }
                     .listRowBackground(Theme.surface)
 
@@ -250,7 +250,7 @@ struct SettingsView: View {
                         }
                         #endif
                     } header: {
-                        Text("Entwicklung").foregroundStyle(Theme.textTertiary)
+                        Text("Support & Diagnose").foregroundStyle(Theme.textTertiary)
                     } footer: {
                         Text("Standardmäßig aus, damit die Uhr im Alltag schlank bleibt. Bei Bedarf hier aktivieren.")
                             .foregroundStyle(Theme.textTertiary)
@@ -274,14 +274,13 @@ struct SettingsView: View {
             }
             .navigationTitle("Einstellungen")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Fertig") { dismiss() }
                         .foregroundStyle(Theme.accent)
                 }
             }
-            .alert("Apple Health / Redpoint", isPresented: .constant(importMessage != nil), presenting: importMessage) { _ in
+            .alert("Apple Health", isPresented: .constant(importMessage != nil), presenting: importMessage) { _ in
                 Button("OK") { importMessage = nil }
             } message: { Text($0) }
             .confirmationDialog(
@@ -312,7 +311,6 @@ struct SettingsView: View {
             }
             #endif
         }
-        .preferredColorScheme(.dark)
         .tint(Theme.accent)
     }
 

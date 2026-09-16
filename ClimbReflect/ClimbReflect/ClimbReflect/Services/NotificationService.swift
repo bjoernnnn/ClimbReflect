@@ -35,9 +35,12 @@ final class NotificationService {
         content.body = "Wie war deine \(session.sessionType.label)-Session am \(day)? Jetzt kurz festhalten."
         content.sound = .default
 
-        // Erinnerung 2 Stunden nach der Session, frühestens 30 Sek. in der Zukunft
-        let delay = max(30, session.date.addingTimeInterval(2 * 3600).timeIntervalSinceNow)
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)
+        // VT-5/E17: Erinnerung 2 Stunden nach der Session – nur wenn dieser Zeitpunkt
+        // noch in der Zukunft liegt. Sonst würde eine nachgetragene (vergangene)
+        // Session sofort eine irreführende Push auslösen.
+        let fireDate = session.date.addingTimeInterval(2 * 3600)
+        guard fireDate > .now else { return }
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: fireDate.timeIntervalSinceNow, repeats: false)
         let request = UNNotificationRequest(
             identifier: notificationID(for: session.id),
             content: content,

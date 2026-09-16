@@ -8,11 +8,9 @@ struct LevelHeaderView: View {
     let flash: ProgressEngine.PersonalBest?
     let comfortGrade: String?
     let discipline: ProgressEngine.Discipline
-    // MO-8: nächste Leiterstufe über dem historischen Höchst-Send (Goal-Gradient).
-    var nextGrade: String? = nil
-    var nextGradeTries: Int = 0
-    // MO-9: Wohlfühl-Grad-Kandidat (nur relevant, solange comfortGrade nil ist).
-    var comfortCandidate: (grade: String, sample: Int)? = nil
+    // FS-5: nächste Leiterstufe (Goal-Gradient) + Wohlfühl-Grad-Kandidat kommen
+    // beide aus der gemeinsamen Meilenstein-Engine (FortschrittView reicht sie herein).
+    var milestones: [ProgressEngine.Milestone] = []
     // DS-2: PB-Feier wandert in die Send-Kachel selbst (Gold-Stroke + NEU-Badge)
     // statt einer separaten Chip-Zeile darüber — „Neuigkeit wohnt in den
     // Elementen, nicht über ihnen".
@@ -24,64 +22,43 @@ struct LevelHeaderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                tile(title: "Höchster Send", best: send, showStyleBadge: false,
+                tile(title: "Höchster Top", best: send, showStyleBadge: false,
                      celebrates: celebratesSend)
                 tile(title: flash == nil ? "Flash" : flashTitle,
                      best: flash, showStyleBadge: discipline == .rope)
             }
             factCard
         }
+        .animation(.snappy, value: send?.grade)
+        .animation(.snappy, value: flash?.grade)
     }
 
     private var flashTitle: String {
         discipline == .rope ? "Flash / Onsight" : "Flash"
     }
 
-    // MARK: - DS-3: Fakten-Karte (Wohlfühl-Grad · Nächste Stufe · Erstmals gesendet)
-
-    private struct FactRow: Identifiable {
-        let id: String   // Label, eindeutig innerhalb einer Karte
-        let icon: String
-        let iconColor: Color
-        let label: String
-        let value: String
-    }
+    // MARK: - FS-5: Fakten-Karte (Wohlfühl-Grad · Nächste Stufe · Erste Tops) über MilestoneRow
 
     /// true, solange die Wohlfühl-Zeile den Kandidat-Zweig zeigt (steuert die
     /// Fußnote unter der Karte).
     private var showsComfortCandidateFootnote: Bool {
-        comfortGrade == nil && comfortCandidate != nil
+        comfortGrade == nil && milestones.contains { $0.kind == .comfortGrade }
     }
 
-    private var factRows: [FactRow] {
-        var rows: [FactRow] = []
+    private var factRows: [(id: String, row: MilestoneRow)] {
+        var rows: [(id: String, row: MilestoneRow)] = []
         if let comfortGrade {
-            rows.append(FactRow(id: "comfort", icon: "checkmark.seal.fill", iconColor: Theme.accent,
-                                label: "Wohlfühl-Grad", value: comfortGrade))
-        } else if let comfortCandidate {
-            // Endowed Progress: die n/5-Schwelle als sichtbares Mini-Ziel, nur
-            // Stichprobe, keine Quote (S32) — gedimmtes Icon signalisiert „noch
-            // keine Aussage".
-            rows.append(FactRow(id: "comfort", icon: "checkmark.seal", iconColor: Theme.textTertiary,
-                                label: "Wohlfühl-Grad",
-                                value: "\(comfortCandidate.grade) · \(comfortCandidate.sample)/\(ProgressEngine.minSampleSize)"))
+            rows.append(("comfort", MilestoneRow(icon: "checkmark.seal.fill", title: "Wohlfühl-Grad",
+                                                  value: comfortGrade, detail: "", current: nil, target: nil)))
         }
-        if let nextGrade {
-            rows.append(FactRow(id: "next", icon: "arrow.up.forward", iconColor: Theme.accent,
-                                label: "Nächste Stufe", value: "\(nextGrade) · \(nextGradeShort)"))
+        for milestone in milestones {
+            rows.append((milestone.kind == .nextGrade ? "next" : "comfort", MilestoneRow(milestone)))
         }
         if !firstSends.isEmpty {
-            rows.append(FactRow(id: "firstSends", icon: "sparkles", iconColor: Theme.accent,
-                                label: "Erstmals gesendet", value: firstSendsValue))
+            rows.append(("firstSends", MilestoneRow(icon: "sparkles", title: "Erste Tops",
+                                                     value: firstSendsValue, detail: "", current: nil, target: nil)))
         }
         return rows
-    }
-
-    /// „N Begehungen" bzw. „unversucht" – Kurzform ohne „noch", kein
-    /// Fortschrittsbalken (der würde eine Quote suggerieren, S32).
-    private var nextGradeShort: String {
-        guard nextGradeTries > 0 else { return "unversucht" }
-        return "\(nextGradeTries) Begehung\(nextGradeTries == 1 ? "" : "en")"
     }
 
     /// Max. 3 Grade (bereits absteigend nach order), Überhang als „ +N".
@@ -98,33 +75,19 @@ struct LevelHeaderView: View {
         if !rows.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 VStack(spacing: 0) {
-                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                        HStack(spacing: 10) {
-                            Image(systemName: row.icon)
-                                .font(.caption)
-                                .foregroundStyle(row.iconColor)
-                                .frame(width: 22)
-                            Text(row.label)
-                                .font(.subheadline)
-                                .foregroundStyle(Theme.textSecondary)
-                            Spacer()
-                            Text(row.value)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Theme.textPrimary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                        }
-                        .padding(.vertical, 10)
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, entry in
+                        entry.row
+                            .padding(.vertical, 10)
                         if index < rows.count - 1 {
-                            Divider().overlay(Theme.surfaceStroke)
+                            Divider().overlay(Theme.separator)
                         }
                     }
                 }
                 .padding(.horizontal, 14)
-                .background(RoundedRectangle(cornerRadius: 16).fill(Theme.bgElevated))
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous).fill(Theme.surfaceRaised))
 
                 if showsComfortCandidateFootnote {
-                    Text("Wohlfühl-Grad ab \(ProgressEngine.minSampleSize) Begehungen je Grad")
+                    Text("Wohlfühl-Grad wird ab \(ProgressEngine.minSampleSize) Begehungen in einem Grad eingeschätzt.")
                         .font(.caption2)
                         .foregroundStyle(Theme.textTertiary)
                         .padding(.horizontal, 4)
@@ -136,14 +99,16 @@ struct LevelHeaderView: View {
     private func tile(title: String, best: ProgressEngine.PersonalBest?,
                       showStyleBadge: Bool, celebrates: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title.uppercased())
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(Theme.textTertiary)
+            Text(title)
+                .font(Theme.Typo.label)
+                .foregroundStyle(Theme.textSecondary)
             if let best {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(best.grade)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(Theme.Typo.metricHero)
                         .foregroundStyle(Theme.textPrimary)
+                        .monospacedDigit()
+                        .contentTransition(.interpolate)
                     if showStyleBadge, let style = best.style {
                         Text(style.label)
                             .font(.caption2.weight(.bold))
@@ -157,7 +122,7 @@ struct LevelHeaderView: View {
                     .foregroundStyle(Theme.textTertiary)
             } else {
                 Text("—")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(Theme.Typo.metricHero)
                     .foregroundStyle(Theme.textTertiary)
                 Text("Noch keine Begehung")
                     .font(.caption2)
@@ -167,10 +132,10 @@ struct LevelHeaderView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Theme.bgElevated)
+            RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                .fill(Theme.surfaceRaised)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: Theme.Radius.medium)
                         .stroke(celebrates ? Theme.gold.opacity(0.35) : Color.clear, lineWidth: 1)
                 )
         )

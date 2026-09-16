@@ -39,36 +39,31 @@ struct AchievementsView: View {
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                MountainBackground()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        header
-                        if !inReach.isEmpty { inReachSection }
-                        categoryChips
-                        grid
-                        betaLibraryLink
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                    .padding(.bottom, 40)
+        ZStack {
+            AppBackground()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    header
+                    if !inReach.isEmpty { inReachSection }
+                    categoryChips
+                    grid
                 }
-            }
-            .navigationTitle("Erfolge")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .sheet(isPresented: Binding(
-                get: { selectedDefinitionID != nil },
-                set: { if !$0 { selectedDefinitionID = nil } }
-            )) {
-                if let data = selectedData {
-                    AchievementDetailSheet(data: data)
-                        .presentationDetents([.medium, .large])
-                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 40)
             }
         }
-        .preferredColorScheme(.dark)
+        .navigationTitle("Erfolge")
+        .navigationBarTitleDisplayMode(.large)
+        .sheet(isPresented: Binding(
+            get: { selectedDefinitionID != nil },
+            set: { if !$0 { selectedDefinitionID = nil } }
+        )) {
+            if let data = selectedData {
+                AchievementDetailSheet(data: data)
+                    .presentationDetents([.medium, .large])
+            }
+        }
     }
 
     // MARK: - Header
@@ -76,22 +71,28 @@ struct AchievementsView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Sammlung".uppercased())
-                    .font(.caption2.weight(.semibold))
-                    .tracking(0.4)
-                    .foregroundStyle(Theme.textTertiary)
+                Text("Sammlung")
+                    .font(Theme.Typo.label)
+                    .foregroundStyle(Theme.textSecondary)
                 (Text("\(unlockedCount) ")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(Theme.Typo.metricHero)
                     .foregroundStyle(Theme.textPrimary)
+                    .monospacedDigit()
                  + Text("von \(totalCount)")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.textTertiary))
+                    .foregroundStyle(Theme.textTertiary)
+                    .monospacedDigit())
+                    .contentTransition(.numericText())
+                    .animation(.snappy, value: unlockedCount)
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Theme.bgElevated)
-                    Capsule().fill(Theme.accentGradient)
+                    Capsule().fill(Theme.surfaceRaised)
+                    // DZ-2: Ausnahme – Sammlungs-Balken behält den Zwei-Farben-Verlauf inline.
+                    Capsule().fill(LinearGradient(colors: [Theme.accent, Theme.accent2],
+                                                  startPoint: .leading, endPoint: .trailing))
                         .frame(width: geo.size.width * CGFloat(unlockedCount) / CGFloat(max(1, totalCount)))
+                        .animation(.snappy, value: unlockedCount)
                 }
             }
             .frame(height: 4)
@@ -107,27 +108,8 @@ struct AchievementsView: View {
                 .foregroundStyle(Theme.textPrimary)
             ForEach(inReach) { data in
                 Button { selectedDefinitionID = data.id } label: {
-                    HStack(spacing: 12) {
-                        AchievementMedallion(symbol: data.definition.symbol,
-                                             state: .locked(progress: data.progress?.fraction), size: 46)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(data.definition.title)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Theme.textPrimary)
-                            Text(data.progress?.remainingText ?? "")
-                                .font(.caption)
-                                .foregroundStyle(Theme.textTertiary)
-                                .lineLimit(1)
-                        }
-                        Spacer(minLength: 8)
-                        Text("\(Int(((data.progress?.fraction ?? 0) * 100).rounded())) %")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(Theme.accent)
-                            .monospacedDigit()
-                    }
-                    .padding(11)
-                    .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surface))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.surfaceStroke, lineWidth: 1))
+                    MilestoneRow(achievement: data)
+                        .card()
                 }
                 .buttonStyle(.plain)
             }
@@ -147,6 +129,7 @@ struct AchievementsView: View {
             .padding(.vertical, 2)
         }
         .scrollClipDisabled()
+        .sensoryFeedback(.selection, trigger: selectedCategory)
     }
 
     private func categoryChip(_ category: AchievementCategory?, label: String) -> some View {
@@ -156,10 +139,13 @@ struct AchievementsView: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Capsule().fill(active ? Theme.accent : Theme.bgElevated))
+                .background(Capsule().fill(active ? Theme.accent : Theme.surfaceRaised))
                 .foregroundStyle(active ? Theme.bg : Theme.textSecondary)
         }
         .buttonStyle(.plain)
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 
     // MARK: - Grid
@@ -173,33 +159,6 @@ struct AchievementsView: View {
                 .buttonStyle(.plain)
             }
         }
-    }
-
-    private var betaLibraryLink: some View {
-        NavigationLink(destination: BetaLibraryView()) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(Theme.accent.opacity(0.12)).frame(width: 44, height: 44)
-                    Image(systemName: "text.magnifyingglass")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Theme.accent)
-                }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Beta-Bibliothek")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.textPrimary)
-                    Text("Tipps & Techniken für Kletterprobleme")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.textTertiary)
-            }
-            .padding(14)
-            .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
-        }
-        .buttonStyle(.plain)
+        .animation(.snappy, value: selectedCategory)
     }
 }

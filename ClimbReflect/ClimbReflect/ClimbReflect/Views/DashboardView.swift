@@ -3,8 +3,13 @@ import SwiftData
 
 struct DashboardView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Query(filter: #Predicate<AchievementUnlock> { !$0.seenByUser }, sort: \AchievementUnlock.unlockedAt)
     private var unseenUnlocks: [AchievementUnlock]
+
+    // FS-7: Session-Recap nach einer neu empfangenen Watch-Session.
+    @AppStorage("pendingRecapSessionID") private var pendingRecapID = ""
+    @Query(sort: \ClimbSession.date, order: .reverse) private var allSessions: [ClimbSession]
 
     // EP-7: nur .full-Erfolge feiern im Vollbild-Overlay; .quiet läuft über
     // den Toast (EP-8). Reihenfolge-Vorrang: Overlay zuerst, Toast danach.
@@ -36,13 +41,23 @@ struct DashboardView: View {
         return "\(index) von \(batchTotal)"
     }
 
+    // FS-7: Recap zeigt sich nach allen offenen Erfolgs-Overlays/Toasts, nie gleichzeitig.
+    private var recapSession: ClimbSession? {
+        guard !pendingRecapID.isEmpty, let uuid = UUID(uuidString: pendingRecapID) else { return nil }
+        return allSessions.first { $0.id == uuid }
+    }
+
+    private var showRecap: Bool {
+        recapSession != nil && currentUnlock == nil && toastUnlock == nil
+    }
+
     var body: some View {
         TabView(selection: $selectedTabIndex) {
-            TodayView()
+            NavigationStack { TodayView() }
                 .tabItem { Label("Heute", systemImage: "house.fill") }
                 .tag(0)
 
-            FortschrittView()
+            NavigationStack { FortschrittView() }
                 .tabItem { Label("Fortschritt", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(1)
 
@@ -50,12 +65,11 @@ struct DashboardView: View {
                 .tabItem { Label("Projekte", systemImage: "target") }
                 .tag(2)
 
-            AchievementsView()
+            NavigationStack { AchievementsView() }
                 .tabItem { Label("Erfolge", systemImage: "trophy.fill") }
                 .tag(3)
         }
         .tint(Theme.accent)
-        .preferredColorScheme(.dark)
         .overlay {
             if let unlock = currentUnlock {
                 AchievementUnlockOverlay(unlock: unlock, pagerText: pagerText) {
@@ -81,6 +95,17 @@ struct DashboardView: View {
         .task {
             if !unseenFullUnlocks.isEmpty { batchTotal = unseenFullUnlocks.count }
             advanceToastIfNeeded()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { advanceToastIfNeeded() }
+        }
+        .sheet(isPresented: Binding(
+            get: { showRecap },
+            set: { if !$0 { pendingRecapID = "" } }
+        )) {
+            if let recapSession {
+                SessionRecapSheet(session: recapSession)
+            }
         }
     }
 

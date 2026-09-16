@@ -38,5 +38,6 @@ struct ThrowbackCard: View {
             .card()
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
     }
 }

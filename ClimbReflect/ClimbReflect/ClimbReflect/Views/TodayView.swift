@@ -3,6 +3,7 @@ import SwiftData
 
 struct TodayView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \ClimbSession.date, order: .reverse) private var sessions: [ClimbSession]
     @Query(sort: \Project.name) private var allProjects: [Project]
     @Query private var unlocks: [AchievementUnlock]
@@ -15,15 +16,8 @@ struct TodayView: View {
     // EP-10: springt in den Erfolge-Tab (DashboardView liest denselben Key).
     @AppStorage("selectedTabIndex") private var selectedTabIndex = 0
 
-    // FO-12: Bestleistungen kommen aus der ProgressEngine (eine Quelle der Wahrheit,
-    // identisch zum Level-Block im Fortschritt-Tab). Grad bereits in Anzeige-Skala.
-    private var heroBoulder: String? {
-        ProgressEngine.personalBests(sessions, discipline: .boulder).send?.grade
-    }
-
-    private var heroRoute: String? {
-        ProgressEngine.personalBests(sessions, discipline: .rope).send?.grade
-    }
+    // FS-3: LevelHeroCard nur zeigen, wenn es überhaupt eine Klettersession gibt.
+    private var hasClimbingSession: Bool { sessions.contains(where: \.isClimbing) }
 
     // MO-13: Monatsrückblick des Vormonats. Sichtbar nur in den ersten 7 Tagen des
     // Monats, wenn der Vormonat nicht leer ist und die Karte noch nicht quittiert
@@ -53,15 +47,6 @@ struct TodayView: View {
         withAnimation { monthRecapDismissed = true }
     }
 
-    // EP-10: Erfolg mit dem höchsten Fortschritt < 100 % — Goal-Gradient-
-    // Einstieg auf dem Homescreen. Verschwindet automatisch bei 28/28 bzw.
-    // sobald kein gesperrter Erfolg mehr einen Fortschritt trägt.
-    private var nextAchievement: AchievementViewData? {
-        AchievementViewModel.build(sessions: sessions, projects: allProjects, unlocks: unlocks)
-            .filter { !$0.isUnlocked && ($0.progress?.fraction ?? 0) > 0 && ($0.progress?.fraction ?? 0) < 1 }
-            .max { ($0.progress?.fraction ?? 0) < ($1.progress?.fraction ?? 0) }
-    }
-
     // MO-11: jüngste Kletter-Session mit nicht-leerem Vorsatz. Sobald eine neuere
     // Kletter-Session existiert (mit oder ohne eigenen Vorsatz), verschwindet die
     // Karte automatisch.
@@ -74,102 +59,70 @@ struct TodayView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                MountainBackground()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        header
+        ZStack {
+            AppBackground()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    dateLine
 
-                        if let status = watchReceiver.liveStatus {
-                            LiveSessionBanner(status: status)
-                        }
-
-                        // Selten und darf dann oben stehen (vor der Hero-Reihe).
-                        if let recap = monthRecap {
-                            MonthRecapCard(recap: recap, onDismiss: dismissMonthRecap)
-                        }
-
-                        if heroBoulder != nil || heroRoute != nil {
-                            heroTrophyRow
-                        }
-
-                        if let intentSession {
-                            IntentFollowUpCard(session: intentSession)
-                        }
-
-                        statRow
-
-                        if let nextAchievement {
-                            Button {
-                                selectedTabIndex = 3
-                            } label: {
-                                NextAchievementsCard(data: nextAchievement)
-                            }
-                            .buttonStyle(.plain)
-                        }
-
-                        pinnedProjectsCard
-
-                        recentSessions
+                    if let status = watchReceiver.liveStatus {
+                        LiveSessionBanner(status: status)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                    .padding(.bottom, 40)
+
+                    // Selten und darf dann oben stehen (vor der Hero-Reihe).
+                    if let recap = monthRecap {
+                        MonthRecapCard(recap: recap, onDismiss: dismissMonthRecap)
+                    }
+
+                    if hasClimbingSession {
+                        LevelHeroCard(sessions: sessions, projects: allProjects, unlocks: unlocks) { discipline in
+                            UserDefaults.standard.set(discipline.rawValue, forKey: "progressDiscipline")
+                            selectedTabIndex = 1
+                        }
+                    }
+
+                    if let intentSession {
+                        IntentFollowUpCard(session: intentSession)
+                    }
+
+                    pinnedProjectsCard
+
+                    recentSessions
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 40)
             }
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { showAddSession = true } label: {
-                        Image(systemName: "plus")
-                    }
-                    .tint(Theme.accent)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showSettings = true } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .tint(Theme.accent)
-                }
-            }
-            .sheet(isPresented: $showAddSession) { ManualSessionView() }
-            .sheet(isPresented: $showSettings) { SettingsView() }
-            .toolbarBackground(.hidden, for: .navigationBar)
         }
+        .navigationTitle("Heute")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button { showSettings = true } label: {
+                    Image(systemName: "gearshape")
+                }
+                .tint(Theme.accent)
+                .accessibilityLabel("Einstellungen")
+                Button { showAddSession = true } label: {
+                    Image(systemName: "plus")
+                        .fontWeight(.semibold)
+                }
+                .tint(Theme.accent)
+                .accessibilityLabel("Session hinzufügen")
+            }
+        }
+        .sheet(isPresented: $showAddSession) { ManualSessionView() }
+        .sheet(isPresented: $showSettings) { SettingsView() }
+        .sensoryFeedback(.impact(weight: .light), trigger: monthRecapDismissed)
     }
 
     // MARK: - Sections
 
-    private var header: some View {
-        HStack(spacing: 10) {
-            if let icon = UIImage(named: "AppIcon") {
-                Image(uiImage: icon)
-                    .resizable()
-                    .frame(width: 32, height: 32)
-                    .clipShape(RoundedRectangle(cornerRadius: 7))
-            }
-            Text("ClimbReflect")
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundStyle(Theme.accent)
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 8)
-    }
-
-    private var statRow: some View {
-        // MO-10: Rekord-Streak steht als unverlierbarer Besitz neben dem laufenden
-        // Streak – nach einer Pause liest sich die Kachel als „Rekord: N Wo." statt
-        // als Bestrafung (kein roter Reset, S33). Detail erst ab Rekord ≥ 2.
-        let bestStreak = StatsEngine.bestClimbWeekStreak(sessions)
-        return HStack(spacing: 12) {
-            StatTile(value: "\(sessions.filter(\.isClimbing).count)", label: "Sessions", symbol: "figure.climbing")
-            StatTile(value: "\(StatsEngine.climbWeekStreak(sessions))", label: "Streak", symbol: "flame.fill",
-                     detail: bestStreak >= 2 ? "Rekord: \(bestStreak) Wo." : nil)
-            // Klettersessions wie die Nachbar-Kacheln ("Sessions"/"Streak") – sonst
-            // zählt "Diese Woche" Trainings mit und widerspricht der Zeile
-            StatTile(value: "\(ProgressEngine.sessionsThisWeek(sessions))", label: "Diese Woche", symbol: "calendar")
-        }
+    // DZ-4: Large Title trägt den Markennamen; hier nur noch das Datum.
+    private var dateLine: some View {
+        Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+            .font(Theme.Typo.label)
+            .foregroundStyle(Theme.textSecondary)
     }
 
     @ViewBuilder
@@ -181,121 +134,76 @@ struct TodayView: View {
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)
                 ForEach(pinned) { project in
-                    HStack(spacing: 12) {
-                        ZStack {
-                            Circle().fill(Theme.gold.opacity(0.12)).frame(width: 36, height: 36)
-                            Image(systemName: "target")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(Theme.gold)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(project.name)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Theme.textPrimary)
-                            let attempts = project.ascents.reduce(0) { $0 + $1.attempts }
-                            Text("\(attempts) Versuch\(attempts == 1 ? "" : "e")")
-                                .font(.caption)
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                        Spacer()
-                        if let grade = project.targetGradeRaw {
-                            Text(grade)
-                                .font(.caption.weight(.bold))
+                    // VT-6: tappbar statt totem Text; keine attempts-Anzeige (S32).
+                    NavigationLink(destination: ProjectDetailView(project: project)) {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle().fill(Theme.gold.opacity(0.12)).frame(width: 36, height: 36)
+                                Image(systemName: "target")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.gold)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(project.name)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                Text(project.distinctDays > 0
+                                     ? "\(project.distinctDays) Klettertag\(project.distinctDays == 1 ? "" : "e")"
+                                     : "Noch nicht geklettert")
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                            Spacer()
+                            if let grade = project.targetGradeRaw {
+                                Text(grade)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(Theme.textTertiary)
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.semibold))
                                 .foregroundStyle(Theme.textTertiary)
                         }
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .card()
         }
     }
 
-    private var heroTrophyRow: some View {
-        // fixedSize: beide Karten strecken sich auf die Höhe der höheren
-        HStack(spacing: 12) {
-            heroCard(title: "Bouldern", hero: heroBoulder)
-            heroCard(title: "Klettern", hero: heroRoute)
-        }
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private func heroCard(title: String, hero: String?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "trophy.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(hero != nil ? Theme.gold : Theme.textTertiary)
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.textSecondary)
-            }
-            if let h = hero {
-                Text(h)
-                    .font(.system(size: 30, weight: .black, design: .rounded))
-                    .foregroundStyle(Theme.gold)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            } else {
-                Text("–")
-                    .font(.system(size: 30, weight: .black, design: .rounded))
-                    .foregroundStyle(Theme.textTertiary)
-                Text("Noch kein Top")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.textTertiary)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Theme.surface)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(hero != nil ? Theme.gold.opacity(0.25) : Color.clear, lineWidth: 1)
-                )
-        )
-    }
-
     private var recentSessions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Letzte Sessions")
-                    .font(.headline)
-                    .foregroundStyle(Theme.textPrimary)
-                Spacer()
-                NavigationLink(destination: AllSessionsView()) {
-                    Text("Alle")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
-                }
-            }
             if sessions.isEmpty {
-                Button { showAddSession = true } label: {
-                    VStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 44))
-                            .foregroundStyle(Theme.accent)
-                        Text("Erste Session anlegen")
-                            .font(.headline)
-                            .foregroundStyle(Theme.textPrimary)
-                        Text("Oder importiere deine Einheiten aus Apple Health")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textSecondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 32)
+                ContentUnavailableView {
+                    Label("Deine erste Session", systemImage: "applewatch")
+                } description: {
+                    Text("Starte eine Session auf der Apple Watch – sie erscheint danach automatisch hier.")
+                } actions: {
+                    Button("Session nachtragen") { showAddSession = true }
+                        .buttonStyle(.bordered)
                 }
-                .buttonStyle(.plain)
             } else {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Letzte Sessions")
+                        .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    NavigationLink(destination: AllSessionsView()) {
+                        Text("Alle")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.accent)
+                    }
+                }
                 ForEach(sessions.prefix(5)) { session in
                     NavigationLink(destination: SessionDetailView(session: session)) {
                         SessionRow(session: session)
                     }
                     .buttonStyle(.plain)
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                 }
             }
         }
+        .animation(reduceMotion ? nil : .snappy, value: sessions.prefix(5).map(\.id))
     }
 
 }

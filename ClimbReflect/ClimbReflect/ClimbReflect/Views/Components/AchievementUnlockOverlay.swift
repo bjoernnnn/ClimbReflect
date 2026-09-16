@@ -53,7 +53,7 @@ struct AchievementUnlockOverlay: View {
                 stage
                     .frame(height: 340)
 
-                Text("Erfolg freigeschaltet".uppercased())
+                Text("Erfolg freigeschaltet")
                     .font(.caption.weight(.bold))
                     .tracking(1.4)
                     .foregroundStyle(Theme.textTertiary)

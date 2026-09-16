@@ -25,7 +25,7 @@ struct SessionSummaryView: View {
                     VStack(spacing: 0) {
                         statRow("Dauer",    value: formatDuration(dto.durationSeconds), icon: "clock.fill")
                         Divider().background(WatchTheme.elevated)
-                        statRow("Versuche", value: "\(dto.ascents.count)", icon: "figure.climbing")
+                        statRow("Begehungen", value: "\(dto.ascents.count)", icon: "figure.climbing")
                         Divider().background(WatchTheme.elevated)
                         statRow("Tops",
                                 value: "\(dto.ascents.filter { $0.resultRaw == "top" }.count)",

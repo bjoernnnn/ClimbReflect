@@ -56,13 +56,23 @@ struct GradeTimelineChart: View {
 
     private var flashLabel: String { discipline == .rope ? "Flash · Onsight" : "Flash" }
 
+    // AX-1: Kernaussage statt Linien-/Punktdetails, die als Chart ohnehin nicht
+    // sinnvoll abklapperbar sind.
+    private var accessibilitySummary: String {
+        guard let latest = points.last, let order = latest.sendOrder else {
+            return "Ab zwei Monaten mit Tops erscheint hier dein Verlauf."
+        }
+        let grade = ProgressEngine.gradeLabel(forOrder: order, discipline: discipline)
+        return "Härtester Top zuletzt \(grade) im \(latest.month.formatted(.dateTime.month(.wide)))"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Grad-Verlauf")
                 .font(.headline).foregroundStyle(Theme.textPrimary)
 
             if points.count < 2 {
-                Text("Ab zwei Monaten mit Sends erscheint hier dein Verlauf.")
+                Text("Ab zwei Monaten mit Tops erscheint hier dein Verlauf.")
                     .font(.subheadline).foregroundStyle(Theme.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 24)
@@ -71,7 +81,11 @@ struct GradeTimelineChart: View {
                 legend
             }
         }
+        .animation(.snappy, value: points)
         .card()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Grad-Verlauf")
+        .accessibilityValue(accessibilitySummary)
     }
 
     private var chart: some View {
@@ -108,7 +122,7 @@ struct GradeTimelineChart: View {
         }
         .chartYAxis {
             AxisMarks(values: yTicks) { value in
-                AxisGridLine().foregroundStyle(Theme.surfaceStroke.opacity(0.4))
+                AxisGridLine().foregroundStyle(Theme.separator)
                 AxisValueLabel {
                     if let order = value.as(Int.self) {
                         Text(ProgressEngine.gradeLabel(forOrder: order, discipline: discipline))
@@ -128,7 +142,7 @@ struct GradeTimelineChart: View {
 
     private var legend: some View {
         HStack(spacing: 14) {
-            legendItem(color: Theme.gold, label: "Send")
+            legendItem(color: Theme.gold, label: "Top")
             legendItem(color: Theme.accent.opacity(0.7), label: flashLabel)
         }
         .font(.caption2).foregroundStyle(Theme.textTertiary)

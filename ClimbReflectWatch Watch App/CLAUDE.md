@@ -220,6 +220,14 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
 
 ## 7. Offene Punkte / aktuelle Baustelle
 
+- **TODO17-PREMIUM-UX – erledigt.** Alle 30 Aufgaben aus VT, DZ, TX, EF, FS,
+  HM, WT, AX, DOC sind auf `feature/premium-ux` umgesetzt (S39–S44). Die
+  Spec wurde **spec-first** implementiert, ohne vorherigen Claude-Design-
+  Mockup — mit Björns ausdrücklicher Freigabe. `MountainBackground` ist
+  dabei bewusst **gelöscht** (E1): der Onboarding-Flow braucht künftig eine
+  eigene, noch offene Gestaltung, keinen Rückgriff auf die alte Komponente.
+  Offen bleibt die Abschluss-Checkliste aus TODO17 (Geräte-Walkthroughs,
+  VoiceOver-Kurzcheck, Merge nach `dev`).
 - **Falscher „Kein HealthKit"-Banner (S14) – ZUERST:** `reattach()` setzt `healthKitActive` nicht
   → nach jeder Recovery falscher Banner. Schnell zu fixen, nimmt die Verwirrung raus.
 - **Speicher-Jetsam (S3) – die eigentliche Ursache des Verschwindens:** Energie-/Speicher-Fixes
@@ -438,6 +446,39 @@ verlangt für **jedes** nicht-optionale Attribut einen deklarierten Default
 `@Model`-Klassen nachgezogen, ohne CloudKit zu aktivieren — Dedupe-Logik
 (`watchSessionID`-Upsert etc.) bleibt bewusst app-seitig, da CloudKit dafür
 keinen DB-Mechanismus bietet. Referenz: TODO15-FEEDBACK-CLOUD.md CK-1.
+
+**S39 – Glossar ist verbindlich.** Begehung / Top / Versuch / Abgebrochen /
+Geschafft / Aufgegeben / Klettertag / Reflexion sind die einzigen zulässigen
+Begriffe für diese Konzepte in UI-Strings (E8, TODO17). Kein „Send" o. Ä. aus
+anderen Klettersport-Apps übernehmen — auch nicht als vermeintlich griffigere
+Variante.
+
+**S40 – Designsystem statt Einzelwerte.** Farben, Radien (`Theme.Radius`,
+immer `.continuous`), Schrift (`Theme.Typo`, Dynamic Type) ausschließlich über
+Tokens beziehen. Kein `.system(size:)` außer Erfolgs-Artwork. Kein
+dekorativer Hintergrund; `AppBackground` nur auf Tab-Roots. Dark Mode
+ausschließlich über `UIUserInterfaceStyle`, nie `preferredColorScheme`
+außerhalb von Previews.
+
+**S41 – Jede Kerninteraktion hat Feedback.** Auswahl → `.selection`,
+Speichern → `.success`, Zustandswechsel → `.impact`, Kennzahlen mit
+`numericText`. Nur `sensoryFeedback` in Views verwenden, kein
+`UIFeedbackGenerator` direkt — Ausnahme bleibt die Erfolgs-Choreografie (S34).
+
+**S42 – Kein vorausgewähltes Ergebnis, keine blockierende Bestätigung.**
+Ergebnis beim Erfassen startet leer (E6); Speichern schließt sofort ohne
+Zwischendialog. Einziger Feier-Kanal bleibt `AchievementUnlockOverlay` (S33);
+das Session-Recap ist reine Zusammenfassung ohne eigene Effekte (E14).
+
+**S43 – Meilensteine an einem Ort, in einer Form.** Alle Meilenstein-Anzeigen
+laufen über `ProgressEngine.milestones` + `MilestoneRow` — keine parallelen
+Ad-hoc-Darstellungen. Der Fortschritts-Ring erscheint nur bei echter Zählung
+(`current`/`target` vorhanden), nie als Platzhalter (E13).
+
+**S44 – `swipeActions` nur in `List`.** Außerhalb einer `List` (z. B. in
+`ScrollView`/`LazyVGrid`) `contextMenu` mit Bestätigung statt `swipeActions`
+verwenden — `swipeActions` funktioniert dort nicht zuverlässig und täuscht
+eine Geste vor, die nicht greift.
 
 ---
 

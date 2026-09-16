@@ -35,11 +35,13 @@ struct ClimbDaysCard: View {
                 }
             }
             .frame(height: 80)
+            .animation(.snappy, value: monthlyDays.map(\.days))
 
-            Text("\(sends) Sends · \(climbDays) Klettertage")
+            Text("\(sends) Tops · \(climbDays) Klettertage")
                 .font(.subheadline)
                 .foregroundStyle(Theme.textSecondary)
         }
         .card()
+        .accessibilityElement(children: .combine)
     }
 }

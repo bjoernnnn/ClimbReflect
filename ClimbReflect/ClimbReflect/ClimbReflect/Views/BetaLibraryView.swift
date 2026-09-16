@@ -27,7 +27,7 @@ struct BetaLibraryView: View {
             if notedAscents.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "text.magnifyingglass")
-                        .font(.system(size: 48))
+                        .font(.largeTitle)
                         .foregroundStyle(Theme.textTertiary)
                     Text(searchText.isEmpty ? "Keine Beta-Notizen" : "Kein Ergebnis")
                         .font(.headline)
@@ -52,9 +52,7 @@ struct BetaLibraryView: View {
         }
         .navigationTitle("Beta-Bibliothek")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
         .searchable(text: $searchText, prompt: "Grad, Projekt oder Stichwort")
-        .preferredColorScheme(.dark)
     }
 
     private func betaRow(_ ascent: Ascent, session: ClimbSession) -> some View {
@@ -67,7 +65,7 @@ struct BetaLibraryView: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.textTertiary)
                     .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(Capsule().fill(Theme.bgElevated))
+                    .background(Capsule().fill(Theme.surfaceRaised))
                 if let name = ascent.projectName {
                     Text(name)
                         .font(.caption.weight(.semibold))

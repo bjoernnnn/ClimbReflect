@@ -48,8 +48,7 @@ struct AchievementDetailSheet: View {
             .padding(.bottom, 30)
             .frame(maxWidth: .infinity)
         }
-        .background(Theme.bgElevated.ignoresSafeArea())
-        .preferredColorScheme(.dark)
+        .background(Theme.surfaceRaised.ignoresSafeArea())
     }
 
     private var medallionWithAura: some View {
@@ -74,7 +73,7 @@ struct AchievementDetailSheet: View {
             text = "Gesperrt"
             color = Theme.textTertiary
         }
-        return Text(text.uppercased())
+        return Text(text)
             .font(.caption2.weight(.bold))
             .tracking(0.4)
             .foregroundStyle(color)
@@ -108,10 +107,9 @@ struct AchievementDetailSheet: View {
 
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Historie".uppercased())
-                .font(.caption2.weight(.semibold))
-                .tracking(0.4)
-                .foregroundStyle(Theme.textTertiary)
+            Text("Historie")
+                .font(Theme.Typo.label)
+                .foregroundStyle(Theme.textSecondary)
             ForEach(data.events.reversed(), id: \.id) { event in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text(event.contextValue ?? tierLabel(event.tier))
@@ -126,7 +124,7 @@ struct AchievementDetailSheet: View {
                         .foregroundStyle(Theme.textTertiary)
                 }
                 .padding(.top, 9)
-                .overlay(alignment: .top) { Divider().overlay(Theme.surfaceStroke) }
+                .overlay(alignment: .top) { Divider().overlay(Theme.separator) }
             }
         }
         .padding(.top, 8)

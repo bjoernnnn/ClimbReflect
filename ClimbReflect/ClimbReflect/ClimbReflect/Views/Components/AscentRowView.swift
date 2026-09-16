@@ -7,7 +7,7 @@ struct AscentRowView: View {
         HStack(spacing: 12) {
             Image(systemName: ascent.result.symbol)
                 .foregroundStyle(ascent.result.color)
-                .font(.system(size: 20))
+                .font(.body)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -21,7 +21,7 @@ struct AscentRowView: View {
                             .foregroundStyle(Theme.textTertiary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Theme.bgElevated))
+                            .background(Capsule().fill(Theme.surfaceRaised))
                     } else {
                         // RP-5: ungegradete Begehung – Grad über den Editor nachtragbar
                         Text("Unbewertet")
@@ -106,10 +106,11 @@ struct AscentRowView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: 36, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous))
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
     }
 
     private func formatDuration(_ t: Double) -> String {
