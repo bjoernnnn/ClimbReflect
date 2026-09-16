@@ -468,6 +468,47 @@ enum ProgressEngine {
         return (best.grade, best.sample)
     }
 
+    // MARK: - FS-1: Meilensteine (ein Modell, einmal gebaut, überall genutzt)
+
+    struct Milestone: Equatable, Identifiable {
+        enum Kind: Equatable { case nextGrade, comfortGrade }
+        let kind: Kind
+        let title: String        // "Nächste Stufe", "Wohlfühl-Grad"
+        let value: String        // "7A", "6B"
+        let detail: String       // "noch nicht versucht" | "2 Begehungen" | "noch 2"
+        let current: Int?        // nur comfortGrade
+        let target: Int?         // nur comfortGrade
+        var id: Kind { kind }
+    }
+
+    /// Status-quo-nahe Kletter-Meilensteine einer Disziplin. Zählungen, keine Quoten (S32).
+    static func milestones(_ sessions: [ClimbSession], discipline: Discipline,
+                           monthsBack: Int? = 6, calendar: Calendar = .current,
+                           now: Date = Date()) -> [Milestone] {
+        var result: [Milestone] = []
+
+        let bests = personalBests(sessions, discipline: discipline)
+        if let send = bests.send, let next = nextGrade(afterOrder: send.order, discipline: discipline) {
+            let rows = pyramid(sessions, discipline: discipline, monthsBack: monthsBack,
+                               calendar: calendar, now: now)
+            let tries = rows.first { $0.grade == next }?.failedTries ?? 0
+            let detail = tries == 0 ? "noch nicht versucht" : "\(tries) Begehung\(tries == 1 ? "" : "en")"
+            result.append(Milestone(kind: .nextGrade, title: "Nächste Stufe", value: next,
+                                    detail: detail, current: nil, target: nil))
+        }
+
+        if comfortGrade(sessions, discipline: discipline, monthsBack: monthsBack,
+                        calendar: calendar, now: now) == nil,
+           let candidate = comfortCandidate(sessions, discipline: discipline, monthsBack: monthsBack,
+                                            calendar: calendar, now: now) {
+            let remaining = minSampleSize - candidate.sample
+            result.append(Milestone(kind: .comfortGrade, title: "Wohlfühl-Grad", value: candidate.grade,
+                                    detail: "noch \(remaining)", current: candidate.sample, target: minSampleSize))
+        }
+
+        return result
+    }
+
     // MARK: - FO-14: Wochen-Zählung (entkoppelt von weeklyMinutes)
 
     /// Anzahl Kletter-Sessions in der laufenden Kalenderwoche (Montag-Start).
