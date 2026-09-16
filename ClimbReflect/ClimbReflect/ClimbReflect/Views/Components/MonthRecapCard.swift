@@ -7,7 +7,7 @@ import SwiftUI
 /// bleibt bei TODO11/ER-5, S33).
 struct MonthRecapCard: View {
     let recap: ProgressEngine.MonthRecap
-    let onDismiss: () -> Void
+    var onDismiss: (() -> Void)? = nil   // FS-5: im Fortschritt-Tab dauerhaft ohne Dismiss
 
     private var monthName: String {
         recap.month.formatted(.dateTime.month(.wide))
@@ -26,12 +26,14 @@ struct MonthRecapCard: View {
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)
                 Spacer()
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textTertiary)
+                if let onDismiss {
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             disciplineRow("Bouldern", recap.boulder)
             disciplineRow("Seil", recap.rope)
