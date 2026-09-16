@@ -181,29 +181,37 @@ struct TodayView: View {
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)
                 ForEach(pinned) { project in
-                    HStack(spacing: 12) {
-                        ZStack {
-                            Circle().fill(Theme.gold.opacity(0.12)).frame(width: 36, height: 36)
-                            Image(systemName: "target")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(Theme.gold)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(project.name)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Theme.textPrimary)
-                            let attempts = project.ascents.reduce(0) { $0 + $1.attempts }
-                            Text("\(attempts) Versuch\(attempts == 1 ? "" : "e")")
-                                .font(.caption)
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                        Spacer()
-                        if let grade = project.targetGradeRaw {
-                            Text(grade)
-                                .font(.caption.weight(.bold))
+                    // VT-6: tappbar statt totem Text; keine attempts-Anzeige (S32).
+                    NavigationLink(destination: ProjectDetailView(project: project)) {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle().fill(Theme.gold.opacity(0.12)).frame(width: 36, height: 36)
+                                Image(systemName: "target")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(Theme.gold)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(project.name)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.textPrimary)
+                                Text(project.distinctDays > 0
+                                     ? "\(project.distinctDays) Klettertag\(project.distinctDays == 1 ? "" : "e")"
+                                     : "Noch nicht geklettert")
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                            Spacer()
+                            if let grade = project.targetGradeRaw {
+                                Text(grade)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(Theme.textTertiary)
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12))
                                 .foregroundStyle(Theme.textTertiary)
                         }
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .card()

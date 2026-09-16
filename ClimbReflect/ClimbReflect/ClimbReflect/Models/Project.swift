@@ -28,7 +28,6 @@ final class Project {
     var isAbandoned: Bool { statusRaw == Status.abandoned.rawValue }
     var isActive: Bool { !isSent && !isAbandoned }
 
-    var totalAttempts: Int { ascents.reduce(0) { $0 + $1.attempts } }
     var distinctDays: Int {
         Set(ascents.map { Calendar.current.startOfDay(for: $0.date) }).count
     }

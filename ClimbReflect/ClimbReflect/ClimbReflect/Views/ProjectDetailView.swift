@@ -1,13 +1,6 @@
 import SwiftUI
 import SwiftData
-import Charts
 import PhotosUI
-
-private struct AttemptPoint: Identifiable {
-    let date: Date
-    let count: Int
-    var id: Date { date }
-}
 
 struct ProjectDetailView: View {
     @Bindable var project: Project
@@ -37,14 +30,6 @@ struct ProjectDetailView: View {
         }
     }
 
-    private var attemptHistory: [AttemptPoint] {
-        ascentsGroupedBySession.map { group in
-            AttemptPoint(date: group.date,
-                         count: group.ascents.reduce(0) { $0 + $1.attempts })
-        }
-        .sorted { $0.date < $1.date }
-    }
-
     private var sortedMedia: [ProjectMedia] {
         project.media.sorted { $0.createdAt < $1.createdAt }
     }
@@ -55,9 +40,6 @@ struct ProjectDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     headerCard
-                    if attemptHistory.count > 1 {
-                        progressChart
-                    }
                     betaNotesCard
                     mediaGallery
                     if !ascentsGroupedBySession.isEmpty {
@@ -173,14 +155,10 @@ struct ProjectDetailView: View {
 
             HStack(spacing: 12) {
                 let tops = project.ascents.filter { $0.result == .top }.count
-                let attempts = project.ascents.reduce(0) { $0 + $1.attempts }
-                let days = Set(project.ascents.map {
-                    Calendar.current.startOfDay(for: $0.date)
-                }).count
 
-                statPill(value: "\(attempts)", label: "Versuche")
+                statPill(value: "\(project.distinctDays)", label: "Tage")
+                statPill(value: "\(project.ascents.count)", label: "Begehungen")
                 statPill(value: "\(tops)", label: "Tops")
-                statPill(value: "\(days)", label: "Tage")
             }
 
             if project.isAbandoned {
@@ -204,43 +182,6 @@ struct ProjectDetailView: View {
                 }
                 .buttonStyle(.plain)
             }
-        }
-        .card()
-    }
-
-    // MARK: - Progress Chart
-
-    private var progressChart: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Versuche pro Session")
-                .font(.headline)
-                .foregroundStyle(Theme.textPrimary)
-
-            Chart(attemptHistory) { point in
-                BarMark(
-                    x: .value("Datum", point.date, unit: .day),
-                    y: .value("Versuche", point.count)
-                )
-                .cornerRadius(4)
-                .foregroundStyle(Theme.accentGradient)
-            }
-            .chartXAxis {
-                // CH-1: .stride(by: .day) erzeugte über lange Projekt-Zeitspannen ein
-                // Label pro Tag (hunderte, unlesbar). .automatic verteilt selbst sinnvoll.
-                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                    AxisGridLine().foregroundStyle(Theme.surfaceStroke.opacity(0.3))
-                    AxisValueLabel(format: .dateTime.day().month(.twoDigits))
-                        .foregroundStyle(Theme.textTertiary)
-                }
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading) { value in
-                    AxisGridLine().foregroundStyle(Theme.surfaceStroke.opacity(0.5))
-                    AxisValueLabel()
-                        .foregroundStyle(Theme.textTertiary)
-                }
-            }
-            .frame(height: 120)
         }
         .card()
     }

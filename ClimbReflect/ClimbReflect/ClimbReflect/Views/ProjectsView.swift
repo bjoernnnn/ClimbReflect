@@ -188,8 +188,8 @@ struct ProjectsView: View {
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(Theme.accent)
                         }
-                        if project.totalAttempts > 0 {
-                            Text("\(project.totalAttempts) Versuch\(project.totalAttempts == 1 ? "" : "e") · \(project.distinctDays) Tag\(project.distinctDays == 1 ? "" : "e")")
+                        if !project.ascents.isEmpty {
+                            Text("\(project.ascents.count) Begehung\(project.ascents.count == 1 ? "" : "en") · \(project.distinctDays) Tag\(project.distinctDays == 1 ? "" : "e")")
                                 .font(.caption)
                                 .foregroundStyle(Theme.textSecondary)
                         } else {
