@@ -6,6 +6,7 @@ struct AddAscentView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Project.name) private var allProjects: [Project]
+    @Query private var allSessions: [ClimbSession]   // VT-4: Grad-Vorbelegung
 
     let session: ClimbSession
     var preselectedProject: Project? = nil
@@ -52,7 +53,7 @@ struct AddAscentView: View {
                         .foregroundStyle(Theme.textPrimary)
                         .onChange(of: gradeSystem) { _, new in
                             if !new.grades.contains(selectedGrade) {
-                                selectedGrade = new.grades[min(8, new.grades.count - 1)]
+                                selectedGrade = new.grades.first ?? Ascent.ungraded
                             }
                         }
 
@@ -264,18 +265,11 @@ struct AddAscentView: View {
         .preferredColorScheme(.dark)
         .tint(Theme.accent)
         .onAppear {
-            // GR-3: Begehung aus einem Projekt → Grad/System des Projekts vorbelegen
-            // (representativeGradeRaw, konsistent zu GR-1 auf der Watch).
-            if let project = preselectedProject,
-               let gradeRaw = project.representativeGradeRaw,
-               let sysRaw = project.representativeGradeSystemRaw,
-               let sys = GradeSystem(rawValue: sysRaw) {
-                gradeSystem = sys
-                selectedGrade = gradeRaw
-            }
-            if !gradeSystem.grades.contains(selectedGrade) {
-                selectedGrade = gradeSystem.grades[min(8, gradeSystem.grades.count - 1)]
-            }
+            // VT-4/E4: Projekt → letzte Begehung der Session → letzte Begehung der
+            // Disziplin → niedrigster Grad (S37 – kein plausibel wirkender Default).
+            let initial = GradeDefaults.initial(session: session, project: preselectedProject, allSessions: allSessions)
+            gradeSystem = initial.system
+            selectedGrade = initial.grade
             selectedProject = preselectedProject
             if selectedShoe == nil {
                 // SH-B3: Standard-Schuh für diesen Session-Typ vorauswählen
