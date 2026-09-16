@@ -68,6 +68,18 @@ struct SessionDetailView: View {
         }
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                // VT-5: leere, gerade erst angelegte manuelle Session verwerfen statt
+                // als „Leiche" in der Historie zu behalten.
+                if onFertig != nil && isPristine {
+                    Button("Verwerfen", role: .destructive) {
+                        NotificationService.shared.cancelReminder(for: session.id)
+                        context.delete(session)
+                        try? context.save()
+                        onFertig?()
+                    }
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 if let onFertig {
                     Button("Fertig", action: onFertig)
@@ -93,7 +105,9 @@ struct SessionDetailView: View {
         }
         .confirmationDialog("Session löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Löschen", role: .destructive) {
+                NotificationService.shared.cancelReminder(for: session.id)
                 context.delete(session)
+                try? context.save()
                 dismiss()
             }
             Button("Abbrechen", role: .cancel) {}
@@ -101,6 +115,15 @@ struct SessionDetailView: View {
             Text("Die Session und alle Reflexionsdaten werden unwiderruflich gelöscht.")
         }
         .preferredColorScheme(.dark)
+    }
+
+    // VT-5: keine Ascents/Sets/Reflexion → gerade erst angelegte, leere Session.
+    private var isPristine: Bool {
+        session.ascents.isEmpty && session.trainingSets.isEmpty && !session.reflectionCompleted
+            && session.perceivedEffort == nil && session.limiterRaw.isEmpty
+            && (session.learned?.isEmpty ?? true) && (session.hardestPart?.isEmpty ?? true)
+            && (session.improveNext?.isEmpty ?? true) && session.techniqueFocusesRaw.isEmpty
+            && session.focusRating == nil
     }
 
     // MARK: - Übersicht (erster Screen)
