@@ -153,7 +153,6 @@ struct ProjectDetailView: View {
         .sheet(isPresented: $showNewSessionForProject) {
             ManualSessionView(preselectedProject: project)
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - Header
@@ -316,7 +315,6 @@ struct ProjectDetailView: View {
                     .foregroundStyle(Theme.accent)
                 }
             }
-            .preferredColorScheme(.dark)
         }
     }
 
@@ -425,7 +423,6 @@ struct ProjectDetailView: View {
                     .foregroundStyle(Theme.accent)
                 }
             }
-            .preferredColorScheme(.dark)
         }
     }
 

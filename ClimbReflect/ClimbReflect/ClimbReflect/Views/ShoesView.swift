@@ -50,7 +50,6 @@ struct ShoesView: View {
         .sheet(item: $editingShoe) { shoe in
             ShoeFormView(shoe: shoe, allShoes: shoes, onSave: save)
         }
-        .preferredColorScheme(.dark)
         .onAppear { ensureDefaultShoe() }
     }
 
@@ -336,7 +335,6 @@ struct ShoeFormView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
         .tint(Theme.accent)
     }
 }

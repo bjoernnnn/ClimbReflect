@@ -37,7 +37,6 @@ struct AllSessionsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar { EditButton() }
-        .preferredColorScheme(.dark)
         .tint(Theme.accent)
     }
 

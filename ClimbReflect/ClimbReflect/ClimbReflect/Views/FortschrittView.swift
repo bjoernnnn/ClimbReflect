@@ -87,7 +87,6 @@ struct FortschrittView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
         }
-        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder private var content: some View {

@@ -55,7 +55,6 @@ struct DashboardView: View {
                 .tag(3)
         }
         .tint(Theme.accent)
-        .preferredColorScheme(.dark)
         .overlay {
             if let unlock = currentUnlock {
                 AchievementUnlockOverlay(unlock: unlock, pagerText: pagerText) {

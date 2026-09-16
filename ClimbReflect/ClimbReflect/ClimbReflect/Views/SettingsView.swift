@@ -312,7 +312,6 @@ struct SettingsView: View {
             }
             #endif
         }
-        .preferredColorScheme(.dark)
         .tint(Theme.accent)
     }
 

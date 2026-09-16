@@ -56,7 +56,6 @@ struct StyleProfileView: View {
         .navigationTitle("Stil & Limiter")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .preferredColorScheme(.dark)
     }
 
     private func section(title: String, rows: [ProgressEngine.StyleRate]) -> some View {

@@ -85,7 +85,6 @@ struct AddTrainingSetView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     private func formatWeight(_ kg: Double) -> String {

@@ -155,7 +155,6 @@ struct EditAscentAssociationsSheet: View {
             }
         }
         .interactiveDismissDisabled(hasChanges)
-        .preferredColorScheme(.dark)
         .tint(Theme.accent)
     }
 

@@ -262,7 +262,6 @@ struct AddAscentView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
         .tint(Theme.accent)
         .onAppear {
             // VT-4/E4: Projekt → letzte Begehung der Session → letzte Begehung der

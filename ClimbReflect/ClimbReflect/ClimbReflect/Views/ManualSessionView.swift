@@ -49,7 +49,6 @@ struct ManualSessionView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
         .tint(Theme.accent)
     }
 

@@ -129,7 +129,6 @@ struct SessionDetailView: View {
         } message: {
             Text("Die Session und alle Reflexionsdaten werden unwiderruflich gelöscht.")
         }
-        .preferredColorScheme(.dark)
     }
 
     // VT-5: keine Ascents/Sets/Reflexion → gerade erst angelegte, leere Session.
@@ -444,7 +443,6 @@ struct SessionDetailView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - Vitalwerte

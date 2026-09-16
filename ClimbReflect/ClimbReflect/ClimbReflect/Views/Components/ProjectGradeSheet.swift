@@ -80,7 +80,6 @@ struct ProjectGradeSheet: View {
                         .disabled(showsName && name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
-            .preferredColorScheme(.dark)
         }
     }
 

@@ -49,7 +49,6 @@ struct AchievementDetailSheet: View {
             .frame(maxWidth: .infinity)
         }
         .background(Theme.bgElevated.ignoresSafeArea())
-        .preferredColorScheme(.dark)
     }
 
     private var medallionWithAura: some View {

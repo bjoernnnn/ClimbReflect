@@ -68,7 +68,6 @@ struct AchievementsView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - Header

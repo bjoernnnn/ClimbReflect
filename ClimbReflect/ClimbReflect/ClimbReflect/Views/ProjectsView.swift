@@ -52,7 +52,6 @@ struct ProjectsView: View {
                 createProject(name: name, gradeSystemRaw: systemRaw, targetGradeRaw: targetRaw)
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - Listen
