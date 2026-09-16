@@ -19,7 +19,7 @@ struct MonthRecapCard: View {
                 ZStack {
                     Circle().fill(Theme.gold.opacity(0.12)).frame(width: 36, height: 36)
                     Image(systemName: "calendar")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.gold)
                 }
                 Text("Dein \(monthName)")

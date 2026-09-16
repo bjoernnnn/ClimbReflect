@@ -11,9 +11,9 @@ struct NextAchievementsCard: View {
             AchievementMedallion(symbol: data.definition.symbol,
                                  state: .locked(progress: data.progress?.fraction), size: 44)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Nächster Erfolg".uppercased())
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(Theme.textTertiary)
+                Text("Nächster Erfolg")
+                    .font(Theme.Typo.label)
+                    .foregroundStyle(Theme.textSecondary)
                 Text(data.definition.title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.textPrimary)
@@ -35,6 +35,6 @@ struct NextAchievementsCard: View {
                 .foregroundStyle(Theme.textTertiary)
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surfaceRaised))
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surfaceRaised))
     }
 }

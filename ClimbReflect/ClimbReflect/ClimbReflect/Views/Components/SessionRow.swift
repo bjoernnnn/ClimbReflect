@@ -13,11 +13,11 @@ struct SessionRow: View {
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
                     .fill(Theme.surfaceRaised)
                     .frame(width: 44, height: 44)
                 Image(systemName: session.sessionType.symbol)
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.title3)
                     .foregroundStyle(Theme.accent)
             }
 
@@ -51,7 +51,7 @@ struct SessionRow: View {
         .padding(.vertical, 10)
         .padding(.horizontal, 14)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
                 .fill(Theme.surface.opacity(0.75))
         )
     }

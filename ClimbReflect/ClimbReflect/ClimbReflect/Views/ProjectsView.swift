@@ -165,7 +165,7 @@ struct ProjectsView: View {
                     Image(systemName: project.isSent ? "checkmark.circle.fill"
                           : project.isAbandoned ? "xmark.circle"
                           : project.isPinned ? "pin.fill" : "target")
-                        .font(.system(size: 20))
+                        .font(.title3)
                         .foregroundStyle(project.isSent ? Theme.accent
                                          : project.isAbandoned ? Theme.textTertiary
                                          : project.isPinned ? Theme.gold
@@ -211,11 +211,11 @@ struct ProjectsView: View {
 
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12))
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(Theme.textTertiary)
             }
             .padding(14)
-            .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surface))
         }
         .buttonStyle(.plain)
         .contextMenu {

@@ -39,9 +39,9 @@ struct LiveSessionBanner: View {
             Button("Abbrechen", role: .cancel) {}
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surface))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Theme.Radius.medium)
                 .stroke(status.isPaused ? Theme.gold.opacity(0.25) : Theme.accent.opacity(0.25), lineWidth: 1)
         )
     }
@@ -53,7 +53,7 @@ struct LiveSessionBanner: View {
                     .fill(status.isPaused ? Theme.gold.opacity(0.15) : Theme.accent.opacity(0.15))
                     .frame(width: 40, height: 40)
                 Image(systemName: status.isPaused ? "pause.fill" : "applewatch")
-                    .font(.system(size: 17))
+                    .font(.title3)
                     .foregroundStyle(status.isPaused ? Theme.gold : Theme.accent)
             }
 
@@ -90,7 +90,7 @@ struct LiveSessionBanner: View {
                     sendCommand(status.isPaused ? "resume" : "pause")
                 } label: {
                     Image(systemName: status.isPaused ? "play.fill" : "pause.fill")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.title3)
                         .foregroundStyle(Theme.textPrimary)
                         .frame(width: 44, height: 44)
                         .background(Circle().fill(Theme.surfaceRaised))
@@ -101,7 +101,7 @@ struct LiveSessionBanner: View {
                     showEndConfirm = true   // RP-15: Rückfrage statt Sofort-Ende
                 } label: {
                     Image(systemName: "stop.fill")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.title3)
                         .foregroundStyle(Theme.danger)
                         .frame(width: 44, height: 44)
                         .background(Circle().fill(Theme.danger.opacity(0.12)))

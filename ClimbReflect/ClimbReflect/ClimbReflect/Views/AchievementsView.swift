@@ -75,16 +75,17 @@ struct AchievementsView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Sammlung".uppercased())
-                    .font(.caption2.weight(.semibold))
-                    .tracking(0.4)
-                    .foregroundStyle(Theme.textTertiary)
+                Text("Sammlung")
+                    .font(Theme.Typo.label)
+                    .foregroundStyle(Theme.textSecondary)
                 (Text("\(unlockedCount) ")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(Theme.Typo.metricHero)
                     .foregroundStyle(Theme.textPrimary)
+                    .monospacedDigit()
                  + Text("von \(totalCount)")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.textTertiary))
+                    .foregroundStyle(Theme.textTertiary)
+                    .monospacedDigit())
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -127,7 +128,7 @@ struct AchievementsView: View {
                             .monospacedDigit()
                     }
                     .padding(11)
-                    .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surfaceRaised))
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surfaceRaised))
                 }
                 .buttonStyle(.plain)
             }
@@ -198,7 +199,7 @@ struct AchievementsView: View {
                     .foregroundStyle(Theme.textTertiary)
             }
             .padding(14)
-            .background(RoundedRectangle(cornerRadius: 14).fill(Theme.surface))
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surface))
         }
         .buttonStyle(.plain)
     }

@@ -146,7 +146,7 @@ private struct ShoeRowView: View {
 
     private func conditionChip(_ c: ShoeCondition) -> some View {
         HStack(spacing: 3) {
-            Image(systemName: c.symbol).font(.system(size: 9))
+            Image(systemName: c.symbol).font(.caption2)
             Text(c.rawValue).font(.caption2.weight(.semibold))
         }
         .foregroundStyle(c.color)
@@ -236,7 +236,7 @@ struct ShoeFormView: View {
                                     let selected = condition == c
                                     Button { condition = c } label: {
                                         HStack(spacing: 4) {
-                                            Image(systemName: c.symbol).font(.system(size: 11))
+                                            Image(systemName: c.symbol).font(.caption2)
                                             Text(c.rawValue).font(.caption.weight(.semibold))
                                         }
                                         .foregroundStyle(selected ? Theme.bg : c.color)
@@ -269,7 +269,7 @@ struct ShoeFormView: View {
                                     }
                                 } label: {
                                     HStack(spacing: 4) {
-                                        Image(systemName: type.symbol).font(.system(size: 11))
+                                        Image(systemName: type.symbol).font(.caption2)
                                         Text(type.label).font(.caption.weight(.semibold))
                                     }
                                     .frame(maxWidth: .infinity)

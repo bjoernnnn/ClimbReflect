@@ -20,7 +20,7 @@ struct AchievementToast: View {
             AchievementMedallion(symbol: definition?.symbol ?? "bolt.fill",
                                  state: .unlocked(material: material), size: 28)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Erfolg freigeschaltet".uppercased())
+                Text("Erfolg freigeschaltet")
                     .font(.system(size: 9, weight: .bold))
                     .tracking(0.6)
                     .foregroundStyle(Theme.textTertiary)

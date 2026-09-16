@@ -16,8 +16,8 @@ struct IntentFollowUpCard: View {
                     Image(systemName: "quote.opening")
                         .font(.caption)
                         .foregroundStyle(Theme.accent2)
-                    Text("Dein Fokus fürs nächste Mal".uppercased())
-                        .font(.caption.weight(.semibold))
+                    Text("Dein Fokus fürs nächste Mal")
+                        .font(Theme.Typo.label)
                         .foregroundStyle(Theme.textSecondary)
                 }
                 // Björns eigene Stimme → kein Kursiv (das läse sich als App-Stimme).

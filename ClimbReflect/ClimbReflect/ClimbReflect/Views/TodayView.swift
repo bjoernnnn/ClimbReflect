@@ -147,7 +147,7 @@ struct TodayView: View {
                 Image(uiImage: icon)
                     .resizable()
                     .frame(width: 32, height: 32)
-                    .clipShape(RoundedRectangle(cornerRadius: 7))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
             }
             Text("ClimbReflect")
                 .font(.system(size: 26, weight: .bold, design: .rounded))
@@ -187,7 +187,7 @@ struct TodayView: View {
                             ZStack {
                                 Circle().fill(Theme.gold.opacity(0.12)).frame(width: 36, height: 36)
                                 Image(systemName: "target")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(Theme.gold)
                             }
                             VStack(alignment: .leading, spacing: 2) {
@@ -207,7 +207,7 @@ struct TodayView: View {
                                     .foregroundStyle(Theme.textTertiary)
                             }
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 12))
+                                .font(.footnote.weight(.semibold))
                                 .foregroundStyle(Theme.textTertiary)
                         }
                     }
@@ -255,10 +255,10 @@ struct TodayView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: Theme.Radius.medium)
                 .fill(Theme.surface)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: Theme.Radius.medium)
                         .stroke(hero != nil ? Theme.gold.opacity(0.25) : Color.clear, lineWidth: 1)
                 )
         )

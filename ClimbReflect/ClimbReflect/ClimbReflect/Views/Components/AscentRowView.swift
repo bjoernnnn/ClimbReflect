@@ -7,7 +7,7 @@ struct AscentRowView: View {
         HStack(spacing: 12) {
             Image(systemName: ascent.result.symbol)
                 .foregroundStyle(ascent.result.color)
-                .font(.system(size: 20))
+                .font(.body)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -106,7 +106,7 @@ struct AscentRowView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: 36, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous))
             }
         }
         .padding(.vertical, 4)

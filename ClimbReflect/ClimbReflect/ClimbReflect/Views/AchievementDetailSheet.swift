@@ -73,7 +73,7 @@ struct AchievementDetailSheet: View {
             text = "Gesperrt"
             color = Theme.textTertiary
         }
-        return Text(text.uppercased())
+        return Text(text)
             .font(.caption2.weight(.bold))
             .tracking(0.4)
             .foregroundStyle(color)
@@ -107,10 +107,9 @@ struct AchievementDetailSheet: View {
 
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Historie".uppercased())
-                .font(.caption2.weight(.semibold))
-                .tracking(0.4)
-                .foregroundStyle(Theme.textTertiary)
+            Text("Historie")
+                .font(Theme.Typo.label)
+                .foregroundStyle(Theme.textSecondary)
             ForEach(data.events.reversed(), id: \.id) { event in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text(event.contextValue ?? tierLabel(event.tier))

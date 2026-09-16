@@ -58,7 +58,7 @@ private struct PyramidRowView: View {
                             .frame(width: barW - sendW)
                     }
                     .frame(height: 16)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
 
                     Text(row.failedTries > 0 ? "\(row.sends) · \(row.failedTries)" : "\(row.sends)")
                         .font(.caption2.monospacedDigit())

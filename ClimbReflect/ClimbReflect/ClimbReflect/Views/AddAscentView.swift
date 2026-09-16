@@ -187,13 +187,13 @@ struct AddAscentView: View {
                                         .resizable()
                                         .scaledToFill()
                                         .frame(width: 60, height: 60)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .clipShape(.theme(Theme.Radius.small))
                                 } else {
                                     Image(systemName: "camera.fill")
-                                        .font(.system(size: 20))
+                                        .font(.title2)
                                         .foregroundStyle(Theme.accent)
                                         .frame(width: 60, height: 60)
-                                        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.surfaceRaised))
+                                        .background(RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous).fill(Theme.surfaceRaised))
                                 }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(photoData != nil ? "Foto ändern" : "Foto hinzufügen")

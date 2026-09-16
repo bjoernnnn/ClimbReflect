@@ -126,7 +126,7 @@ struct ManualSessionView: View {
                                 let sel = outdoorConditions == c
                                 Button { outdoorConditions = sel ? nil : c } label: {
                                     HStack(spacing: 4) {
-                                        Image(systemName: c.symbol).font(.system(size: 12))
+                                        Image(systemName: c.symbol).font(.caption2)
                                         Text(c.rawValue).font(.caption.weight(.semibold))
                                     }
                                     .padding(.horizontal, 12).padding(.vertical, 6)

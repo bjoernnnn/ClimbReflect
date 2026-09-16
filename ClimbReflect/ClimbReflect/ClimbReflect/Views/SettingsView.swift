@@ -199,7 +199,7 @@ struct SettingsView: View {
                         HStack(alignment: .top, spacing: 12) {
                             Image(systemName: "lock.shield.fill")
                                 .foregroundStyle(Theme.accent)
-                                .font(.system(size: 20))
+                                .font(.body)
                             Text("Alle deine Daten bleiben ausschließlich auf deinem Gerät gespeichert. Es werden keine Daten an externe Server übertragen.")
                                 .font(.subheadline)
                                 .foregroundStyle(Theme.textSecondary)

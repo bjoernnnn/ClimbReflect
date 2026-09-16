@@ -165,7 +165,7 @@ struct ProjectDetailView: View {
                         .fill(statusColor.opacity(0.15))
                         .frame(width: 48, height: 48)
                     Image(systemName: statusSymbol)
-                        .font(.system(size: 20))
+                        .font(.title3)
                         .foregroundStyle(statusColor)
                 }
                 VStack(alignment: .leading, spacing: 4) {
@@ -192,7 +192,7 @@ struct ProjectDetailView: View {
                 Spacer()
                 if project.isPinned {
                     Image(systemName: "pin.fill")
-                        .font(.system(size: 14))
+                        .font(.caption)
                         .foregroundStyle(Theme.gold)
                 }
             }
@@ -356,8 +356,8 @@ struct ProjectDetailView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(height: 100)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .contentShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
+                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
                     .onTapGesture {
                         captionDraft = media.caption ?? ""
                         editingCaption = media
@@ -368,7 +368,7 @@ struct ProjectDetailView: View {
                     try? context.save()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
+                        .font(.title3)
                         .foregroundStyle(.white)
                         .shadow(radius: 2)
                 }
@@ -393,14 +393,14 @@ struct ProjectDetailView: View {
                         Image(uiImage: uiImage)
                             .resizable()
                             .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium))
                             .padding(.horizontal)
                     }
                     TextField("Beschriftung (optional)", text: $captionDraft)
                         .font(.subheadline)
                         .foregroundStyle(Theme.textPrimary)
                         .padding(12)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.surfaceRaised))
+                        .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
                         .padding(.horizontal)
                     Spacer()
                 }
@@ -462,8 +462,8 @@ struct ProjectDetailView: View {
                             }
                         }
                     }
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Theme.surface))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surface))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
                 }
             }
         }
@@ -528,13 +528,14 @@ struct ProjectDetailView: View {
             Text(value)
                 .font(.title3.weight(.bold))
                 .foregroundStyle(Theme.textPrimary)
+                .monospacedDigit()
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(Theme.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.surfaceRaised))
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
     }
 }
 

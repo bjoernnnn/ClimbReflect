@@ -143,7 +143,7 @@ struct FortschrittView: View {
                     .foregroundStyle(Theme.textTertiary)
             }
             .padding(16)
-            .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surfaceRaised))
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surfaceRaised))
         }
         .buttonStyle(.plain)
     }

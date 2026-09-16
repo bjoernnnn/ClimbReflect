@@ -33,8 +33,9 @@ struct SessionTimeDonut: View {
                 }
                 .chartBackground { _ in
                     Text("\(Int(insights.activeShare * 100))%")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(Theme.Typo.metric)
                         .foregroundStyle(Theme.textPrimary)
+                        .monospacedDigit()
                 }
                 .frame(width: 90, height: 90)
 
@@ -49,7 +50,7 @@ struct SessionTimeDonut: View {
 
     private func legendRow(color: Color, label: String, minutes: Int) -> some View {
         HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 3)
+            RoundedRectangle(cornerRadius: Theme.Radius.small)
                 .fill(color)
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 1) {

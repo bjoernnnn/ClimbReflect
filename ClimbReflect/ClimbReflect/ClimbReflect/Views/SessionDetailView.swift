@@ -282,7 +282,7 @@ struct SessionDetailView: View {
                     .fill(Theme.surfaceRaised)
                     .frame(width: 56, height: 56)
                 Image(systemName: session.sessionType.symbol)
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(Theme.accent)
             }
             VStack(alignment: .leading, spacing: 4) {
@@ -327,7 +327,7 @@ struct SessionDetailView: View {
                 showLocationEditor.toggle()
             } label: {
                 Image(systemName: "mappin.and.ellipse")
-                    .font(.system(size: 16))
+                    .font(.body)
                     .foregroundStyle(session.outdoor || (session.gymName != nil) ? Theme.accent2 : Theme.textTertiary)
             }
             .buttonStyle(.plain)
@@ -366,7 +366,7 @@ struct SessionDetailView: View {
                                         session.updatedAt = .now
                                     } label: {
                                         HStack(spacing: 4) {
-                                            Image(systemName: c.symbol).font(.system(size: 12))
+                                            Image(systemName: c.symbol).font(.caption2)
                                             Text(c.rawValue).font(.caption.weight(.semibold))
                                         }
                                         .padding(.horizontal, 12).padding(.vertical, 6)
@@ -387,7 +387,7 @@ struct SessionDetailView: View {
                                 Text("°C").foregroundStyle(Theme.textTertiary)
                             }
                             .padding(12)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.surfaceRaised))
+                            .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
                         }
                     } else if !session.outdoor {
                         VStack(alignment: .leading, spacing: 10) {
@@ -401,7 +401,7 @@ struct SessionDetailView: View {
                             ))
                             .foregroundStyle(Theme.textPrimary)
                             .padding(12)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.surfaceRaised))
+                            .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
 
                             // Quick-Pick aus bekannten Hallen
                             if !knownGymNames.isEmpty {
@@ -495,7 +495,7 @@ struct SessionDetailView: View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: symbol)
                 .foregroundStyle(color)
-                .font(.system(size: 15))
+                .font(.body)
             // lineLimit(1) + Skalierung: kein Umbruch → alle Kacheln einer Reihe gleich hoch
             Text(value)
                 .font(.subheadline.weight(.semibold))
@@ -510,7 +510,7 @@ struct SessionDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Theme.surfaceRaised))
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surfaceRaised))
     }
 
     // MARK: - Begehungen (P3.1)
@@ -648,7 +648,7 @@ struct SessionDetailView: View {
     private func trainingSetRow(_ t: TrainingSet) -> some View {
         HStack(spacing: 10) {
             Image(systemName: t.kind.symbol)
-                .font(.system(size: 16))
+                .font(.body)
                 .foregroundStyle(Theme.accent)
                 .frame(width: 22)
 
@@ -829,7 +829,7 @@ struct SessionDetailView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 9)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
+                                RoundedRectangle(cornerRadius: Theme.Radius.small)
                                     .fill(selected ? rpeColor(value) : Theme.surfaceRaised)
                             )
                             .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
@@ -885,7 +885,7 @@ struct SessionDetailView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 8).fill(Theme.surfaceRaised)
+            RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised)
         )
     }
 
@@ -906,10 +906,10 @@ struct SessionDetailView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
+                                RoundedRectangle(cornerRadius: Theme.Radius.small)
                                     .fill(active ? Theme.accent2.opacity(0.2) : Theme.surfaceRaised)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
+                                        RoundedRectangle(cornerRadius: Theme.Radius.small)
                                             .stroke(active ? Theme.accent2 : Color.clear, lineWidth: 1)
                                     )
                             )
@@ -1028,7 +1028,7 @@ struct SessionDetailView: View {
                         session.updatedAt = .now
                     } label: {
                         Image(systemName: active ? "star.fill" : "star")
-                            .font(.system(size: 26))
+                            .font(.title3)
                             .foregroundStyle(active ? Theme.gold : Theme.surfaceRaised)
                     }
                     .buttonStyle(.plain)
@@ -1078,7 +1078,7 @@ struct SessionDetailView: View {
                     .frame(minHeight: 72)
                     .padding(10)
             }
-            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.surfaceRaised))
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
             .onChange(of: text.wrappedValue) { _, _ in
                 updateReflectionCompleted()
                 session.updatedAt = .now

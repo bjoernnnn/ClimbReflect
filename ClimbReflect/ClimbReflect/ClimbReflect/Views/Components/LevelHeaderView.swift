@@ -121,7 +121,7 @@ struct LevelHeaderView: View {
                     }
                 }
                 .padding(.horizontal, 14)
-                .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surfaceRaised))
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous).fill(Theme.surfaceRaised))
 
                 if showsComfortCandidateFootnote {
                     Text("Wohlfühl-Grad ab \(ProgressEngine.minSampleSize) Begehungen je Grad")
@@ -136,14 +136,15 @@ struct LevelHeaderView: View {
     private func tile(title: String, best: ProgressEngine.PersonalBest?,
                       showStyleBadge: Bool, celebrates: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title.uppercased())
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(Theme.textTertiary)
+            Text(title)
+                .font(Theme.Typo.label)
+                .foregroundStyle(Theme.textSecondary)
             if let best {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(best.grade)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(Theme.Typo.metricHero)
                         .foregroundStyle(Theme.textPrimary)
+                        .monospacedDigit()
                     if showStyleBadge, let style = best.style {
                         Text(style.label)
                             .font(.caption2.weight(.bold))
@@ -157,7 +158,7 @@ struct LevelHeaderView: View {
                     .foregroundStyle(Theme.textTertiary)
             } else {
                 Text("—")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(Theme.Typo.metricHero)
                     .foregroundStyle(Theme.textTertiary)
                 Text("Noch keine Begehung")
                     .font(.caption2)
@@ -167,10 +168,10 @@ struct LevelHeaderView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: Theme.Radius.medium)
                 .fill(Theme.surfaceRaised)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: Theme.Radius.medium)
                         .stroke(celebrates ? Theme.gold.opacity(0.35) : Color.clear, lineWidth: 1)
                 )
         )

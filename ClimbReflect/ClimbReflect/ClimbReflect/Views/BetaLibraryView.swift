@@ -27,7 +27,7 @@ struct BetaLibraryView: View {
             if notedAscents.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "text.magnifyingglass")
-                        .font(.system(size: 48))
+                        .font(.largeTitle)
                         .foregroundStyle(Theme.textTertiary)
                     Text(searchText.isEmpty ? "Keine Beta-Notizen" : "Kein Ergebnis")
                         .font(.headline)
