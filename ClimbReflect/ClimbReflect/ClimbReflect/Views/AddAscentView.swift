@@ -248,7 +248,6 @@ struct AddAscentView: View {
             }
             .navigationTitle("Begehung erfassen")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }

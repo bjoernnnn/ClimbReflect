@@ -38,11 +38,11 @@ struct DashboardView: View {
 
     var body: some View {
         TabView(selection: $selectedTabIndex) {
-            TodayView()
+            NavigationStack { TodayView() }
                 .tabItem { Label("Heute", systemImage: "house.fill") }
                 .tag(0)
 
-            FortschrittView()
+            NavigationStack { FortschrittView() }
                 .tabItem { Label("Fortschritt", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(1)
 
@@ -50,7 +50,7 @@ struct DashboardView: View {
                 .tabItem { Label("Projekte", systemImage: "target") }
                 .tag(2)
 
-            AchievementsView()
+            NavigationStack { AchievementsView() }
                 .tabItem { Label("Erfolge", systemImage: "trophy.fill") }
                 .tag(3)
         }

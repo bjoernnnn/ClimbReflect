@@ -31,7 +31,6 @@ struct ManualSessionView: View {
             }
             .navigationTitle("Neue Session")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }

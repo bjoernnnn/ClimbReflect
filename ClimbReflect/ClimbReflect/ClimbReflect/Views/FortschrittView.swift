@@ -78,15 +78,12 @@ struct FortschrittView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                AppBackground()
-                content
-            }
-            .navigationTitle("Fortschritt")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
+        ZStack {
+            AppBackground()
+            content
         }
+        .navigationTitle("Fortschritt")
+        .navigationBarTitleDisplayMode(.large)
     }
 
     @ViewBuilder private var content: some View {

@@ -131,7 +131,6 @@ struct EditAscentAssociationsSheet: View {
             }
             .navigationTitle("Begehung bearbeiten")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }

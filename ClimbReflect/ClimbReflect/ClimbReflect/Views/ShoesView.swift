@@ -36,7 +36,6 @@ struct ShoesView: View {
         }
         .navigationTitle("Schuhe")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showAddShoe = true } label: {
@@ -315,7 +314,6 @@ struct ShoeFormView: View {
             }
             .navigationTitle(shoe == nil ? "Schuh anlegen" : "Schuh bearbeiten")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }

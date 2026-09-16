@@ -52,7 +52,6 @@ struct BetaLibraryView: View {
         }
         .navigationTitle("Beta-Bibliothek")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
         .searchable(text: $searchText, prompt: "Grad, Projekt oder Stichwort")
     }
 

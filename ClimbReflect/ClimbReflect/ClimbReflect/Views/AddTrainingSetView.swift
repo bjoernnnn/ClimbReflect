@@ -72,7 +72,6 @@ struct AddTrainingSetView: View {
             }
             .navigationTitle("Trainings-Set")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }

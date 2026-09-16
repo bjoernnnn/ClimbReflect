@@ -39,33 +39,30 @@ struct AchievementsView: View {
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                AppBackground()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        header
-                        if !inReach.isEmpty { inReachSection }
-                        categoryChips
-                        grid
-                        betaLibraryLink
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                    .padding(.bottom, 40)
+        ZStack {
+            AppBackground()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    header
+                    if !inReach.isEmpty { inReachSection }
+                    categoryChips
+                    grid
+                    betaLibraryLink
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 40)
             }
-            .navigationTitle("Erfolge")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .sheet(isPresented: Binding(
-                get: { selectedDefinitionID != nil },
-                set: { if !$0 { selectedDefinitionID = nil } }
-            )) {
-                if let data = selectedData {
-                    AchievementDetailSheet(data: data)
-                        .presentationDetents([.medium, .large])
-                }
+        }
+        .navigationTitle("Erfolge")
+        .navigationBarTitleDisplayMode(.large)
+        .sheet(isPresented: Binding(
+            get: { selectedDefinitionID != nil },
+            set: { if !$0 { selectedDefinitionID = nil } }
+        )) {
+            if let data = selectedData {
+                AchievementDetailSheet(data: data)
+                    .presentationDetents([.medium, .large])
             }
         }
     }

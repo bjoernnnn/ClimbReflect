@@ -36,8 +36,7 @@ struct ProjectsView: View {
             }
         }
         .navigationTitle("Projekte")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showAddProject = true } label: {

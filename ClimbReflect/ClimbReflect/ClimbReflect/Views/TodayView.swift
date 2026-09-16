@@ -74,87 +74,77 @@ struct TodayView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                AppBackground()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        header
+        ZStack {
+            AppBackground()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    dateLine
 
-                        if let status = watchReceiver.liveStatus {
-                            LiveSessionBanner(status: status)
-                        }
-
-                        // Selten und darf dann oben stehen (vor der Hero-Reihe).
-                        if let recap = monthRecap {
-                            MonthRecapCard(recap: recap, onDismiss: dismissMonthRecap)
-                        }
-
-                        if heroBoulder != nil || heroRoute != nil {
-                            heroTrophyRow
-                        }
-
-                        if let intentSession {
-                            IntentFollowUpCard(session: intentSession)
-                        }
-
-                        statRow
-
-                        if let nextAchievement {
-                            Button {
-                                selectedTabIndex = 3
-                            } label: {
-                                NextAchievementsCard(data: nextAchievement)
-                            }
-                            .buttonStyle(.plain)
-                        }
-
-                        pinnedProjectsCard
-
-                        recentSessions
+                    if let status = watchReceiver.liveStatus {
+                        LiveSessionBanner(status: status)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                    .padding(.bottom, 40)
+
+                    // Selten und darf dann oben stehen (vor der Hero-Reihe).
+                    if let recap = monthRecap {
+                        MonthRecapCard(recap: recap, onDismiss: dismissMonthRecap)
+                    }
+
+                    if heroBoulder != nil || heroRoute != nil {
+                        heroTrophyRow
+                    }
+
+                    if let intentSession {
+                        IntentFollowUpCard(session: intentSession)
+                    }
+
+                    statRow
+
+                    if let nextAchievement {
+                        Button {
+                            selectedTabIndex = 3
+                        } label: {
+                            NextAchievementsCard(data: nextAchievement)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    pinnedProjectsCard
+
+                    recentSessions
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 40)
             }
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { showAddSession = true } label: {
-                        Image(systemName: "plus")
-                    }
-                    .tint(Theme.accent)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showSettings = true } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .tint(Theme.accent)
-                }
-            }
-            .sheet(isPresented: $showAddSession) { ManualSessionView() }
-            .sheet(isPresented: $showSettings) { SettingsView() }
-            .toolbarBackground(.hidden, for: .navigationBar)
         }
+        .navigationTitle("Heute")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button { showSettings = true } label: {
+                    Image(systemName: "gearshape")
+                }
+                .tint(Theme.accent)
+                .accessibilityLabel("Einstellungen")
+                Button { showAddSession = true } label: {
+                    Image(systemName: "plus")
+                        .fontWeight(.semibold)
+                }
+                .tint(Theme.accent)
+                .accessibilityLabel("Session hinzufügen")
+            }
+        }
+        .sheet(isPresented: $showAddSession) { ManualSessionView() }
+        .sheet(isPresented: $showSettings) { SettingsView() }
     }
 
     // MARK: - Sections
 
-    private var header: some View {
-        HStack(spacing: 10) {
-            if let icon = UIImage(named: "AppIcon") {
-                Image(uiImage: icon)
-                    .resizable()
-                    .frame(width: 32, height: 32)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
-            }
-            Text("ClimbReflect")
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundStyle(Theme.accent)
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 8)
+    // DZ-4: Large Title trägt den Markennamen; hier nur noch das Datum.
+    private var dateLine: some View {
+        Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+            .font(Theme.Typo.label)
+            .foregroundStyle(Theme.textSecondary)
     }
 
     private var statRow: some View {

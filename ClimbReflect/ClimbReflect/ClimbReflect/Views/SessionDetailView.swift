@@ -74,7 +74,6 @@ struct SessionDetailView: View {
                 }
             }
         }
-        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 // VT-5: leere, gerade erst angelegte manuelle Session verwerfen statt
@@ -435,7 +434,6 @@ struct SessionDetailView: View {
             }
             .navigationTitle("Standort")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Fertig") { showLocationEditor = false }

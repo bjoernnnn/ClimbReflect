@@ -274,7 +274,6 @@ struct SettingsView: View {
             }
             .navigationTitle("Einstellungen")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Fertig") { dismiss() }

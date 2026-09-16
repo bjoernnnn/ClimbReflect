@@ -35,7 +35,6 @@ struct AllSessionsView: View {
         }
         .navigationTitle("Alle Sessions")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar { EditButton() }
         .tint(Theme.accent)
     }
