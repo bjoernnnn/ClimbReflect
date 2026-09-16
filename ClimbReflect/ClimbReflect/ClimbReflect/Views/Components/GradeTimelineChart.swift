@@ -62,7 +62,7 @@ struct GradeTimelineChart: View {
                 .font(.headline).foregroundStyle(Theme.textPrimary)
 
             if points.count < 2 {
-                Text("Ab zwei Monaten mit Sends erscheint hier dein Verlauf.")
+                Text("Ab zwei Monaten mit Tops erscheint hier dein Verlauf.")
                     .font(.subheadline).foregroundStyle(Theme.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 24)
@@ -128,7 +128,7 @@ struct GradeTimelineChart: View {
 
     private var legend: some View {
         HStack(spacing: 14) {
-            legendItem(color: Theme.gold, label: "Send")
+            legendItem(color: Theme.gold, label: "Top")
             legendItem(color: Theme.accent.opacity(0.7), label: flashLabel)
         }
         .font(.caption2).foregroundStyle(Theme.textTertiary)

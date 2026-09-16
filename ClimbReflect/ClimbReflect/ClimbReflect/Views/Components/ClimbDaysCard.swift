@@ -36,7 +36,7 @@ struct ClimbDaysCard: View {
             }
             .frame(height: 80)
 
-            Text("\(sends) Sends · \(climbDays) Klettertage")
+            Text("\(sends) Tops · \(climbDays) Klettertage")
                 .font(.subheadline)
                 .foregroundStyle(Theme.textSecondary)
         }

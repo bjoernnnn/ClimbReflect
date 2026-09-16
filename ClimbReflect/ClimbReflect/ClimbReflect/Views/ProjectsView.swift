@@ -80,7 +80,7 @@ struct ProjectsView: View {
                     }
                 }
                 if !sentProjects.isEmpty {
-                    sectionHeader("Gesendet ✓", count: sentProjects.count)
+                    sectionHeader("Geschafft", count: sentProjects.count)
                     ForEach(sentProjects) { project in
                         projectRow(project, showSentDate: true)
                     }
@@ -193,7 +193,7 @@ struct ProjectsView: View {
                         }
                     }
                     if showSentDate, let date = project.sentOn {
-                        Text("Gesendet \(date.formatted(.dateTime.day().month().year()))")
+                        Text("Geschafft am \(date.formatted(.dateTime.day().month().year()))")
                             .font(.caption2)
                             .foregroundStyle(Theme.accent)
                     }

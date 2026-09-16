@@ -115,7 +115,7 @@ struct AddAscentView: View {
                         if !activeProjects.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    projectChip(nil, label: "Keins")
+                                    projectChip(nil, label: "Kein Projekt")
                                     ForEach(activeProjects) { p in
                                         projectChip(p, label: p.name)
                                     }

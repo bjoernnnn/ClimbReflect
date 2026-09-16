@@ -146,7 +146,7 @@ struct SessionDetailView: View {
             sessionHeader
             let showAlt = ropeTypes.contains(session.sessionType) && session.altitudeTotalGain > 0
             if session.avgHeartRate != nil || session.activeEnergyKcal != nil || showAlt {
-                redpointCard
+                healthCard
             }
             // Kurzstat-Leiste
             let tops = session.ascents.filter { $0.result == .top }.count
@@ -445,7 +445,7 @@ struct SessionDetailView: View {
 
     // MARK: - Vitalwerte
 
-    private var redpointCard: some View {
+    private var healthCard: some View {
         let showAlt = ropeTypes.contains(session.sessionType) && session.altitudeTotalGain > 0
         let metricCount = (session.avgHeartRate != nil ? 1 : 0)
             + (session.maxHeartRate != nil ? 1 : 0)
@@ -698,7 +698,7 @@ struct SessionDetailView: View {
 
     private var reflectionCard: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Label("Mein Tagebuch", systemImage: "pencil.and.list.clipboard")
+            Label("Reflexion", systemImage: "pencil.and.list.clipboard")
                 .font(.headline)
                 .foregroundStyle(Theme.textPrimary)
 

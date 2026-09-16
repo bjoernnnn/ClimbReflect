@@ -505,7 +505,7 @@ struct ProjectDetailView: View {
     }
 
     private var statusLabel: String {
-        if project.isSent { return "Gesendet" }
+        if project.isSent { return "Geschafft" }
         if project.isAbandoned { return "Aufgegeben" }
         return "Aktiv"
     }

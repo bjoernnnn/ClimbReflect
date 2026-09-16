@@ -91,7 +91,7 @@ struct SettingsView: View {
                         } header: {
                             Text("Apple Health (optional)").foregroundStyle(Theme.textTertiary)
                         } footer: {
-                            Text("Importiert Kletter-Workouts aus Apple Health / Redpoint. Die Watch-Aufzeichnung ist die primäre Quelle — dieser Import ist optional.")
+                            Text("Importiert Kletter-Workouts aus Apple Health. Die Watch-Aufzeichnung ist die primäre Quelle — dieser Import ist optional.")
                                 .foregroundStyle(Theme.textTertiary)
                         }
                         .listRowBackground(Theme.surface)
@@ -280,7 +280,7 @@ struct SettingsView: View {
                         .foregroundStyle(Theme.accent)
                 }
             }
-            .alert("Apple Health / Redpoint", isPresented: .constant(importMessage != nil), presenting: importMessage) { _ in
+            .alert("Apple Health", isPresented: .constant(importMessage != nil), presenting: importMessage) { _ in
                 Button("OK") { importMessage = nil }
             } message: { Text($0) }
             .confirmationDialog(

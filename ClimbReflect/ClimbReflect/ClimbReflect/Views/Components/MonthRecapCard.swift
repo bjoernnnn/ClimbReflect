@@ -53,7 +53,7 @@ struct MonthRecapCard: View {
                                _ d: ProgressEngine.MonthRecap.DisciplineRecap) -> some View {
         if d.climbDays > 0 {
             let hardest = d.hardestGrade.map { " · härtester \($0)" } ?? ""
-            (Text("\(name) — \(d.climbDays) Tage · \(d.sends) Sends\(hardest)")
+            (Text("\(name) — \(d.climbDays) Tage · \(d.sends) Tops\(hardest)")
                 .foregroundStyle(Theme.textSecondary)
              + firstSendText(d.firstSendCount))
                 .font(.subheadline)

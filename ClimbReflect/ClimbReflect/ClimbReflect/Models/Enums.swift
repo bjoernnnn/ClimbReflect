@@ -85,7 +85,7 @@ enum AscentResult: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .top:     "Top"
         case .attempt: "Versuch"
-        case .quit:    "Aufgegeben"
+        case .quit:    "Abgebrochen"
         }
     }
 

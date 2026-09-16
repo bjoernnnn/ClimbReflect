@@ -24,7 +24,7 @@ struct LevelHeaderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                tile(title: "Höchster Send", best: send, showStyleBadge: false,
+                tile(title: "Höchster Top", best: send, showStyleBadge: false,
                      celebrates: celebratesSend)
                 tile(title: flash == nil ? "Flash" : flashTitle,
                      best: flash, showStyleBadge: discipline == .rope)
@@ -72,7 +72,7 @@ struct LevelHeaderView: View {
         }
         if !firstSends.isEmpty {
             rows.append(FactRow(id: "firstSends", icon: "sparkles", iconColor: Theme.accent,
-                                label: "Erstmals gesendet", value: firstSendsValue))
+                                label: "Erste Tops", value: firstSendsValue))
         }
         return rows
     }
