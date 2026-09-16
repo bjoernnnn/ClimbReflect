@@ -82,6 +82,8 @@ struct AchievementsView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.textTertiary)
                     .monospacedDigit())
+                    .contentTransition(.numericText())
+                    .animation(.snappy, value: unlockedCount)
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -90,6 +92,7 @@ struct AchievementsView: View {
                     Capsule().fill(LinearGradient(colors: [Theme.accent, Theme.accent2],
                                                   startPoint: .leading, endPoint: .trailing))
                         .frame(width: geo.size.width * CGFloat(unlockedCount) / CGFloat(max(1, totalCount)))
+                        .animation(.snappy, value: unlockedCount)
                 }
             }
             .frame(height: 4)
@@ -105,22 +108,8 @@ struct AchievementsView: View {
                 .foregroundStyle(Theme.textPrimary)
             ForEach(inReach) { data in
                 Button { selectedDefinitionID = data.id } label: {
-                    HStack(spacing: 12) {
-                        AchievementMedallion(symbol: data.definition.symbol,
-                                             state: .locked(progress: data.progress?.fraction), size: 46)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(data.definition.title)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Theme.textPrimary)
-                            Text(data.progress?.remainingText ?? "")
-                                .font(.caption)
-                                .foregroundStyle(Theme.textTertiary)
-                                .lineLimit(1)
-                        }
-                        Spacer(minLength: 8)
-                    }
-                    .padding(11)
-                    .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surfaceRaised))
+                    MilestoneRow(achievement: data)
+                        .card()
                 }
                 .buttonStyle(.plain)
             }
@@ -140,6 +129,7 @@ struct AchievementsView: View {
             .padding(.vertical, 2)
         }
         .scrollClipDisabled()
+        .sensoryFeedback(.selection, trigger: selectedCategory)
     }
 
     private func categoryChip(_ category: AchievementCategory?, label: String) -> some View {
@@ -166,5 +156,6 @@ struct AchievementsView: View {
                 .buttonStyle(.plain)
             }
         }
+        .animation(.snappy, value: selectedCategory)
     }
 }
