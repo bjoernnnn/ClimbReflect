@@ -6,14 +6,17 @@ import ActivityKit
 struct ClimbReflectApp: App {
     let container: ModelContainer
 
+    // VT-7: einzige Quelle für das Schema – verhindert, dass Debug-Fallback und
+    // Release-Pfad auseinanderlaufen (der Fallback vergaß zuvor AchievementUnlock).
+    private static let schema = Schema([
+        ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, AchievementUnlock.self
+    ])
+
     init() {
         let config = ModelConfiguration(isStoredInMemoryOnly: false)
 
         do {
-            container = try ModelContainer(
-                for: ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self, AchievementUnlock.self,
-                configurations: config
-            )
+            container = try ModelContainer(for: Self.schema, configurations: config)
         } catch {
             #if DEBUG
             // Im Debug-Build: Store löschen und neu anlegen (schnelle Iteration)
@@ -24,10 +27,7 @@ struct ClimbReflectApp: App {
             try? FileManager.default.removeItem(at: walURL)
             try? FileManager.default.removeItem(at: shmURL)
             do {
-                container = try ModelContainer(
-                    for: ClimbSession.self, Ascent.self, Project.self, ProjectMedia.self,
-                    configurations: config
-                )
+                container = try ModelContainer(for: Self.schema, configurations: config)
             } catch {
                 fatalError("SwiftData-Container konnte auch nach Reset nicht erstellt werden: \(error)")
             }
