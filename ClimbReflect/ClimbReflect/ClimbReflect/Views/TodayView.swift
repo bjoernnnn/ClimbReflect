@@ -15,15 +15,8 @@ struct TodayView: View {
     // EP-10: springt in den Erfolge-Tab (DashboardView liest denselben Key).
     @AppStorage("selectedTabIndex") private var selectedTabIndex = 0
 
-    // FO-12: Bestleistungen kommen aus der ProgressEngine (eine Quelle der Wahrheit,
-    // identisch zum Level-Block im Fortschritt-Tab). Grad bereits in Anzeige-Skala.
-    private var heroBoulder: String? {
-        ProgressEngine.personalBests(sessions, discipline: .boulder).send?.grade
-    }
-
-    private var heroRoute: String? {
-        ProgressEngine.personalBests(sessions, discipline: .rope).send?.grade
-    }
+    // FS-3: LevelHeroCard nur zeigen, wenn es überhaupt eine Klettersession gibt.
+    private var hasClimbingSession: Bool { sessions.contains(where: \.isClimbing) }
 
     // MO-13: Monatsrückblick des Vormonats. Sichtbar nur in den ersten 7 Tagen des
     // Monats, wenn der Vormonat nicht leer ist und die Karte noch nicht quittiert
@@ -53,15 +46,6 @@ struct TodayView: View {
         withAnimation { monthRecapDismissed = true }
     }
 
-    // EP-10: Erfolg mit dem höchsten Fortschritt < 100 % — Goal-Gradient-
-    // Einstieg auf dem Homescreen. Verschwindet automatisch bei 28/28 bzw.
-    // sobald kein gesperrter Erfolg mehr einen Fortschritt trägt.
-    private var nextAchievement: AchievementViewData? {
-        AchievementViewModel.build(sessions: sessions, projects: allProjects, unlocks: unlocks)
-            .filter { !$0.isUnlocked && ($0.progress?.fraction ?? 0) > 0 && ($0.progress?.fraction ?? 0) < 1 }
-            .max { ($0.progress?.fraction ?? 0) < ($1.progress?.fraction ?? 0) }
-    }
-
     // MO-11: jüngste Kletter-Session mit nicht-leerem Vorsatz. Sobald eine neuere
     // Kletter-Session existiert (mit oder ohne eigenen Vorsatz), verschwindet die
     // Karte automatisch.
@@ -89,23 +73,15 @@ struct TodayView: View {
                         MonthRecapCard(recap: recap, onDismiss: dismissMonthRecap)
                     }
 
-                    if heroBoulder != nil || heroRoute != nil {
-                        heroTrophyRow
+                    if hasClimbingSession {
+                        LevelHeroCard(sessions: sessions, projects: allProjects, unlocks: unlocks) { discipline in
+                            UserDefaults.standard.set(discipline.rawValue, forKey: "progressDiscipline")
+                            selectedTabIndex = 1
+                        }
                     }
 
                     if let intentSession {
                         IntentFollowUpCard(session: intentSession)
-                    }
-
-                    statRow
-
-                    if let nextAchievement {
-                        Button {
-                            selectedTabIndex = 3
-                        } label: {
-                            NextAchievementsCard(data: nextAchievement)
-                        }
-                        .buttonStyle(.plain)
                     }
 
                     pinnedProjectsCard
@@ -145,21 +121,6 @@ struct TodayView: View {
         Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
             .font(Theme.Typo.label)
             .foregroundStyle(Theme.textSecondary)
-    }
-
-    private var statRow: some View {
-        // MO-10: Rekord-Streak steht als unverlierbarer Besitz neben dem laufenden
-        // Streak – nach einer Pause liest sich die Kachel als „Rekord: N Wo." statt
-        // als Bestrafung (kein roter Reset, S33). Detail erst ab Rekord ≥ 2.
-        let bestStreak = StatsEngine.bestClimbWeekStreak(sessions)
-        return HStack(spacing: 12) {
-            StatTile(value: "\(sessions.filter(\.isClimbing).count)", label: "Sessions", symbol: "figure.climbing")
-            StatTile(value: "\(StatsEngine.climbWeekStreak(sessions))", label: "Streak", symbol: "flame.fill",
-                     detail: bestStreak >= 2 ? "Rekord: \(bestStreak) Wo." : nil)
-            // Klettersessions wie die Nachbar-Kacheln ("Sessions"/"Streak") – sonst
-            // zählt "Diese Woche" Trainings mit und widerspricht der Zeile
-            StatTile(value: "\(ProgressEngine.sessionsThisWeek(sessions))", label: "Diese Woche", symbol: "calendar")
-        }
     }
 
     @ViewBuilder
@@ -206,52 +167,6 @@ struct TodayView: View {
             }
             .card()
         }
-    }
-
-    private var heroTrophyRow: some View {
-        // fixedSize: beide Karten strecken sich auf die Höhe der höheren
-        HStack(spacing: 12) {
-            heroCard(title: "Bouldern", hero: heroBoulder)
-            heroCard(title: "Klettern", hero: heroRoute)
-        }
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private func heroCard(title: String, hero: String?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "trophy.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(hero != nil ? Theme.gold : Theme.textTertiary)
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.textSecondary)
-            }
-            if let h = hero {
-                Text(h)
-                    .font(.system(size: 30, weight: .black, design: .rounded))
-                    .foregroundStyle(Theme.gold)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            } else {
-                Text("–")
-                    .font(.system(size: 30, weight: .black, design: .rounded))
-                    .foregroundStyle(Theme.textTertiary)
-                Text("Noch kein Top")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.textTertiary)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                .fill(Theme.surface)
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                        .stroke(hero != nil ? Theme.gold.opacity(0.25) : Color.clear, lineWidth: 1)
-                )
-        )
     }
 
     private var recentSessions: some View {
