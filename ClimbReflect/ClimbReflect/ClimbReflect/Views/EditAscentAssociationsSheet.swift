@@ -19,9 +19,23 @@ struct EditAscentAssociationsSheet: View {
     @State private var styleRaw: String? = nil
     @State private var attempts: Int = 1
     @State private var didLoad = false
+    @State private var showDeleteConfirm = false
+
+    // VT-1: Ursprungswerte für Abbrechen-Erkennung
+    @State private var originalSystemRaw: String = GradeSystem.fontainebleau.rawValue
+    @State private var originalGradeRaw: String = Ascent.ungraded
+    @State private var originalResultRaw: String = AscentResult.attempt.rawValue
+    @State private var originalStyleRaw: String? = nil
+    @State private var originalAttempts: Int = 1
 
     private var system: GradeSystem { GradeSystem(rawValue: systemRaw) ?? .fontainebleau }
     private var result: AscentResult { AscentResult(rawValue: resultRaw) ?? .attempt }
+
+    private var hasChanges: Bool {
+        systemRaw != originalSystemRaw || gradeRaw != originalGradeRaw
+            || resultRaw != originalResultRaw || styleRaw != originalStyleRaw
+            || attempts != originalAttempts
+    }
 
     var body: some View {
         NavigationStack {
@@ -104,6 +118,14 @@ struct EditAscentAssociationsSheet: View {
                         }
                         .listRowBackground(Theme.surface)
                     }
+
+                    // VT-1: Begehung löschen
+                    Section {
+                        Button("Begehung löschen", role: .destructive) {
+                            showDeleteConfirm = true
+                        }
+                    }
+                    .listRowBackground(Theme.surface)
                 }
                 .scrollContentBackground(.hidden)
             }
@@ -111,6 +133,9 @@ struct EditAscentAssociationsSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Abbrechen") { dismiss() }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Fertig") { save(); dismiss() }
                         .fontWeight(.semibold)
@@ -118,7 +143,18 @@ struct EditAscentAssociationsSheet: View {
                 }
             }
             .onAppear(perform: loadIfNeeded)
+            .confirmationDialog("Begehung löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+                Button("Löschen", role: .destructive) {
+                    context.delete(ascent)
+                    try? context.save()
+                    dismiss()
+                }
+                Button("Abbrechen", role: .cancel) {}
+            } message: {
+                Text("Die Begehung wird aus Statistik und Projekt entfernt. Freigeschaltete Erfolge bleiben erhalten.")
+            }
         }
+        .interactiveDismissDisabled(hasChanges)
         .preferredColorScheme(.dark)
         .tint(Theme.accent)
     }
@@ -136,6 +172,11 @@ struct EditAscentAssociationsSheet: View {
         resultRaw = ascent.resultRaw
         styleRaw = ascent.styleRaw
         attempts = ascent.attempts
+        originalSystemRaw = systemRaw
+        originalGradeRaw = gradeRaw
+        originalResultRaw = resultRaw
+        originalStyleRaw = styleRaw
+        originalAttempts = attempts
     }
 
     private func save() {

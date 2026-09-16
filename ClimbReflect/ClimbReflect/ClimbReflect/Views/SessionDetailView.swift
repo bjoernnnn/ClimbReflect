@@ -10,7 +10,8 @@ struct SessionDetailView: View {
     @State private var showAddAscent = false
     @State private var showAddTrainingSet = false
     @State private var showLocationEditor = false
-    @State private var editedShoe: Ascent? = nil
+    @State private var editedAscent: Ascent? = nil
+    @State private var pendingDeleteAscent: Ascent? = nil   // VT-1
 
     // ST-2: distinct gymNames aus allen Sessions
     @Query(sort: \ClimbSession.date, order: .reverse) private var allSessions: [ClimbSession]
@@ -507,14 +508,42 @@ struct SessionDetailView: View {
                     ForEach(sorted) { ascent in
                         AscentRowView(ascent: ascent)
                             .contentShape(Rectangle())
-                            .onTapGesture { editedShoe = ascent }
+                            .onTapGesture { editedAscent = ascent }
+                            .contextMenu {
+                                Button {
+                                    editedAscent = ascent
+                                } label: {
+                                    Label("Bearbeiten", systemImage: "pencil")
+                                }
+                                Button(role: .destructive) {
+                                    pendingDeleteAscent = ascent
+                                } label: {
+                                    Label("Löschen", systemImage: "trash")
+                                }
+                            }
                         if ascent.id != sorted.last?.id {
                             Divider().background(Theme.surfaceStroke)
                         }
                     }
                 }
-                .sheet(item: $editedShoe) { ascent in
+                .sheet(item: $editedAscent) { ascent in
                     EditAscentAssociationsSheet(ascent: ascent)
+                }
+                .confirmationDialog(
+                    "Begehung löschen?",
+                    isPresented: Binding(get: { pendingDeleteAscent != nil }, set: { if !$0 { pendingDeleteAscent = nil } }),
+                    titleVisibility: .visible
+                ) {
+                    Button("Löschen", role: .destructive) {
+                        if let ascent = pendingDeleteAscent {
+                            context.delete(ascent)
+                            try? context.save()
+                        }
+                        pendingDeleteAscent = nil
+                    }
+                    Button("Abbrechen", role: .cancel) { pendingDeleteAscent = nil }
+                } message: {
+                    Text("Die Begehung wird aus Statistik und Projekt entfernt. Freigeschaltete Erfolge bleiben erhalten.")
                 }
 
                 let tops = sorted.filter { $0.result == .top }

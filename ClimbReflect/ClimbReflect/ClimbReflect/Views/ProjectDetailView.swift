@@ -22,6 +22,7 @@ struct ProjectDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var showGradeEditor = false   // FB-1
     @State private var editedAscent: Ascent? = nil   // GR-2
+    @State private var pendingDeleteAscent: Ascent? = nil   // VT-1
 
     private var sortedAscents: [Ascent] {
         project.ascents.sorted { $0.date > $1.date }
@@ -447,9 +448,14 @@ struct ProjectDetailView: View {
                             AscentRowView(ascent: ascent)
                                 .contentShape(Rectangle())
                                 .onTapGesture { editedAscent = ascent }   // GR-2: Grad/Ergebnis/Stil korrigierbar
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                .contextMenu {
+                                    Button {
+                                        editedAscent = ascent
+                                    } label: {
+                                        Label("Bearbeiten", systemImage: "pencil")
+                                    }
                                     Button(role: .destructive) {
-                                        deleteAscent(ascent)
+                                        pendingDeleteAscent = ascent
                                     } label: {
                                         Label("Löschen", systemImage: "trash")
                                     }
@@ -467,6 +473,19 @@ struct ProjectDetailView: View {
         .card()
         .sheet(item: $editedAscent) { ascent in
             EditAscentAssociationsSheet(ascent: ascent)
+        }
+        .confirmationDialog(
+            "Begehung löschen?",
+            isPresented: Binding(get: { pendingDeleteAscent != nil }, set: { if !$0 { pendingDeleteAscent = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Löschen", role: .destructive) {
+                if let ascent = pendingDeleteAscent { deleteAscent(ascent) }
+                pendingDeleteAscent = nil
+            }
+            Button("Abbrechen", role: .cancel) { pendingDeleteAscent = nil }
+        } message: {
+            Text("Die Begehung wird aus Statistik und Projekt entfernt. Freigeschaltete Erfolge bleiben erhalten.")
         }
     }
 
