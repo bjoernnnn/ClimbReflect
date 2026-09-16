@@ -64,7 +64,7 @@ struct LevelHeaderView: View {
             // keine Aussage".
             rows.append(FactRow(id: "comfort", icon: "checkmark.seal", iconColor: Theme.textTertiary,
                                 label: "Wohlfühl-Grad",
-                                value: "\(comfortCandidate.grade) · \(comfortCandidate.sample)/\(ProgressEngine.minSampleSize)"))
+                                value: "\(comfortCandidate.grade) · noch \(ProgressEngine.minSampleSize - comfortCandidate.sample)"))
         }
         if let nextGrade {
             rows.append(FactRow(id: "next", icon: "arrow.up.forward", iconColor: Theme.accent,
@@ -77,10 +77,10 @@ struct LevelHeaderView: View {
         return rows
     }
 
-    /// „N Begehungen" bzw. „unversucht" – Kurzform ohne „noch", kein
+    /// „N Begehungen" bzw. „noch nicht versucht" (TX-2). Kein
     /// Fortschrittsbalken (der würde eine Quote suggerieren, S32).
     private var nextGradeShort: String {
-        guard nextGradeTries > 0 else { return "unversucht" }
+        guard nextGradeTries > 0 else { return "noch nicht versucht" }
         return "\(nextGradeTries) Begehung\(nextGradeTries == 1 ? "" : "en")"
     }
 
@@ -124,7 +124,7 @@ struct LevelHeaderView: View {
                 .background(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous).fill(Theme.surfaceRaised))
 
                 if showsComfortCandidateFootnote {
-                    Text("Wohlfühl-Grad ab \(ProgressEngine.minSampleSize) Begehungen je Grad")
+                    Text("Wohlfühl-Grad wird ab \(ProgressEngine.minSampleSize) Begehungen in einem Grad eingeschätzt.")
                         .font(.caption2)
                         .foregroundStyle(Theme.textTertiary)
                         .padding(.horizontal, 4)

@@ -118,10 +118,6 @@ struct AchievementsView: View {
                                 .lineLimit(1)
                         }
                         Spacer(minLength: 8)
-                        Text("\(Int(((data.progress?.fraction ?? 0) * 100).rounded())) %")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(Theme.accent)
-                            .monospacedDigit()
                     }
                     .padding(11)
                     .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surfaceRaised))
