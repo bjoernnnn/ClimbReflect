@@ -126,13 +126,15 @@ struct AttemptLogView: View {
         .padding(.top, 4)
         .background(WatchTheme.bg)
         .onAppear {
-            // FB-2/GR-1: Projekt-Grad vorbelegen. Ohne Projekt/Grad bleibt gradeIndex
-            // nil („–") → der Nutzer muss vor dem Klassifizieren aktiv per Krone einen
-            // Grad wählen (roter Rahmen signalisiert die Pflicht).
-            if workoutManager.selectedProject?.grade != nil {
+            // WT-1/E5: letzte Session-Begehung → Projekt → 0 (S37).
+            if let last = workoutManager.attempts.last(where: { $0.grade != nil && $0.gradeSystem == gradeSystem }),
+               let grade = last.grade,
+               let idx = gradeSystem.grades.firstIndex(of: grade) {
+                gradeIndex = idx
+            } else if workoutManager.selectedProject?.grade != nil {
                 prefillFromProject()
             } else {
-                gradeIndex = nil
+                gradeIndex = 0
             }
             DiagnosticLog.shared.logVerbose("AttemptLogView appear mem=\(MemoryFootprint.residentMB())MB")
         }
