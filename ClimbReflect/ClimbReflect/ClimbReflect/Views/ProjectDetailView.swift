@@ -7,6 +7,8 @@ struct ProjectDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
+    @Query(sort: \ClimbSession.date, order: .reverse) private var allSessions: [ClimbSession]   // VT-8
+
     @State private var editingBetaNotes = false
     @State private var betaNotesDraft = ""
     @State private var selectedPhotos: [PhotosPickerItem] = []
@@ -16,6 +18,31 @@ struct ProjectDetailView: View {
     @State private var showGradeEditor = false   // FB-1
     @State private var editedAscent: Ascent? = nil   // GR-2
     @State private var pendingDeleteAscent: Ascent? = nil   // VT-1
+    @State private var showSessionChoice = false   // VT-8
+    @State private var addAscentSession: ClimbSession? = nil   // VT-8
+    @State private var showNewSessionForProject = false   // VT-8
+
+    // VT-8: Klettersessions der letzten 3 Kalendertage, deren Disziplin zum Projekt passt.
+    private var candidateSessions: [ClimbSession] {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -3, to: Calendar.current.startOfDay(for: .now)) ?? .distantPast
+        let projectIsBoulder = project.gradeSystem?.isBoulder
+        return allSessions
+            .filter { $0.isClimbing && $0.date >= cutoff }
+            .filter { session in
+                guard let projectIsBoulder else { return true }
+                return GradeDefaults.discipline(for: session.sessionType).isBoulder == projectIsBoulder
+            }
+            .sorted { $0.date > $1.date }
+            .prefix(3)
+            .map { $0 }
+    }
+
+    private func relativeDayLabel(_ date: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(date) { return "heute" }
+        if cal.isDateInYesterday(date) { return "gestern" }
+        return date.formatted(.dateTime.weekday(.wide))
+    }
 
     private var sortedAscents: [Ascent] {
         project.ascents.sorted { $0.date > $1.date }
@@ -40,6 +67,9 @@ struct ProjectDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     headerCard
+                    if !project.isAbandoned {
+                        addAscentButton
+                    }
                     betaNotesCard
                     mediaGallery
                     if !ascentsGroupedBySession.isEmpty {
@@ -107,6 +137,21 @@ struct ProjectDetailView: View {
         }
         .onChange(of: selectedPhotos) { _, items in
             Task { await addPhotos(items) }
+        }
+        .confirmationDialog("Zu welcher Session?", isPresented: $showSessionChoice, titleVisibility: .visible) {
+            ForEach(candidateSessions) { session in
+                Button("\(session.sessionType.label) · \(relativeDayLabel(session.date))") {
+                    addAscentSession = session
+                }
+            }
+            Button("Neue Session …") { showNewSessionForProject = true }
+            Button("Abbrechen", role: .cancel) {}
+        }
+        .sheet(item: $addAscentSession) { session in
+            AddAscentView(session: session, preselectedProject: project)
+        }
+        .sheet(isPresented: $showNewSessionForProject) {
+            ManualSessionView(preselectedProject: project)
         }
         .preferredColorScheme(.dark)
     }
@@ -184,6 +229,20 @@ struct ProjectDetailView: View {
             }
         }
         .card()
+    }
+
+    // MARK: - VT-8: Begehung direkt aus dem Projekt
+
+    private var addAscentButton: some View {
+        Button {
+            showSessionChoice = true
+        } label: {
+            Label("Begehung erfassen", systemImage: "plus.circle.fill")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .tint(Theme.accent)
     }
 
     // MARK: - Beta Notes

@@ -5,15 +5,23 @@ struct ManualSessionView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
 
+    var preselectedProject: Project? = nil   // VT-8
+
     @State private var date = Date()
     @State private var durationMinutes = 60
-    @State private var sessionType = SessionType.boulder
+    @State private var sessionType: SessionType
     @State private var gymName = ""
     @State private var outdoor = false
     @State private var outdoorConditions: OutdoorConditions? = nil
     @State private var temperatureC: Double? = nil
     @State private var createdSession: ClimbSession?
     @State private var navigateToDetail = false
+
+    init(preselectedProject: Project? = nil) {
+        self.preselectedProject = preselectedProject
+        let isRopeProject = preselectedProject?.gradeSystem.map { !$0.isBoulder } ?? false
+        _sessionType = State(initialValue: isRopeProject ? .lead : .boulder)
+    }
 
     var body: some View {
         NavigationStack {
@@ -37,7 +45,7 @@ struct ManualSessionView: View {
             }
             .navigationDestination(isPresented: $navigateToDetail) {
                 if let session = createdSession {
-                    SessionDetailView(session: session, onFertig: { dismiss() })
+                    SessionDetailView(session: session, onFertig: { dismiss() }, autoAddAscentProject: preselectedProject)
                 }
             }
         }

@@ -1,13 +1,21 @@
 import SwiftUI
 import SwiftData
 
+// VT-8: sheet(item:) statt Bool-Flag, damit das Projekt gleich mitgegeben werden kann.
+private struct AddAscentRequest: Identifiable {
+    let id = UUID()
+    let project: Project?
+}
+
 struct SessionDetailView: View {
     @Bindable var session: ClimbSession
     var onFertig: (() -> Void)? = nil
+    var autoAddAscentProject: Project? = nil   // VT-8
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
-    @State private var showAddAscent = false
+    @State private var addAscentRequest: AddAscentRequest? = nil
+    @State private var didAutoOpenAddAscent = false   // VT-8
     @State private var showAddTrainingSet = false
     @State private var showLocationEditor = false
     @State private var editedAscent: Ascent? = nil
@@ -95,8 +103,15 @@ struct SessionDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showAddAscent) {
-            AddAscentView(session: session)
+        .sheet(item: $addAscentRequest) { request in
+            AddAscentView(session: session, preselectedProject: request.project)
+        }
+        .task {
+            // VT-8: aus dem Projekt heraus neu angelegte Session → Erfassen-Sheet direkt öffnen.
+            if let project = autoAddAscentProject, !didAutoOpenAddAscent {
+                didAutoOpenAddAscent = true
+                addAscentRequest = AddAscentRequest(project: project)
+            }
         }
         // EP-3: deckt Reflexion-/Ascent-Änderungen ab, die in dieser Ansicht
         // ohne einzelnen Save-Aufruf passieren (Limiter-Toggle, Notizfelder …).
@@ -510,7 +525,7 @@ struct SessionDetailView: View {
                     .foregroundStyle(Theme.textPrimary)
                 Spacer()
                 Button {
-                    showAddAscent = true
+                    addAscentRequest = AddAscentRequest(project: nil)
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.title3)
