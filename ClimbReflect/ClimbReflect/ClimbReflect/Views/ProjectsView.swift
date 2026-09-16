@@ -155,13 +155,13 @@ struct ProjectsView: View {
             HStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(project.isSent ? Theme.accent.opacity(0.15) : Theme.surfaceRaised)
+                        .fill(project.isSent ? Theme.gold.opacity(0.15) : Theme.surfaceRaised)
                         .frame(width: 44, height: 44)
-                    Image(systemName: project.isSent ? "checkmark.circle.fill"
+                    Image(systemName: project.isSent ? "trophy.fill"
                           : project.isAbandoned ? "xmark.circle"
                           : project.isPinned ? "pin.fill" : "target")
                         .font(.title3)
-                        .foregroundStyle(project.isSent ? Theme.accent
+                        .foregroundStyle(project.isSent ? Theme.gold
                                          : project.isAbandoned ? Theme.textTertiary
                                          : project.isPinned ? Theme.gold
                                          : Theme.textSecondary)
@@ -212,6 +212,7 @@ struct ProjectsView: View {
             .padding(14)
             .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surface))
         }
+        .opacity(project.isAbandoned ? 0.6 : 1)
         .buttonStyle(.plain)
         .contextMenu {
             if project.isActive {

@@ -70,6 +70,7 @@ struct ProjectDetailView: View {
                     if !project.isAbandoned {
                         addAscentButton
                     }
+                    ProjectDayTimeline(project: project)
                     betaNotesCard
                     mediaGallery
                     if !ascentsGroupedBySession.isEmpty {
