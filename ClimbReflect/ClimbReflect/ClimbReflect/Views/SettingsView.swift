@@ -54,7 +54,7 @@ struct SettingsView: View {
                                 .foregroundStyle(Theme.textPrimary)
                         }
                     } header: {
-                        Text("Ausrüstung").foregroundStyle(Theme.textTertiary)
+                        Text("Ausrüstung").foregroundStyle(Theme.textSecondary)
                     }
                     .listRowBackground(Theme.surface)
 
@@ -89,7 +89,7 @@ struct SettingsView: View {
                             }
                             .disabled(isImporting)
                         } header: {
-                            Text("Apple Health (optional)").foregroundStyle(Theme.textTertiary)
+                            Text("Apple Health (optional)").foregroundStyle(Theme.textSecondary)
                         } footer: {
                             Text("Importiert Kletter-Workouts aus Apple Health. Die Watch-Aufzeichnung ist die primäre Quelle — dieser Import ist optional.")
                                 .foregroundStyle(Theme.textTertiary)
@@ -115,7 +115,7 @@ struct SettingsView: View {
                         .foregroundStyle(Theme.textPrimary)
                         .tint(Theme.accent)
                     } header: {
-                        Text("Grad-Skala").foregroundStyle(Theme.textTertiary)
+                        Text("Grad-Skala").foregroundStyle(Theme.textSecondary)
                     } footer: {
                         Text("Legt fest, in welcher Skala Grad-Anzeigen erscheinen. Die Originaldaten bleiben unverändert gespeichert.")
                             .foregroundStyle(Theme.textTertiary)
@@ -139,7 +139,7 @@ struct SettingsView: View {
                         .tint(Theme.accent)
                         .disabled(true)
                     } header: {
-                        Text("Animationen").foregroundStyle(Theme.textTertiary)
+                        Text("Animationen").foregroundStyle(Theme.textSecondary)
                     } footer: {
                         Text("Steuert Glow, Partikel und Haptik beim Freischalten von Erfolgen. Die Systemeinstellung ‚Bewegung reduzieren' wird zusätzlich immer respektiert.")
                             .foregroundStyle(Theme.textTertiary)
@@ -172,7 +172,7 @@ struct SettingsView: View {
                             }
                         }
                     } header: {
-                        Text("Meine Daten").foregroundStyle(Theme.textTertiary)
+                        Text("Meine Daten").foregroundStyle(Theme.textSecondary)
                     }
                     .listRowBackground(Theme.surface)
 
@@ -198,7 +198,7 @@ struct SettingsView: View {
                             }
                         }
                     } header: {
-                        Text("Benachrichtigungen").foregroundStyle(Theme.textTertiary)
+                        Text("Benachrichtigungen").foregroundStyle(Theme.textSecondary)
                     } footer: {
                         Text("Sendet 2 Stunden nach einer Session eine Erinnerung, die Reflexion auszufüllen.")
                             .foregroundStyle(Theme.textTertiary)
@@ -217,7 +217,7 @@ struct SettingsView: View {
                         }
                         .padding(.vertical, 4)
                     } header: {
-                        Text("Datenschutz").foregroundStyle(Theme.textTertiary)
+                        Text("Datenschutz").foregroundStyle(Theme.textSecondary)
                     }
                     .listRowBackground(Theme.surface)
 
@@ -250,7 +250,7 @@ struct SettingsView: View {
                         }
                         #endif
                     } header: {
-                        Text("Support & Diagnose").foregroundStyle(Theme.textTertiary)
+                        Text("Support & Diagnose").foregroundStyle(Theme.textSecondary)
                     } footer: {
                         Text("Standardmäßig aus, damit die Uhr im Alltag schlank bleibt. Bei Bedarf hier aktivieren.")
                             .foregroundStyle(Theme.textTertiary)
@@ -277,7 +277,6 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Fertig") { dismiss() }
-                        .foregroundStyle(Theme.accent)
                 }
             }
             .alert("Apple Health", isPresented: .constant(importMessage != nil), presenting: importMessage) { _ in

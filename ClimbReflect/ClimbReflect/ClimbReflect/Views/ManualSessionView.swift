@@ -17,6 +17,7 @@ struct ManualSessionView: View {
     @State private var temperatureC: Double? = nil
     @State private var createdSession: ClimbSession?
     @State private var navigateToDetail = false
+    @State private var gymChipTap = 0
 
     private static let durationPresets = [60, 90, 120, 150, 180]
 
@@ -44,12 +45,10 @@ struct ManualSessionView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }
-                        .foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Weiter") { save() }
                         .fontWeight(.semibold)
-                        .foregroundStyle(Theme.accent)
                 }
             }
             .navigationDestination(isPresented: $navigateToDetail) {
@@ -69,7 +68,7 @@ struct ManualSessionView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
             } header: {
-                Text("Art der Session").foregroundStyle(Theme.textTertiary)
+                Text("Art der Session").foregroundStyle(Theme.textSecondary)
             }
 
             Section {
@@ -78,7 +77,7 @@ struct ManualSessionView: View {
                     .foregroundStyle(Theme.textPrimary)
                     .tint(Theme.accent)
             } header: {
-                Text("Wann?").foregroundStyle(Theme.textTertiary)
+                Text("Wann?").foregroundStyle(Theme.textSecondary)
             }
             .listRowBackground(Theme.surface)
 
@@ -106,13 +105,13 @@ struct ManualSessionView: View {
                             .frame(minHeight: 44)
                             .contentShape(Rectangle())
                             .accessibilityAddTraits(selected ? .isSelected : [])
-                            .sensoryFeedback(.selection, trigger: durationMinutes)
                         }
                     }
                     .padding(.vertical, 4)
                 }
+                .sensoryFeedback(.selection, trigger: durationMinutes)
             } header: {
-                Text("Wie lange?").foregroundStyle(Theme.textTertiary)
+                Text("Wie lange?").foregroundStyle(Theme.textSecondary)
             }
             .listRowBackground(Theme.surface)
 
@@ -130,7 +129,10 @@ struct ManualSessionView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(knownGymNames, id: \.self) { gym in
-                                    Button { gymName = gym } label: {
+                                    Button {
+                                        gymName = gym
+                                        gymChipTap += 1
+                                    } label: {
                                         Text(gym)
                                             .font(.caption.weight(.semibold))
                                             .padding(.horizontal, 12)
@@ -145,11 +147,11 @@ struct ManualSessionView: View {
                             }
                             .padding(.vertical, 4)
                         }
-                        .sensoryFeedback(.selection, trigger: gymName)
+                        .sensoryFeedback(.selection, trigger: gymChipTap)
                     }
                 }
             } header: {
-                Text("Wo?").foregroundStyle(Theme.textTertiary)
+                Text("Wo?").foregroundStyle(Theme.textSecondary)
             }
             .listRowBackground(Theme.surface)
 
@@ -181,7 +183,7 @@ struct ManualSessionView: View {
                         Text("°C").foregroundStyle(Theme.textTertiary)
                     }
                 } header: {
-                    Text("Bedingungen").foregroundStyle(Theme.textTertiary)
+                    Text("Bedingungen").foregroundStyle(Theme.textSecondary)
                 }
                 .listRowBackground(Theme.surface)
             }

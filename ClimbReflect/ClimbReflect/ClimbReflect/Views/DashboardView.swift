@@ -9,7 +9,9 @@ struct DashboardView: View {
 
     // FS-7: Session-Recap nach einer neu empfangenen Watch-Session.
     @AppStorage("pendingRecapSessionID") private var pendingRecapID = ""
-    @Query(sort: \ClimbSession.date, order: .reverse) private var allSessions: [ClimbSession]
+    // PG-10: gezielter Fetch statt @Query auf alle Sessions – jede Datenänderung
+    // hätte sonst den gesamten TabView neu gerendert (Abnahme 4.7).
+    @State private var recapSession: ClimbSession?
 
     // EP-7: nur .full-Erfolge feiern im Vollbild-Overlay; .quiet läuft über
     // den Toast (EP-8). Reihenfolge-Vorrang: Overlay zuerst, Toast danach.
@@ -42,13 +44,9 @@ struct DashboardView: View {
     }
 
     // FS-7: Recap zeigt sich nach allen offenen Erfolgs-Overlays/Toasts, nie gleichzeitig.
-    private var recapSession: ClimbSession? {
-        guard !pendingRecapID.isEmpty, let uuid = UUID(uuidString: pendingRecapID) else { return nil }
-        return allSessions.first { $0.id == uuid }
-    }
-
     private var showRecap: Bool {
-        recapSession != nil && currentUnlock == nil && toastUnlock == nil
+        recapSession != nil && !(recapSession?.ascents.isEmpty ?? true)
+            && currentUnlock == nil && toastUnlock == nil
     }
 
     var body: some View {
@@ -96,8 +94,14 @@ struct DashboardView: View {
             if !unseenFullUnlocks.isEmpty { batchTotal = unseenFullUnlocks.count }
             advanceToastIfNeeded()
         }
+        .task(id: pendingRecapID) {
+            loadRecapSession()
+        }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { advanceToastIfNeeded() }
+            if phase == .active {
+                advanceToastIfNeeded()
+                loadRecapSession()
+            }
         }
         .sheet(isPresented: Binding(
             get: { showRecap },
@@ -107,6 +111,15 @@ struct DashboardView: View {
                 SessionRecapSheet(session: recapSession)
             }
         }
+    }
+
+    private func loadRecapSession() {
+        guard !pendingRecapID.isEmpty, let uuid = UUID(uuidString: pendingRecapID) else {
+            recapSession = nil
+            return
+        }
+        let descriptor = FetchDescriptor<ClimbSession>(predicate: #Predicate { $0.id == uuid })
+        recapSession = try? context.fetch(descriptor).first
     }
 
     private func markSeen(_ unlock: AchievementUnlock) {

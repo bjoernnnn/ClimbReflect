@@ -23,6 +23,9 @@ enum ProgressEngine {
         var id: String { rawValue }
 
         var isBoulder: Bool { self == .boulder }
+        // PG-3: einheitliche Disziplin-Bezeichnung – „Boulder"/„Seil", nicht zu
+        // verwechseln mit SessionType.label („Bouldern" für den Session-Typ).
+        var label: String { isBoulder ? "Boulder" : "Seil" }
 
         /// Boulder: Fb/V · Seil: French/UIAA
         func matches(_ ascent: Ascent) -> Bool {

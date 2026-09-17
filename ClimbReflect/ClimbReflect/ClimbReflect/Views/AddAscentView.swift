@@ -27,7 +27,7 @@ struct AddAscentView: View {
     @State private var selectedShoe: Shoe? = nil
     @State private var showDetails = false
     @State private var lastSavedFeedback: String? = nil
-    @State private var savedCount = 0   // HM-1: Trigger für .sensoryFeedback(.success)
+    @State private var feedbackID = 0   // PG-4: robuster Feedback-Timer statt loser Task
 
     @Query(sort: \Shoe.startYear, order: .reverse) private var allShoes: [Shoe]
     private var activeShoes: [Shoe] { allShoes.filter { !$0.isRetired } }
@@ -93,13 +93,6 @@ struct AddAscentView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }
-                        .foregroundStyle(Theme.textSecondary)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Sichern") { save(keepOpen: false) }
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Theme.accent)
-                        .disabled(outcome == nil || isSaving)
                 }
             }
             .safeAreaInset(edge: .bottom) { bottomBar }
@@ -110,9 +103,13 @@ struct AddAscentView: View {
             }
         }
         .tint(Theme.accent)
-        .sensoryFeedback(.success, trigger: savedCount)
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(outcome != nil)
+        .task(id: feedbackID) {
+            guard feedbackID > 0 else { return }
+            try? await Task.sleep(for: .seconds(2))
+            lastSavedFeedback = nil
+        }
         .onAppear {
             // VT-4/E4: Projekt → letzte Begehung der Session → letzte Begehung der
             // Disziplin → niedrigster Grad (S37 – kein plausibel wirkender Default).
@@ -139,9 +136,6 @@ struct AddAscentView: View {
                 .foregroundStyle(Theme.textPrimary)
                 .contentTransition(.interpolate)
                 .animation(.snappy, value: selectedGrade)
-            Text(gradeSystem.label)
-                .font(.caption)
-                .foregroundStyle(Theme.textTertiary)
             GradeRuler(grades: gradeSystem.grades, selection: $selectedGrade)
                 .onChange(of: gradeSystem) { _, new in
                     if !new.grades.contains(selectedGrade) {
@@ -150,9 +144,6 @@ struct AddAscentView: View {
                 }
             if !recentGrades.isEmpty {
                 HStack(spacing: 6) {
-                    Text("Zuletzt:")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textTertiary)
                     ForEach(recentGrades, id: \.self) { grade in
                         Button {
                             withAnimation(.snappy) { selectedGrade = grade }
@@ -165,8 +156,11 @@ struct AddAscentView: View {
                                 .foregroundStyle(Theme.textSecondary)
                         }
                         .buttonStyle(.plain)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
                 }
+                .frame(maxWidth: .infinity)
             }
         }
     }
@@ -217,30 +211,47 @@ struct AddAscentView: View {
     @ViewBuilder
     private var detailsContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Picker("Grad-System", selection: $gradeSystem) {
-                ForEach(GradeSystem.allCases) { s in
-                    Text(s.label).tag(s)
+            LabeledContent("Grad-System") {
+                Picker("Grad-System", selection: $gradeSystem) {
+                    ForEach(GradeSystem.allCases) { s in
+                        Text(s.label).tag(s)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
-            .pickerStyle(.menu)
             .foregroundStyle(Theme.textPrimary)
 
-            Picker("Ergebnis", selection: resultBinding) {
-                ForEach(AscentResult.allCases) { r in
-                    Label(r.label, systemImage: r.symbol).tag(r)
+            Divider().overlay(Theme.separator)
+
+            LabeledContent("Ergebnis") {
+                Picker("Ergebnis", selection: resultBinding) {
+                    ForEach(AscentResult.allCases) { r in
+                        Label(r.label, systemImage: r.symbol).tag(r)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
             .foregroundStyle(Theme.textPrimary)
 
             if resultBinding.wrappedValue == .top {
-                Picker("Stil", selection: styleBinding) {
-                    Text("—").tag(AscentStyle?.none)
-                    ForEach(AscentStyle.allCases) { s in
-                        Label(s.label, systemImage: s.symbol).tag(AscentStyle?.some(s))
+                Divider().overlay(Theme.separator)
+
+                LabeledContent("Stil") {
+                    Picker("Stil", selection: styleBinding) {
+                        Text("—").tag(AscentStyle?.none)
+                        ForEach(AscentStyle.allCases) { s in
+                            Label(s.label, systemImage: s.symbol).tag(AscentStyle?.some(s))
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
                 }
                 .foregroundStyle(Theme.textPrimary)
             }
+
+            Divider().overlay(Theme.separator)
 
             Stepper("Versuche: \(attempts)", value: $attempts, in: 1...999)
                 .foregroundStyle(Theme.textPrimary)
@@ -256,13 +267,18 @@ struct AddAscentView: View {
                 .foregroundStyle(Theme.textPrimary)
 
             if !activeShoes.isEmpty {
-                Picker("Schuh", selection: $selectedShoe) {
-                    Text("Kein Schuh").tag(Shoe?.none)
-                    ForEach(activeShoes) { s in
-                        Text(s.name).tag(Shoe?.some(s))
+                Divider().overlay(Theme.separator)
+
+                LabeledContent("Schuh") {
+                    Picker("Schuh", selection: $selectedShoe) {
+                        Text("Kein Schuh").tag(Shoe?.none)
+                        ForEach(activeShoes) { s in
+                            Text(s.name).tag(Shoe?.some(s))
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
                 }
-                .pickerStyle(.menu)
                 .foregroundStyle(Theme.textPrimary)
             }
 
@@ -360,29 +376,43 @@ struct AddAscentView: View {
 
     private var bottomBar: some View {
         VStack(spacing: 8) {
-            if let lastSavedFeedback {
-                HStack {
-                    Label(lastSavedFeedback, systemImage: "checkmark.circle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
-                    Spacer()
-                    Text("\(session.ascents.count) in dieser Session")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textTertiary)
-                        .contentTransition(.numericText())
+            feedbackLine
+            HStack(spacing: 10) {
+                Button { save(keepOpen: true) } label: {
+                    Text("Nächste").frame(maxWidth: .infinity)
                 }
-                .transition(.opacity)
-            }
-            Button("Sichern & nächste") { save(keepOpen: true) }
                 .buttonStyle(.bordered)
-                .frame(maxWidth: .infinity)
-                .controlSize(.large)
-                .disabled(outcome == nil || isSaving)
+
+                Button { save(keepOpen: false) } label: {
+                    Text("Sichern").fontWeight(.semibold).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .controlSize(.large)
+            .disabled(outcome == nil || isSaving)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.bar)
         .animation(.snappy, value: lastSavedFeedback)
+    }
+
+    @ViewBuilder
+    private var feedbackLine: some View {
+        if let lastSavedFeedback {
+            HStack {
+                Label(lastSavedFeedback, systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.accent)
+                Spacer()
+                let n = session.ascents.count
+                Text("\(n) Begehung\(n == 1 ? "" : "en") in dieser Session")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                    .contentTransition(.numericText())
+            }
+            .transition(.opacity)
+        }
     }
 
     // MARK: - Speichern
@@ -417,16 +447,13 @@ struct AddAscentView: View {
         AchievementService.shared.checkNow(context: context)   // EP-3
 
         // VT-3/HM-1: Ein Feier-Kanal (S33) – AchievementUnlockOverlay übernimmt
-        // PB/Erst-Top/Projekt-Top; hier nur die Speicher-Bestätigung.
-        savedCount += 1
-
+        // PB/Erst-Top/Projekt-Top. Die Speicher-Haptik sitzt in SessionDetailView
+        // an session.ascents.count (E23, KR-3) statt hier an einer sich
+        // schließenden View.
         guard keepOpen else { dismiss(); return }
 
         lastSavedFeedback = "\(selectedGrade) · \(outcome.label) gesichert"
-        Task {
-            try? await Task.sleep(for: .seconds(2))
-            lastSavedFeedback = nil
-        }
+        feedbackID += 1
         // Grad, System, Projekt, Schuh, Set bleiben für die nächste Begehung erhalten.
         self.outcome = nil
         note = ""

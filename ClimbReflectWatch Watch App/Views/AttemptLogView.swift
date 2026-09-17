@@ -137,15 +137,13 @@ struct AttemptLogView: View {
         .padding(.top, 4)
         .background(WatchTheme.bg)
         .onAppear {
-            // WT-1/E5: letzte Session-Begehung → Projekt → 0 (S37).
+            // E5′: letzte Session-Begehung → Projekt → nil (Grad-Pflicht, 039e0d9).
             if let last = workoutManager.attempts.last(where: { $0.grade != nil && $0.gradeSystem == gradeSystem }),
                let grade = last.grade,
                let idx = gradeSystem.grades.firstIndex(of: grade) {
                 gradeIndex = idx
             } else if workoutManager.selectedProject?.grade != nil {
                 prefillFromProject()
-            } else {
-                gradeIndex = 0
             }
             DiagnosticLog.shared.logVerbose("AttemptLogView appear mem=\(MemoryFootprint.residentMB())MB")
         }

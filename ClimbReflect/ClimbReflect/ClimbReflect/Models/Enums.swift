@@ -100,8 +100,8 @@ enum AscentResult: String, Codable, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .top:     Theme.accent
-        case .attempt: Theme.gold
-        case .quit:    Theme.danger
+        case .attempt: Theme.textSecondary
+        case .quit:    Theme.textTertiary
         }
     }
 }

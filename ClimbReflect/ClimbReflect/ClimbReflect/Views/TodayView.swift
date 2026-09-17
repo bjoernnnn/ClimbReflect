@@ -85,7 +85,10 @@ struct TodayView: View {
                         IntentFollowUpCard(session: intentSession)
                     }
 
-                    pinnedProjectsCard
+                    if hasPinnedProjects {
+                        SectionHeader("Angepinnt")
+                        pinnedProjectsCard
+                    }
 
                     recentSessions
                 }
@@ -118,11 +121,21 @@ struct TodayView: View {
 
     // MARK: - Sections
 
+    // PG-7: aus LevelHeroCard entfernte Streak-Zeile lebt hier weiter – nur ab
+    // Streak ≥ 2, ohne Rekord (der gehört nicht auf Heute).
+    private var streak: Int { StatsEngine.climbWeekStreak(sessions) }
+
     // DZ-4: Large Title trägt den Markennamen; hier nur noch das Datum.
     private var dateLine: some View {
-        Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+        let date = Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide))
+        let text = streak >= 2 ? "\(date) · \(streak) Wochen in Folge" : date
+        return Text(text)
             .font(Theme.Typo.label)
             .foregroundStyle(Theme.textSecondary)
+    }
+
+    private var hasPinnedProjects: Bool {
+        allProjects.contains { $0.isPinned && $0.isActive }
     }
 
     @ViewBuilder
@@ -130,19 +143,11 @@ struct TodayView: View {
         let pinned = allProjects.filter { $0.isPinned && $0.isActive }
         if !pinned.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                Label("Angepinnte Projekte", systemImage: "pin.fill")
-                    .font(.headline)
-                    .foregroundStyle(Theme.textPrimary)
                 ForEach(pinned) { project in
                     // VT-6: tappbar statt totem Text; keine attempts-Anzeige (S32).
                     NavigationLink(destination: ProjectDetailView(project: project)) {
                         HStack(spacing: 12) {
-                            ZStack {
-                                Circle().fill(Theme.gold.opacity(0.12)).frame(width: 36, height: 36)
-                                Image(systemName: "target")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Theme.gold)
-                            }
+                            IconTile(symbol: "target", tint: Theme.accent, size: 40)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(project.name)
                                     .font(.subheadline.weight(.semibold))
@@ -164,7 +169,7 @@ struct TodayView: View {
                                 .foregroundStyle(Theme.textTertiary)
                         }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.card)
                 }
             }
             .card()
@@ -183,11 +188,7 @@ struct TodayView: View {
                         .buttonStyle(.bordered)
                 }
             } else {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Letzte Sessions")
-                        .font(.headline)
-                        .foregroundStyle(Theme.textPrimary)
-                    Spacer()
+                SectionHeader(title: "Letzte Sessions") {
                     NavigationLink(destination: AllSessionsView()) {
                         Text("Alle")
                             .font(.subheadline.weight(.semibold))
@@ -198,7 +199,7 @@ struct TodayView: View {
                     NavigationLink(destination: SessionDetailView(session: session)) {
                         SessionRow(session: session)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.card)
                     .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                 }
             }

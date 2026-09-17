@@ -50,7 +50,7 @@ struct SessionTimeDonut: View {
 
     private func legendRow(color: Color, label: String, minutes: Int) -> some View {
         HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: Theme.Radius.small)
+            RoundedRectangle.theme(Theme.Radius.small)
                 .fill(color)
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 1) {

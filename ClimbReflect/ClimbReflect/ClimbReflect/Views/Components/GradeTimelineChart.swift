@@ -9,6 +9,14 @@ struct GradeTimelineChart: View {
     let points: [ProgressEngine.TimelinePoint]
     let discipline: ProgressEngine.Discipline
 
+    // PG-9: Scrubbing – Finger über die Kurve zieht Monat/Grad in einer Blase hoch.
+    @State private var selectedMonth: Date?
+
+    private var nearestPoint: ProgressEngine.TimelinePoint? {
+        guard let selectedMonth else { return nil }
+        return points.min { abs($0.month.timeIntervalSince(selectedMonth)) < abs($1.month.timeIntervalSince(selectedMonth)) }
+    }
+
     /// Ein Punkt der Linie mit Segment-Zuordnung (Segmentwechsel = Monatslücke).
     private struct Seg: Identifiable {
         let id: Int          // laufender Index (eindeutig für ForEach)
@@ -70,6 +78,7 @@ struct GradeTimelineChart: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Grad-Verlauf")
                 .font(.headline).foregroundStyle(Theme.textPrimary)
+                .opacity(selectedMonth == nil ? 1 : 0)
 
             if points.count < 2 {
                 Text("Ab zwei Monaten mit Tops erscheint hier dein Verlauf.")
@@ -119,7 +128,17 @@ struct GradeTimelineChart: View {
                     .foregroundStyle(Theme.gold)
                     .symbolSize(40)
             }
+            if let p = nearestPoint {
+                RuleMark(x: .value("Monat", p.month, unit: .month))
+                    .foregroundStyle(Theme.separator)
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+                    .annotation(position: .top, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                        annotationBubble(for: p)
+                    }
+            }
         }
+        .chartXSelection(value: $selectedMonth)
+        .sensoryFeedback(.selection, trigger: nearestPoint?.month)
         .chartYAxis {
             AxisMarks(values: yTicks) { value in
                 AxisGridLine().foregroundStyle(Theme.separator)
@@ -138,6 +157,23 @@ struct GradeTimelineChart: View {
             }
         }
         .frame(height: 140)
+    }
+
+    @ViewBuilder
+    private func annotationBubble(for p: ProgressEngine.TimelinePoint) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(p.month.formatted(.dateTime.month(.wide)))
+                .font(.caption2).foregroundStyle(Theme.textSecondary)
+            if let sendOrder = p.sendOrder {
+                Text("Top \(ProgressEngine.gradeLabel(forOrder: sendOrder, discipline: discipline))")
+                    .font(.caption.weight(.semibold)).foregroundStyle(Theme.textPrimary)
+            }
+            if let flashOrder = p.flashOrder {
+                Text("Flash \(ProgressEngine.gradeLabel(forOrder: flashOrder, discipline: discipline))")
+                    .font(.caption2).foregroundStyle(Theme.accent)
+            }
+        }
+        .inset()
     }
 
     private var legend: some View {

@@ -18,44 +18,38 @@ struct FortschrittView: View {
         Binding(get: { discipline }, set: { disciplineRaw = $0.rawValue })
     }
 
-    private var bests: (send: ProgressEngine.PersonalBest?, flash: ProgressEngine.PersonalBest?) {
-        ProgressEngine.personalBests(sessions, discipline: discipline)
-    }
+    // PG-10: alle abgeleiteten Werte einmal pro Render berechnen statt in
+    // Computed Properties, die bei jedem Zugriff erneut über die Engine laufen
+    // (Abnahme 4.7).
+    private struct Snapshot {
+        let bests: (send: ProgressEngine.PersonalBest?, flash: ProgressEngine.PersonalBest?)
+        let comfortGrade: String?
+        let milestones: [ProgressEngine.Milestone]
+        let highlights: ProgressEngine.Highlights
+        let timeline: [ProgressEngine.TimelinePoint]
+        let pyramid: [ProgressEngine.PyramidRow]
+        let monthlyDays: [(month: Date, days: Int)]
+        let totals: (sends: Int, climbDays: Int)
+        let mostCommonLimiter: Limiter?
+        let hasData: Bool
+        let celebratesSend: Bool
 
-    private var comfortGrade: String? {
-        ProgressEngine.comfortGrade(sessions, discipline: discipline, monthsBack: period.monthsBack)
-    }
-
-    // FS-5: Nächste Stufe + Wohlfühl-Grad-Kandidat aus der gemeinsamen Meilenstein-Engine.
-    private var milestones: [ProgressEngine.Milestone] {
-        ProgressEngine.milestones(sessions, discipline: discipline, monthsBack: period.monthsBack)
-    }
-
-    private var highlights: ProgressEngine.Highlights {
-        ProgressEngine.periodHighlights(sessions, discipline: discipline, monthsBack: period.monthsBack)
-    }
-
-    // DS-2: bei „Alles" ist isAllTimeBest trivial immer wahr (Zeitraum ==
-    // Gesamthistorie) — die Feier gilt nur für einen echten Zeitraum-Fund
-    // (Konsens-Punkt 2, wie zuvor bei den Erst-Send-Chips).
-    private var celebratesSend: Bool {
-        period != .all && highlights.isAllTimeBest && highlights.hardestSend != nil
-    }
-
-    private var timeline: [ProgressEngine.TimelinePoint] {
-        ProgressEngine.gradeTimeline(sessions, discipline: discipline, monthsBack: period.monthsBack)
-    }
-
-    private var pyramidRows: [ProgressEngine.PyramidRow] {
-        ProgressEngine.pyramid(sessions, discipline: discipline, monthsBack: period.monthsBack)
-    }
-
-    private var monthlyDays: [(month: Date, days: Int)] {
-        ProgressEngine.climbDaysPerMonth(sessions, discipline: discipline, monthsBack: 6)
-    }
-
-    private var totals: (sends: Int, climbDays: Int) {
-        ProgressEngine.periodTotals(sessions, discipline: discipline, monthsBack: period.monthsBack)
+        init(sessions: [ClimbSession], discipline: ProgressEngine.Discipline, period: ProgressPeriod) {
+            bests = ProgressEngine.personalBests(sessions, discipline: discipline)
+            comfortGrade = ProgressEngine.comfortGrade(sessions, discipline: discipline, monthsBack: period.monthsBack)
+            milestones = ProgressEngine.milestones(sessions, discipline: discipline, monthsBack: period.monthsBack)
+            highlights = ProgressEngine.periodHighlights(sessions, discipline: discipline, monthsBack: period.monthsBack)
+            timeline = ProgressEngine.gradeTimeline(sessions, discipline: discipline, monthsBack: period.monthsBack)
+            pyramid = ProgressEngine.pyramid(sessions, discipline: discipline, monthsBack: period.monthsBack)
+            monthlyDays = ProgressEngine.climbDaysPerMonth(sessions, discipline: discipline, monthsBack: 6)
+            totals = ProgressEngine.periodTotals(sessions, discipline: discipline, monthsBack: period.monthsBack)
+            mostCommonLimiter = ProgressEngine.limiterCounts(sessions, monthsBack: period.monthsBack).first?.limiter
+            hasData = sessions.contains { s in s.ascents.contains { discipline.matches($0) } }
+            // DS-2: bei „Alles" ist isAllTimeBest trivial immer wahr (Zeitraum ==
+            // Gesamthistorie) — die Feier gilt nur für einen echten Zeitraum-Fund
+            // (Konsens-Punkt 2, wie zuvor bei den Erst-Send-Chips).
+            celebratesSend = period != .all && highlights.isAllTimeBest && highlights.hardestSend != nil
+        }
     }
 
     // MO-12: „Damals"-Rückblick (disziplin-übergreifend, deterministisch pro Woche).
@@ -75,15 +69,6 @@ struct FortschrittView: View {
         return recap.isEmpty ? nil : recap
     }
 
-    private var mostCommonLimiter: Limiter? {
-        ProgressEngine.limiterCounts(sessions, monthsBack: period.monthsBack).first?.limiter
-    }
-
-    /// Für die Empty-State-Entscheidung: gibt es überhaupt Begehungen der Disziplin?
-    private var hasData: Bool {
-        sessions.contains { s in s.ascents.contains { discipline.matches($0) } }
-    }
-
     var body: some View {
         ZStack {
             AppBackground()
@@ -94,6 +79,7 @@ struct FortschrittView: View {
     }
 
     @ViewBuilder private var content: some View {
+        let s = Snapshot(sessions: sessions, discipline: discipline, period: period)
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // DZ-5: zwei volle Segmented-Control-Zeilen statt einer Pill-Zeile
@@ -101,27 +87,27 @@ struct FortschrittView: View {
                 // dem Nav-Titel.
                 VStack(spacing: 10) {
                     ProgressDisciplinePicker(discipline: disciplineBinding)
-                    if hasData {
+                    if s.hasData {
                         ProgressPeriodPicker(selection: $period)
                     }
                 }
 
-                if hasData {
-                    sectionHeader("Wo stehe ich?")
-                    LevelHeaderView(send: bests.send, flash: bests.flash,
-                                    comfortGrade: comfortGrade, discipline: discipline,
-                                    milestones: milestones,
-                                    celebratesSend: celebratesSend,
-                                    firstSends: highlights.firstSends)
+                if s.hasData {
+                    SectionHeader("Wo stehe ich?")
+                    LevelHeaderView(send: s.bests.send, flash: s.bests.flash,
+                                    comfortGrade: s.comfortGrade, discipline: discipline,
+                                    milestones: s.milestones,
+                                    celebratesSend: s.celebratesSend,
+                                    firstSends: s.highlights.firstSends)
 
-                    sectionHeader("Werde ich besser?")
-                    GradeTimelineChart(points: timeline, discipline: discipline)
-                    PyramidChart(rows: pyramidRows)
+                    SectionHeader("Werde ich besser?")
+                    GradeTimelineChart(points: s.timeline, discipline: discipline)
+                    PyramidChart(rows: s.pyramid)
 
-                    sectionHeader("Trägt die Basis?")
-                    ClimbDaysCard(monthlyDays: monthlyDays, sends: totals.sends,
-                                  climbDays: totals.climbDays, discipline: discipline)
-                    styleLink
+                    SectionHeader("Trägt die Basis?")
+                    ClimbDaysCard(monthlyDays: s.monthlyDays, sends: s.totals.sends,
+                                  climbDays: s.totals.climbDays, discipline: discipline)
+                    styleLink(mostCommonLimiter: s.mostCommonLimiter)
                     if let previousMonthRecap {
                         MonthRecapCard(recap: previousMonthRecap)
                     }
@@ -136,20 +122,12 @@ struct FortschrittView: View {
             .padding(.horizontal, 20)
             .padding(.top, 8)
             .padding(.bottom, 40)
-            .animation(.snappy, value: disciplineRaw)
-            .animation(.snappy, value: period)
             .sensoryFeedback(.selection, trigger: disciplineRaw)
             .sensoryFeedback(.selection, trigger: period)
         }
     }
 
-    private func sectionHeader(_ text: String) -> some View {
-        Text(text)
-            .font(Theme.Typo.section)
-            .foregroundStyle(Theme.textPrimary)
-    }
-
-    private var styleLink: some View {
+    private func styleLink(mostCommonLimiter: Limiter?) -> some View {
         NavigationLink {
             StyleProfileView(discipline: discipline, monthsBack: period.monthsBack)
         } label: {
@@ -172,16 +150,16 @@ struct FortschrittView: View {
                     .foregroundStyle(Theme.textTertiary)
             }
             .padding(16)
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surfaceRaised))
+            .background(RoundedRectangle.theme(Theme.Radius.medium).fill(Theme.surfaceRaised))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.card)
     }
 
     private var emptyState: some View {
         ContentUnavailableView {
             Label("Noch kein Fortschritt", systemImage: "chart.line.uptrend.xyaxis")
         } description: {
-            Text("Sobald du \(discipline == .boulder ? "Boulder" : "Seil")-Begehungen erfasst, siehst du hier, wo du stehst.")
+            Text("Sobald du \(discipline.label)-Begehungen erfasst, siehst du hier, wo du stehst.")
         }
         .padding(.top, 40)
     }

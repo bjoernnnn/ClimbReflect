@@ -10,7 +10,6 @@ struct SessionRecapSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \ClimbSession.date, order: .reverse) private var allSessions: [ClimbSession]
     @Query private var allUnlocks: [AchievementUnlock]
-    @State private var detent: PresentationDetent = .medium
     @State private var navigateToDetail = false
 
     private var recap: ProgressEngine.SessionRecap {
@@ -26,17 +25,17 @@ struct SessionRecapSheet: View {
         return Array(ProgressEngine.milestones(allSessions, discipline: discipline).prefix(2))
     }
 
-    private var headline: (text: String, gold: Bool) {
+    private var headline: (eyebrow: String, text: String, gold: Bool) {
         if let project = recap.projectsCompleted.first {
-            return ("\(project) geschafft", true)
+            return ("Projekt geschafft", project, true)
         }
         if let firstTop = recap.firstTopGrades.first {
-            return ("Erster Top in \(firstTop)", true)
+            return ("Erster Top", firstTop, true)
         }
         if let hardest = recap.hardestTop {
-            return (hardest, false)
+            return ("Härtester Top", hardest, false)
         }
-        return ("\(recap.ascents) Begehung\(recap.ascents == 1 ? "" : "en")", false)
+        return ("Session", "\(recap.ascents) Begehung\(recap.ascents == 1 ? "" : "en")", false)
     }
 
     /// Erst-Tops ab dem zweiten – der erste steckt ggf. schon in der Hauptaussage.
@@ -66,16 +65,16 @@ struct SessionRecapSheet: View {
             .background(Theme.bg)
             .safeAreaInset(edge: .bottom) { buttons }
             .navigationDestination(isPresented: $navigateToDetail) {
-                SessionDetailView(session: session)
+                SessionDetailView(session: session, focusReflection: true, showsRecapAction: false)
             }
         }
-        .presentationDetents([.medium, .large], selection: $detent)
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .accessibilityElement(children: .contain)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 20) {
             HStack(spacing: 6) {
                 Image(systemName: session.sessionType.symbol)
                     .foregroundStyle(Theme.accent)
@@ -83,14 +82,21 @@ struct SessionRecapSheet: View {
                     .font(.subheadline)
                     .foregroundStyle(Theme.textSecondary)
             }
-            Text(headline.text)
-                .font(Theme.Typo.metricHero)
-                .foregroundStyle(headline.gold ? Theme.gold : Theme.textPrimary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(headline.eyebrow)
+                    .font(Theme.Typo.label)
+                    .foregroundStyle(Theme.textSecondary)
+                Text(headline.text)
+                    .font(Theme.Typo.metricHero)
+                    .foregroundStyle(headline.gold ? Theme.gold : Theme.textPrimary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+            }
         }
     }
 
     private var statsLine: some View {
-        Text("\(recap.tops) Top\(recap.tops == 1 ? "" : "s") · \(recap.ascents) Begehung\(recap.ascents == 1 ? "" : "en") · \(session.durationMinutes) Min")
+        Text("\(recap.tops) Top\(recap.tops == 1 ? "" : "s") · \(recap.ascents) Begehung\(recap.ascents == 1 ? "" : "en") · \(session.durationText)")
             .font(.subheadline)
             .foregroundStyle(Theme.textSecondary)
     }
@@ -112,9 +118,7 @@ struct SessionRecapSheet: View {
 
     private var unlockedSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Freigeschaltet")
-                .font(Theme.Typo.section)
-                .foregroundStyle(Theme.textPrimary)
+            SectionHeader("Freigeschaltet")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(sessionUnlocks, id: \.id) { unlock in
@@ -137,9 +141,7 @@ struct SessionRecapSheet: View {
 
     private var nextSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Als Nächstes")
-                .font(Theme.Typo.section)
-                .foregroundStyle(Theme.textPrimary)
+            SectionHeader("Als Nächstes")
             VStack(spacing: 10) {
                 ForEach(Array(milestones.enumerated()), id: \.offset) { index, milestone in
                     MilestoneRow(milestone)
@@ -156,7 +158,6 @@ struct SessionRecapSheet: View {
     private var buttons: some View {
         VStack(spacing: 10) {
             Button("Kurz reflektieren") {
-                detent = .large
                 navigateToDetail = true
             }
             .buttonStyle(.borderedProminent)
@@ -164,12 +165,12 @@ struct SessionRecapSheet: View {
             .controlSize(.large)
 
             Button("Später") { dismiss() }
-                .buttonStyle(.bordered)
-                .frame(maxWidth: .infinity)
-                .controlSize(.large)
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.textSecondary)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
         .background(.bar)
     }
 }

@@ -39,10 +39,10 @@ struct LiveSessionBanner: View {
             Button("Abbrechen", role: .cancel) {}
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surface))
+        .background(RoundedRectangle.theme(Theme.Radius.medium).fill(Theme.surface))
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                .stroke(status.isPaused ? Theme.gold.opacity(0.25) : Theme.accent.opacity(0.25), lineWidth: 1)
+            RoundedRectangle.theme(Theme.Radius.medium)
+                .stroke(status.isPaused ? Theme.textSecondary.opacity(0.25) : Theme.accent.opacity(0.25), lineWidth: 1)
         )
     }
 
@@ -50,11 +50,11 @@ struct LiveSessionBanner: View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(status.isPaused ? Theme.gold.opacity(0.15) : Theme.accent.opacity(0.15))
+                    .fill(status.isPaused ? Theme.textSecondary.opacity(0.15) : Theme.accent.opacity(0.15))
                     .frame(width: 40, height: 40)
                 Image(systemName: status.isPaused ? "pause.fill" : "applewatch")
                     .font(.title3)
-                    .foregroundStyle(status.isPaused ? Theme.gold : Theme.accent)
+                    .foregroundStyle(status.isPaused ? Theme.textSecondary : Theme.accent)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -65,7 +65,7 @@ struct LiveSessionBanner: View {
                 if status.isPaused {
                     Text(status.elapsedFormatted)
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(Theme.gold)
+                        .foregroundStyle(Theme.textSecondary)
                 } else {
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         Text(liveElapsedFormatted())

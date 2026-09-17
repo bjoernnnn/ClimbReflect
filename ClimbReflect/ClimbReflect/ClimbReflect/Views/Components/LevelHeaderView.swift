@@ -132,10 +132,10 @@ struct LevelHeaderView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.medium)
+            RoundedRectangle.theme(Theme.Radius.medium)
                 .fill(Theme.surfaceRaised)
                 .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                    RoundedRectangle.theme(Theme.Radius.medium)
                         .stroke(celebrates ? Theme.gold.opacity(0.35) : Color.clear, lineWidth: 1)
                 )
         )

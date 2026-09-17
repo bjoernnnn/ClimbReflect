@@ -405,4 +405,101 @@ final class ProgressEngineTests: XCTestCase {
         let b = session([ascent(.fontainebleau, "6A", day: 0)], day: 0)
         XCTAssertFalse(ProgressEngine.monthRecap([b], month: date(0)).isEmpty)
     }
+
+    // MARK: - milestones (FS-1)
+
+    func testMilestones_noAscents_empty() {
+        let s = session([])
+        let m = ProgressEngine.milestones([s], discipline: .boulder, monthsBack: nil, now: date(0))
+        XCTAssertTrue(m.isEmpty)
+    }
+
+    func testMilestones_nextGradeUnattempted() {
+        let s = session([ascent(.fontainebleau, "7A", day: 0)])
+        let m = ProgressEngine.milestones([s], discipline: .boulder, monthsBack: nil, now: date(0))
+        let next = m.first { $0.kind == .nextGrade }
+        XCTAssertEqual(next?.value, "7A+")
+        XCTAssertEqual(next?.detail, "noch nicht versucht")
+    }
+
+    func testMilestones_nextGradeWithTwoFailedAttempts() {
+        let s = session([
+            ascent(.fontainebleau, "7A", day: 0),
+            ascent(.fontainebleau, "7A+", result: .attempt, day: 0),
+            ascent(.fontainebleau, "7A+", result: .attempt, day: 0)
+        ])
+        let m = ProgressEngine.milestones([s], discipline: .boulder, monthsBack: nil, now: date(0))
+        let next = m.first { $0.kind == .nextGrade }
+        XCTAssertEqual(next?.detail, "2 Begehungen")
+    }
+
+    func testMilestones_comfortCandidate3of5() {
+        let s = session(repeated(.fontainebleau, "6A", sends: 3, fails: 0))
+        let m = ProgressEngine.milestones([s], discipline: .boulder, monthsBack: nil, now: date(0))
+        let comfort = m.first { $0.kind == .comfortGrade }
+        XCTAssertEqual(comfort?.value, "6A")
+        XCTAssertEqual(comfort?.current, 3)
+        XCTAssertEqual(comfort?.target, 5)
+        XCTAssertEqual(comfort?.detail, "noch 2")
+    }
+
+    func testMilestones_existingComfortGrade_noCandidate() {
+        let s = session(repeated(.fontainebleau, "6A", sends: 5, fails: 0))
+        let m = ProgressEngine.milestones([s], discipline: .boulder, monthsBack: nil, now: date(0))
+        XCTAssertNil(m.first { $0.kind == .comfortGrade })
+    }
+
+    func testMilestones_topOfLadder_noNextGrade() {
+        let s = session([ascent(.fontainebleau, "9A", day: 0)])
+        let m = ProgressEngine.milestones([s], discipline: .boulder, monthsBack: nil, now: date(0))
+        XCTAssertNil(m.first { $0.kind == .nextGrade })
+    }
+
+    // MARK: - sessionRecap (FS-7)
+
+    func testSessionRecap_firstTopOfGrade() {
+        let s = session([ascent(.fontainebleau, "6A", day: 0)], day: 0)
+        let r = ProgressEngine.sessionRecap(s, allSessions: [s])
+        XCTAssertEqual(r.firstTopGrades, ["6A"])
+        XCTAssertEqual(r.hardestTop, "6A")
+        XCTAssertEqual(r.tops, 1)
+        XCTAssertEqual(r.ascents, 1)
+        XCTAssertEqual(r.discipline, .boulder)
+    }
+
+    func testSessionRecap_repeatedGradeIsNotFirstTop() {
+        let prior = session([ascent(.fontainebleau, "6A", day: -10)], day: -10)
+        let now = session([ascent(.fontainebleau, "6A", day: 0)], day: 0)
+        let r = ProgressEngine.sessionRecap(now, allSessions: [prior, now])
+        XCTAssertTrue(r.firstTopGrades.isEmpty)
+    }
+
+    func testSessionRecap_projectCompletedOnFirstTopInSession() {
+        let project = Project(name: "Mein Projekt")
+        let s = session([], day: 0)
+        let top = ascent(.fontainebleau, "6B", day: 0)
+        top.session = s
+        top.project = project
+        s.ascents.append(top)
+        project.ascents.append(top)
+
+        let r = ProgressEngine.sessionRecap(s, allSessions: [s])
+        XCTAssertEqual(r.projectsCompleted, ["Mein Projekt"])
+    }
+
+    func testSessionRecap_trainingHasNilDiscipline() {
+        let s = session([], type: .training, day: 0)
+        let r = ProgressEngine.sessionRecap(s, allSessions: [s])
+        XCTAssertNil(r.discipline)
+        XCTAssertNil(r.hardestTop)
+        XCTAssertTrue(r.firstTopGrades.isEmpty)
+        XCTAssertTrue(r.projectsCompleted.isEmpty)
+    }
+
+    func testSessionRecap_hardestTopInDisplayScale() {
+        let s = session([ascent(.vScale, "V4", day: 0)], day: 0)
+        let r = ProgressEngine.sessionRecap(s, allSessions: [s])
+        XCTAssertNotNil(r.hardestTop)
+        XCTAssertFalse(r.hardestTop!.hasPrefix("V"))
+    }
 }

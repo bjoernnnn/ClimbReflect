@@ -16,12 +16,7 @@ struct MonthRecapCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(Theme.gold.opacity(0.12)).frame(width: 36, height: 36)
-                    Image(systemName: "calendar")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.gold)
-                }
+                IconTile(symbol: "calendar", tint: Theme.accent, size: 40)
                 Text("Dein \(monthName)")
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)
@@ -37,8 +32,8 @@ struct MonthRecapCard: View {
                 }
             }
             VStack(alignment: .leading, spacing: 4) {
-                disciplineRow("Bouldern", recap.boulder)
-                disciplineRow("Seil", recap.rope)
+                disciplineRow(ProgressEngine.Discipline.boulder.label, recap.boulder)
+                disciplineRow(ProgressEngine.Discipline.rope.label, recap.rope)
             }
             .accessibilityElement(children: .combine)
 

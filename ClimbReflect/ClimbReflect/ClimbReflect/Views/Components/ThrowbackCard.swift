@@ -37,7 +37,7 @@ struct ThrowbackCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .card()
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.card)
         .accessibilityElement(children: .combine)
     }
 }
