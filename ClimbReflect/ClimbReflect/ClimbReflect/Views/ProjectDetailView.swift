@@ -202,7 +202,7 @@ struct ProjectDetailView: View {
                 if project.isPinned {
                     Image(systemName: "pin.fill")
                         .font(.caption)
-                        .foregroundStyle(Theme.gold)
+                        .foregroundStyle(Theme.accent)
                         .symbolEffect(.bounce, value: project.isPinned)
                 }
             }
@@ -525,9 +525,9 @@ struct ProjectDetailView: View {
     }
 
     private var statusColor: Color {
-        if project.isSent { return Theme.accent }
+        if project.isSent { return Theme.gold }
         if project.isAbandoned { return Theme.textTertiary }
-        return Theme.gold
+        return Theme.accent
     }
 
     private func statPill(value: String, label: String) -> some View {

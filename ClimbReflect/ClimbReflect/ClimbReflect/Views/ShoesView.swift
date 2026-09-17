@@ -6,7 +6,7 @@ extension ShoeCondition {
     var color: Color {
         switch self {
         case .neu:         return Theme.accent
-        case .eingetragen: return Theme.gold
+        case .eingetragen: return Theme.accent
         case .benutzt:     return Theme.textSecondary
         case .resoled:     return Theme.accent2
         }
@@ -207,7 +207,7 @@ struct ShoeFormView: View {
                         TextField("Name (z. B. Solution Comp)", text: $name)
                             .foregroundStyle(Theme.textPrimary)
                     } header: {
-                        Text("Name").foregroundStyle(Theme.textTertiary)
+                        Text("Name").foregroundStyle(Theme.textSecondary)
                     }
                     .listRowBackground(Theme.surface)
 
@@ -224,7 +224,7 @@ struct ShoeFormView: View {
                         }
                         .foregroundStyle(Theme.textPrimary).tint(Theme.accent)
                     } header: {
-                        Text("Getragen seit").foregroundStyle(Theme.textTertiary)
+                        Text("Getragen seit").foregroundStyle(Theme.textSecondary)
                     }
                     .listRowBackground(Theme.surface)
 
@@ -249,7 +249,7 @@ struct ShoeFormView: View {
                             .padding(.vertical, 4)
                         }
                     } header: {
-                        Text("Zustand").foregroundStyle(Theme.textTertiary)
+                        Text("Zustand").foregroundStyle(Theme.textSecondary)
                     }
                     .listRowBackground(Theme.surface)
 
@@ -295,7 +295,7 @@ struct ShoeFormView: View {
                                 .foregroundStyle(Theme.textTertiary)
                         }
                     } header: {
-                        Text("Standard für").foregroundStyle(Theme.textTertiary)
+                        Text("Standard für").foregroundStyle(Theme.textSecondary)
                     } footer: {
                         Text("Dieser Schuh wird beim Starten einer Session dieses Typs automatisch vorausgewählt.")
                             .foregroundStyle(Theme.textTertiary)

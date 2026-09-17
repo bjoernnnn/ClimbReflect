@@ -68,7 +68,7 @@ struct ManualSessionView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
             } header: {
-                Text("Art der Session").foregroundStyle(Theme.textTertiary)
+                Text("Art der Session").foregroundStyle(Theme.textSecondary)
             }
 
             Section {
@@ -77,7 +77,7 @@ struct ManualSessionView: View {
                     .foregroundStyle(Theme.textPrimary)
                     .tint(Theme.accent)
             } header: {
-                Text("Wann?").foregroundStyle(Theme.textTertiary)
+                Text("Wann?").foregroundStyle(Theme.textSecondary)
             }
             .listRowBackground(Theme.surface)
 
@@ -111,7 +111,7 @@ struct ManualSessionView: View {
                 }
                 .sensoryFeedback(.selection, trigger: durationMinutes)
             } header: {
-                Text("Wie lange?").foregroundStyle(Theme.textTertiary)
+                Text("Wie lange?").foregroundStyle(Theme.textSecondary)
             }
             .listRowBackground(Theme.surface)
 
@@ -151,7 +151,7 @@ struct ManualSessionView: View {
                     }
                 }
             } header: {
-                Text("Wo?").foregroundStyle(Theme.textTertiary)
+                Text("Wo?").foregroundStyle(Theme.textSecondary)
             }
             .listRowBackground(Theme.surface)
 
@@ -183,7 +183,7 @@ struct ManualSessionView: View {
                         Text("°C").foregroundStyle(Theme.textTertiary)
                     }
                 } header: {
-                    Text("Bedingungen").foregroundStyle(Theme.textTertiary)
+                    Text("Bedingungen").foregroundStyle(Theme.textSecondary)
                 }
                 .listRowBackground(Theme.surface)
             }

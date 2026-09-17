@@ -138,10 +138,10 @@ struct TodayView: View {
                     NavigationLink(destination: ProjectDetailView(project: project)) {
                         HStack(spacing: 12) {
                             ZStack {
-                                Circle().fill(Theme.gold.opacity(0.12)).frame(width: 36, height: 36)
+                                Circle().fill(Theme.accent.opacity(0.12)).frame(width: 36, height: 36)
                                 Image(systemName: "target")
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Theme.gold)
+                                    .foregroundStyle(Theme.accent)
                             }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(project.name)

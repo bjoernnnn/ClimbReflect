@@ -519,7 +519,7 @@ struct SessionDetailView: View {
         }
         if let kcal = session.activeEnergyKcal {
             metricTile("Energie", value: "\(Int(kcal)) kcal",
-                       symbol: "flame.fill", color: Theme.gold)
+                       symbol: "flame.fill", color: Theme.accent)
         }
         if showAlt {
             metricTile("Höhenmeter", value: "\(Int(session.altitudeTotalGain)) m",
@@ -632,7 +632,7 @@ struct SessionDetailView: View {
                         if attempts > 0 {
                             Label("\(attempts) Versuch\(attempts == 1 ? "" : "e")",
                                   systemImage: "arrow.clockwise.circle.fill")
-                                .foregroundStyle(Theme.gold)
+                                .foregroundStyle(Theme.textSecondary)
                         }
                     }
                     .font(.caption.weight(.semibold))
@@ -719,7 +719,7 @@ struct SessionDetailView: View {
             if let kg = t.addedWeightKg, kg != 0 {
                 Text(kg > 0 ? "+\(formatKg(kg)) kg" : "\(formatKg(kg)) kg")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(kg > 0 ? Theme.gold : Theme.accent2)
+                    .foregroundStyle(Theme.textPrimary)
             }
 
             Button(role: .destructive) {
@@ -1069,7 +1069,7 @@ struct SessionDetailView: View {
                     } label: {
                         Image(systemName: active ? "star.fill" : "star")
                             .font(.title3)
-                            .foregroundStyle(active ? Theme.gold : Theme.surfaceRaised)
+                            .foregroundStyle(active ? Theme.accent : Theme.surfaceRaised)
                     }
                     .buttonStyle(.plain)
                     .animation(.easeInOut(duration: 0.1), value: session.focusRating)

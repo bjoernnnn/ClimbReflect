@@ -171,7 +171,7 @@ struct ProjectsView: View {
                         .font(.title3)
                         .foregroundStyle(project.isSent ? Theme.gold
                                          : project.isAbandoned ? Theme.textTertiary
-                                         : project.isPinned ? Theme.gold
+                                         : project.isPinned ? Theme.accent
                                          : Theme.textSecondary)
                         .symbolEffect(.bounce, value: project.isPinned)
                 }
@@ -209,7 +209,7 @@ struct ProjectsView: View {
                     if !project.betaNotes.isEmpty {
                         Label("Beta vorhanden", systemImage: "note.text")
                             .font(.caption2)
-                            .foregroundStyle(Theme.gold)
+                            .foregroundStyle(Theme.textSecondary)
                     }
                 }
 

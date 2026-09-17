@@ -14,7 +14,7 @@ enum Theme {
     // Text – deutlich getrennte Stufen
     static let textPrimary   = Color(hex: 0xF4F6F8)
     static let textSecondary = Color(hex: 0x9BA3AE)
-    static let textTertiary  = Color(hex: 0x5F6772)
+    static let textTertiary  = Color(hex: 0x848D9A)   // E20: ≥ 4,8:1 auf allen Flächen
 
     // Bedeutung
     static let accent  = Color(hex: 0x37E29A)   // interaktiv, „du"
