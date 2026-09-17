@@ -11,6 +11,8 @@ struct SessionDetailView: View {
     @Bindable var session: ClimbSession
     var onFertig: (() -> Void)? = nil
     var autoAddAscentProject: Project? = nil   // VT-8
+    var focusReflection = false   // KR-7: aus dem Recap direkt zur Reflexion springen
+    var showsRecapAction = true   // KR-7: „Zusammenfassung" im Menü unterdrücken, wenn wir schon vom Recap kommen
     @Environment(\.modelContext) private var context
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
@@ -49,24 +51,33 @@ struct SessionDetailView: View {
     var body: some View {
         ZStack {
             Theme.bg.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    overviewSection
-                    if !sessionUnlocks.isEmpty {
-                        sessionUnlocksCard
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        overviewSection
+                        if !sessionUnlocks.isEmpty {
+                            sessionUnlocksCard
+                        }
+                        if session.sessionType == .training {
+                            trainingSetsCard
+                        }
+                        ascentsSection
+                        quickCheckCard
+                        reflectionCard
+                            .id("reflection")
                     }
-                    if session.sessionType == .training {
-                        trainingSetsCard
-                    }
-                    ascentsSection
-                    quickCheckCard
-                    reflectionCard
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 40)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 40)
+                .scrollDismissesKeyboard(.interactively)
+                .sensoryFeedback(trigger: session.ascents.count, ascentCountFeedback)
+                .task {
+                    guard focusReflection else { return }
+                    reflectionExpanded = true
+                    try? await Task.sleep(for: .milliseconds(350))
+                    withAnimation(.snappy) { proxy.scrollTo("reflection", anchor: .top) }
+                }
             }
-            .scrollDismissesKeyboard(.interactively)
-            .sensoryFeedback(trigger: session.ascents.count, ascentCountFeedback)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -108,7 +119,7 @@ struct SessionDetailView: View {
                     }
                     // FS-7: dieselbe Zusammenfassung wie nach einer neu empfangenen
                     // Watch-Session, hier jederzeit manuell aufrufbar.
-                    if session.isClimbing && !session.ascents.isEmpty {
+                    if showsRecapAction && session.isClimbing && !session.ascents.isEmpty {
                         Button("Zusammenfassung", systemImage: "sparkles") {
                             showRecap = true
                         }

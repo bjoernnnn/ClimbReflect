@@ -48,7 +48,8 @@ struct DashboardView: View {
     }
 
     private var showRecap: Bool {
-        recapSession != nil && currentUnlock == nil && toastUnlock == nil
+        recapSession != nil && !(recapSession?.ascents.isEmpty ?? true)
+            && currentUnlock == nil && toastUnlock == nil
     }
 
     var body: some View {
