@@ -295,8 +295,7 @@ struct SessionDetailView: View {
     }
 
     private func formatMinutes(_ seconds: Double) -> String {
-        let m = Int(seconds / 60)
-        return "\(m) Min"
+        Duration.seconds(seconds).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
     }
 
     private func formatSeconds(_ t: Double) -> String {
@@ -320,7 +319,7 @@ struct SessionDetailView: View {
                     .font(.subheadline)
                     .foregroundStyle(Theme.textSecondary)
                 HStack(spacing: 10) {
-                    Label("\(session.durationMinutes) Min", systemImage: "clock")
+                    Label(session.durationText, systemImage: "clock")
                     switch session.source {
                     case .watch:
                         Label("Apple Watch", systemImage: "applewatch")
@@ -418,7 +417,7 @@ struct SessionDetailView: View {
                                 Text("°C").foregroundStyle(Theme.textTertiary)
                             }
                             .padding(12)
-                            .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
+                            .background(RoundedRectangle.theme(Theme.Radius.small).fill(Theme.surfaceRaised))
                         }
                     } else if !session.outdoor {
                         VStack(alignment: .leading, spacing: 10) {
@@ -432,7 +431,7 @@ struct SessionDetailView: View {
                             ))
                             .foregroundStyle(Theme.textPrimary)
                             .padding(12)
-                            .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
+                            .background(RoundedRectangle.theme(Theme.Radius.small).fill(Theme.surfaceRaised))
 
                             // Quick-Pick aus bekannten Hallen
                             if !knownGymNames.isEmpty {
@@ -539,7 +538,7 @@ struct SessionDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surfaceRaised))
+        .background(RoundedRectangle.theme(Theme.Radius.medium).fill(Theme.surfaceRaised))
     }
 
     // MARK: - Begehungen (P3.1)
@@ -591,7 +590,7 @@ struct SessionDetailView: View {
                             }
                             .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                         if ascent.id != sorted.last?.id {
-                            Divider().background(Theme.separator)
+                            Divider().overlay(Theme.separator)
                         }
                     }
                 }
@@ -668,7 +667,7 @@ struct SessionDetailView: View {
                     ForEach(sorted) { t in
                         trainingSetRow(t)
                         if t.id != sorted.last?.id {
-                            Divider().background(Theme.separator)
+                            Divider().overlay(Theme.separator)
                         }
                     }
                 }
@@ -740,12 +739,12 @@ struct SessionDetailView: View {
 
             if session.sessionFocusLabel != nil || session.energyLabel != nil {
                 watchQuestionnaireChips
-                Divider().background(Theme.separator)
+                Divider().overlay(Theme.separator)
             }
 
             rpePicker
 
-            Divider().background(Theme.separator)
+            Divider().overlay(Theme.separator)
 
             limiterPicker
         }
@@ -777,9 +776,9 @@ struct SessionDetailView: View {
             if reflectionExpanded {
                 if session.isClimbing {
                     techniqueFocusPicker
-                    Divider().background(Theme.separator)
+                    Divider().overlay(Theme.separator)
                     focusRatingPicker
-                    Divider().background(Theme.separator)
+                    Divider().overlay(Theme.separator)
                 }
 
                 reflectionField(
@@ -862,7 +861,7 @@ struct SessionDetailView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 9)
                             .background(
-                                RoundedRectangle(cornerRadius: Theme.Radius.small)
+                                RoundedRectangle.theme(Theme.Radius.small)
                                     .fill(selected ? rpeColor(value) : Theme.surfaceRaised)
                             )
                             .foregroundStyle(selected ? Theme.bg : Theme.textSecondary)
@@ -916,7 +915,7 @@ struct SessionDetailView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised)
+            RoundedRectangle.theme(Theme.Radius.small).fill(Theme.surfaceRaised)
         )
     }
 
@@ -937,10 +936,10 @@ struct SessionDetailView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
                             .background(
-                                RoundedRectangle(cornerRadius: Theme.Radius.small)
+                                RoundedRectangle.theme(Theme.Radius.small)
                                     .fill(active ? Theme.accent2.opacity(0.2) : Theme.surfaceRaised)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: Theme.Radius.small)
+                                        RoundedRectangle.theme(Theme.Radius.small)
                                             .stroke(active ? Theme.accent2 : Color.clear, lineWidth: 1)
                                     )
                             )

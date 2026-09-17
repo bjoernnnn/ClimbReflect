@@ -107,18 +107,18 @@ struct FortschrittView: View {
                 }
 
                 if hasData {
-                    sectionHeader("Wo stehe ich?")
+                    SectionHeader("Wo stehe ich?")
                     LevelHeaderView(send: bests.send, flash: bests.flash,
                                     comfortGrade: comfortGrade, discipline: discipline,
                                     milestones: milestones,
                                     celebratesSend: celebratesSend,
                                     firstSends: highlights.firstSends)
 
-                    sectionHeader("Werde ich besser?")
+                    SectionHeader("Werde ich besser?")
                     GradeTimelineChart(points: timeline, discipline: discipline)
                     PyramidChart(rows: pyramidRows)
 
-                    sectionHeader("Trägt die Basis?")
+                    SectionHeader("Trägt die Basis?")
                     ClimbDaysCard(monthlyDays: monthlyDays, sends: totals.sends,
                                   climbDays: totals.climbDays, discipline: discipline)
                     styleLink
@@ -141,12 +141,6 @@ struct FortschrittView: View {
             .sensoryFeedback(.selection, trigger: disciplineRaw)
             .sensoryFeedback(.selection, trigger: period)
         }
-    }
-
-    private func sectionHeader(_ text: String) -> some View {
-        Text(text)
-            .font(Theme.Typo.section)
-            .foregroundStyle(Theme.textPrimary)
     }
 
     private var styleLink: some View {
@@ -172,7 +166,7 @@ struct FortschrittView: View {
                     .foregroundStyle(Theme.textTertiary)
             }
             .padding(16)
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surfaceRaised))
+            .background(RoundedRectangle.theme(Theme.Radius.medium).fill(Theme.surfaceRaised))
         }
         .buttonStyle(.card)
     }
@@ -181,7 +175,7 @@ struct FortschrittView: View {
         ContentUnavailableView {
             Label("Noch kein Fortschritt", systemImage: "chart.line.uptrend.xyaxis")
         } description: {
-            Text("Sobald du \(discipline == .boulder ? "Boulder" : "Seil")-Begehungen erfasst, siehst du hier, wo du stehst.")
+            Text("Sobald du \(discipline.label)-Begehungen erfasst, siehst du hier, wo du stehst.")
         }
         .padding(.top, 40)
     }

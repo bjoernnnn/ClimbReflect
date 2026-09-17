@@ -139,10 +139,7 @@ struct ProjectsView: View {
     }
 
     private func sectionHeader(_ title: String, count: Int) -> some View {
-        HStack {
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(Theme.textPrimary)
+        SectionHeader(title: title) {
             Text("\(count)")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.textTertiary)
@@ -214,7 +211,7 @@ struct ProjectsView: View {
                     .foregroundStyle(Theme.textTertiary)
             }
             .padding(14)
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surface))
+            .background(RoundedRectangle.theme(Theme.Radius.medium).fill(Theme.surface))
         }
         .opacity(project.isAbandoned ? 0.6 : 1)
         .buttonStyle(.card)

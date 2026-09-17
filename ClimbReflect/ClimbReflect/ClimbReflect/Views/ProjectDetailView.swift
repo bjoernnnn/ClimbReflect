@@ -357,8 +357,8 @@ struct ProjectDetailView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(height: 100)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
-                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
+                    .clipShape(RoundedRectangle.theme(Theme.Radius.small))
+                    .contentShape(RoundedRectangle.theme(Theme.Radius.small))
                     .onTapGesture {
                         captionDraft = media.caption ?? ""
                         editingCaption = media
@@ -395,14 +395,14 @@ struct ProjectDetailView: View {
                         Image(uiImage: uiImage)
                             .resizable()
                             .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium))
+                            .clipShape(RoundedRectangle.theme(Theme.Radius.medium))
                             .padding(.horizontal)
                     }
                     TextField("Beschriftung (optional)", text: $captionDraft)
                         .font(.subheadline)
                         .foregroundStyle(Theme.textPrimary)
                         .padding(12)
-                        .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
+                        .background(RoundedRectangle.theme(Theme.Radius.small).fill(Theme.surfaceRaised))
                         .padding(.horizontal)
                     Spacer()
                 }
@@ -458,12 +458,12 @@ struct ProjectDetailView: View {
                                     }
                                 }
                             if ascent.id != group.ascents.last?.id {
-                                Divider().background(Theme.separator)
+                                Divider().overlay(Theme.separator)
                             }
                         }
                     }
-                    .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surface))
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
+                    .background(RoundedRectangle.theme(Theme.Radius.small).fill(Theme.surface))
+                    .clipShape(RoundedRectangle.theme(Theme.Radius.small))
                 }
             }
         }
@@ -535,7 +535,7 @@ struct ProjectDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: Theme.Radius.small).fill(Theme.surfaceRaised))
+        .background(RoundedRectangle.theme(Theme.Radius.small).fill(Theme.surfaceRaised))
     }
 }
 

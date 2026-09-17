@@ -32,8 +32,8 @@ struct MonthRecapCard: View {
                 }
             }
             VStack(alignment: .leading, spacing: 4) {
-                disciplineRow("Bouldern", recap.boulder)
-                disciplineRow("Seil", recap.rope)
+                disciplineRow(ProgressEngine.Discipline.boulder.label, recap.boulder)
+                disciplineRow(ProgressEngine.Discipline.rope.label, recap.rope)
             }
             .accessibilityElement(children: .combine)
 

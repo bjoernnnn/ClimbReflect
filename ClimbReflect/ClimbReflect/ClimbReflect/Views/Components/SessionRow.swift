@@ -46,7 +46,7 @@ struct SessionRow: View {
                     if session.isClimbing && !tops.isEmpty {
                         Text(" · \(tops.count) Top\(tops.count == 1 ? "" : "s")")
                     }
-                    Text(" · \(session.durationMinutes) Min")
+                    Text(" · \(session.durationText)")
                 }
                 .font(.caption)
                 .foregroundStyle(Theme.textSecondary)

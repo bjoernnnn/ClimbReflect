@@ -62,7 +62,7 @@ struct LevelHeroCard: View {
         } label: {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text(discipline == .boulder ? "Bouldern" : "Seil")
+                    Text(discipline.label)
                         .font(Theme.Typo.label)
                         .foregroundStyle(Theme.textSecondary)
                     Spacer()
@@ -121,7 +121,7 @@ struct LevelHeroCard: View {
                 }
 
                 if let otherPB {
-                    Text("\(otherDiscipline == .boulder ? "Bouldern" : "Seil") · \(otherPB.grade)")
+                    Text("\(otherDiscipline.label) · \(otherPB.grade)")
                         .font(.caption)
                         .foregroundStyle(Theme.textTertiary)
                 }

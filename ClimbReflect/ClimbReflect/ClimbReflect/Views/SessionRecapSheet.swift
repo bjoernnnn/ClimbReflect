@@ -96,7 +96,7 @@ struct SessionRecapSheet: View {
     }
 
     private var statsLine: some View {
-        Text("\(recap.tops) Top\(recap.tops == 1 ? "" : "s") · \(recap.ascents) Begehung\(recap.ascents == 1 ? "" : "en") · \(session.durationMinutes) Min")
+        Text("\(recap.tops) Top\(recap.tops == 1 ? "" : "s") · \(recap.ascents) Begehung\(recap.ascents == 1 ? "" : "en") · \(session.durationText)")
             .font(.subheadline)
             .foregroundStyle(Theme.textSecondary)
     }
@@ -118,9 +118,7 @@ struct SessionRecapSheet: View {
 
     private var unlockedSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Freigeschaltet")
-                .font(Theme.Typo.section)
-                .foregroundStyle(Theme.textPrimary)
+            SectionHeader("Freigeschaltet")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 14) {
                     ForEach(sessionUnlocks, id: \.id) { unlock in
@@ -143,9 +141,7 @@ struct SessionRecapSheet: View {
 
     private var nextSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Als Nächstes")
-                .font(Theme.Typo.section)
-                .foregroundStyle(Theme.textPrimary)
+            SectionHeader("Als Nächstes")
             VStack(spacing: 10) {
                 ForEach(Array(milestones.enumerated()), id: \.offset) { index, milestone in
                     MilestoneRow(milestone)

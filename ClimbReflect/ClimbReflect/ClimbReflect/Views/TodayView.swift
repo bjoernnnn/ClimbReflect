@@ -85,7 +85,10 @@ struct TodayView: View {
                         IntentFollowUpCard(session: intentSession)
                     }
 
-                    pinnedProjectsCard
+                    if hasPinnedProjects {
+                        SectionHeader("Angepinnt")
+                        pinnedProjectsCard
+                    }
 
                     recentSessions
                 }
@@ -125,14 +128,15 @@ struct TodayView: View {
             .foregroundStyle(Theme.textSecondary)
     }
 
+    private var hasPinnedProjects: Bool {
+        allProjects.contains { $0.isPinned && $0.isActive }
+    }
+
     @ViewBuilder
     private var pinnedProjectsCard: some View {
         let pinned = allProjects.filter { $0.isPinned && $0.isActive }
         if !pinned.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                Label("Angepinnte Projekte", systemImage: "pin.fill")
-                    .font(.headline)
-                    .foregroundStyle(Theme.textPrimary)
                 ForEach(pinned) { project in
                     // VT-6: tappbar statt totem Text; keine attempts-Anzeige (S32).
                     NavigationLink(destination: ProjectDetailView(project: project)) {
@@ -178,11 +182,7 @@ struct TodayView: View {
                         .buttonStyle(.bordered)
                 }
             } else {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Letzte Sessions")
-                        .font(.headline)
-                        .foregroundStyle(Theme.textPrimary)
-                    Spacer()
+                SectionHeader(title: "Letzte Sessions") {
                     NavigationLink(destination: AllSessionsView()) {
                         Text("Alle")
                             .font(.subheadline.weight(.semibold))

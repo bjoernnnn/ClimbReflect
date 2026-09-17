@@ -39,9 +39,9 @@ struct LiveSessionBanner: View {
             Button("Abbrechen", role: .cancel) {}
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surface))
+        .background(RoundedRectangle.theme(Theme.Radius.medium).fill(Theme.surface))
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.medium)
+            RoundedRectangle.theme(Theme.Radius.medium)
                 .stroke(status.isPaused ? Theme.textSecondary.opacity(0.25) : Theme.accent.opacity(0.25), lineWidth: 1)
         )
     }

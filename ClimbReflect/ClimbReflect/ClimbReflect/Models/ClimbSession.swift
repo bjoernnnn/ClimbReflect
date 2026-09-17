@@ -105,6 +105,10 @@ extension ClimbSession {
     var source: SessionSource { SessionSource(rawValue: sourceRaw) ?? .manual }
     var limiters: [Limiter] { limiterRaw.compactMap(Limiter.init(rawValue:)) }
     var durationMinutes: Int { Int(durationSeconds / 60) }
+    // PG-3: ein Format für Dauer-Anzeigen statt „N Min"/„1 Std., 30 Min." je nach View.
+    var durationText: String {
+        Duration.seconds(durationSeconds).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
+    }
     // RP-3: Aktivzeit ohne Workout-Pausen – Basis der Trainingslast (sRPE/ACWR/sends).
     var activeSeconds: Double { max(0, durationSeconds - pausedSeconds) }
     var activeMinutes: Int { Int(activeSeconds / 60) }

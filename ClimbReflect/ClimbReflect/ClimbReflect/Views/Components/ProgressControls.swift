@@ -41,8 +41,9 @@ struct ProgressDisciplinePicker: View {
 
     var body: some View {
         Picker("Disziplin", selection: $discipline) {
-            Text("Boulder").tag(ProgressEngine.Discipline.boulder)
-            Text("Seil").tag(ProgressEngine.Discipline.rope)
+            ForEach(ProgressEngine.Discipline.allCases) { d in
+                Text(d.label).tag(d)
+            }
         }
         .pickerStyle(.segmented)
     }
