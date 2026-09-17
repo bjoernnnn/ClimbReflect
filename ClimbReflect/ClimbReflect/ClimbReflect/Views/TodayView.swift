@@ -121,9 +121,15 @@ struct TodayView: View {
 
     // MARK: - Sections
 
+    // PG-7: aus LevelHeroCard entfernte Streak-Zeile lebt hier weiter – nur ab
+    // Streak ≥ 2, ohne Rekord (der gehört nicht auf Heute).
+    private var streak: Int { StatsEngine.climbWeekStreak(sessions) }
+
     // DZ-4: Large Title trägt den Markennamen; hier nur noch das Datum.
     private var dateLine: some View {
-        Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+        let date = Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide))
+        let text = streak >= 2 ? "\(date) · \(streak) Wochen in Folge" : date
+        return Text(text)
             .font(Theme.Typo.label)
             .foregroundStyle(Theme.textSecondary)
     }
