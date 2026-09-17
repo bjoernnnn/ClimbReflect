@@ -220,14 +220,27 @@ Always-Recording-Sessions: Streaming für Live-Daten, Builder nur als Anker für
 
 ## 7. Offene Punkte / aktuelle Baustelle
 
-- **TODO17-PREMIUM-UX – erledigt.** Alle 30 Aufgaben aus VT, DZ, TX, EF, FS,
-  HM, WT, AX, DOC sind auf `feature/premium-ux` umgesetzt (S39–S44). Die
-  Spec wurde **spec-first** implementiert, ohne vorherigen Claude-Design-
-  Mockup — mit Björns ausdrücklicher Freigabe. `MountainBackground` ist
-  dabei bewusst **gelöscht** (E1): der Onboarding-Flow braucht künftig eine
-  eigene, noch offene Gestaltung, keinen Rückgriff auf die alte Komponente.
-  Offen bleibt die Abschluss-Checkliste aus TODO17 (Geräte-Walkthroughs,
-  VoiceOver-Kurzcheck, Merge nach `dev`).
+- **TODO17-PREMIUM-UX – erledigt, per Abnahme nachgeschärft.** Alle 30
+  Aufgaben aus VT, DZ, TX, EF, FS, HM, WT, AX, DOC sind gemergt (S39–S44).
+  Spec-first implementiert, ohne vorherigen Claude-Design-Mockup — mit
+  Björns ausdrücklicher Freigabe. `MountainBackground` ist dabei bewusst
+  **gelöscht** (E1): der Onboarding-Flow braucht künftig eine eigene, noch
+  offene Gestaltung, keinen Rückgriff auf die alte Komponente. Ein
+  Code-Review nach dem Merge (`TODO17-ABNAHME.md`) fand zwei Regressionen
+  (R1: WT-1 hatte die Grad-Pflicht aus `039e0d9` überschrieben; R2: Test-
+  Anforderungen ohne Tests abgehakt) und Premium-Gefühl-Lücken (Gold-
+  Verwässerung, fehlender Druckzustand, Session-Detail-Reihenfolge u. a.) —
+  daraus wurde TODO18 abgeleitet.
+- **TODO18-PREMIUM-POLISH – erledigt.** KR-1…KR-9 (Korrekturen aus der
+  Abnahme, u. a. Grad-Pflicht wiederhergestellt, Haptik korrekt ausgelöst,
+  Recap geschärft) und PG-1…PG-10 (Premium-Gefühl: Gold-Whitelist E19,
+  `CardButtonStyle`/`IconTile` E21/E22, `SectionHeader`, Session-Detail in
+  `Views/SessionDetail/` aufgeteilt und umsortiert, Level-Hero und Projekt-
+  Detail entschlackt, Grad-Verlauf scrubbar, Snapshot-Strukturen statt
+  Mehrfachberechnung) sind auf `feature/premium-polish` umgesetzt (S45–S48).
+  KR-2s Tests laufen weiterhin nicht automatisiert (kein Test-Target, S48).
+  Offen bleibt die Abschluss-Checkliste aus TODO18 (Geräte-Walkthroughs,
+  Merge nach `dev`).
 - **Falscher „Kein HealthKit"-Banner (S14) – ZUERST:** `reattach()` setzt `healthKitActive` nicht
   → nach jeder Recovery falscher Banner. Schnell zu fixen, nimmt die Verwirrung raus.
 - **Speicher-Jetsam (S3) – die eigentliche Ursache des Verschwindens:** Energie-/Speicher-Fixes
@@ -459,12 +472,28 @@ immer `.continuous`), Schrift (`Theme.Typo`, Dynamic Type) ausschließlich über
 Tokens beziehen. Kein `.system(size:)` außer Erfolgs-Artwork. Kein
 dekorativer Hintergrund; `AppBackground` nur auf Tab-Roots. Dark Mode
 ausschließlich über `UIUserInterfaceStyle`, nie `preferredColorScheme`
-außerhalb von Previews.
+außerhalb von Previews. Gold ist eine Whitelist, kein allgemeiner Akzent
+(E19, TODO18 PG-1): nur PB-Grad (Hero, Grad-Verlauf-Top-Linie, NEU-Badge),
+geschaffte Projekte, Erst-Top/Projekt-Aussage im Recap, Flash/Onsight
+(Auswahl + Stil-Badge), Erfolge, gefülltes Reflexions-Siegel — alles andere
+ist Accent oder neutral. `textTertiary` muss ≥ 4,5:1 Kontrast auf allen
+Flächen erreichen (aktuell `#848D9A`, E20). Eine Icon-Kachel-Form in der
+App: abgerundetes Quadrat (`IconTile`) — Kreise bleiben `ProgressRing`/
+`MilestoneRow` vorbehalten (E22). Seiten-Abschnitte außerhalb von Karten
+laufen über `SectionHeader`, Titel innerhalb von Karten bleiben
+`Theme.Typo.cardTitle`.
 
 **S41 – Jede Kerninteraktion hat Feedback.** Auswahl → `.selection`,
 Speichern → `.success`, Zustandswechsel → `.impact`, Kennzahlen mit
 `numericText`. Nur `sensoryFeedback` in Views verwenden, kein
 `UIFeedbackGenerator` direkt — Ausnahme bleibt die Erfolgs-Choreografie (S34).
+Die Haptik sitzt an der View, deren Liste sich tatsächlich ändert (E23,
+TODO18 KR-3) — z. B. an der Session-/Projekt-`ScrollView` über
+`session.ascents.count`/`project.ascents.count`, nicht an einem Sheet, das
+sich im selben Moment schließt (dort wird sie oft verschluckt). Nie
+`sensoryFeedback` innerhalb einer `ForEach` (feuert pro Element statt
+einmal) und nie auf Texteingabe-Werten (feuert pro Tastendruck) — Trigger
+ist immer ein diskreter Zustand (Zähler, Auswahl, Toggle).
 
 **S42 – Kein vorausgewähltes Ergebnis, keine blockierende Bestätigung.**
 Ergebnis beim Erfassen startet leer (E6); Speichern schließt sofort ohne
@@ -480,6 +509,33 @@ Ad-hoc-Darstellungen. Der Fortschritts-Ring erscheint nur bei echter Zählung
 `ScrollView`/`LazyVGrid`) `contextMenu` mit Bestätigung statt `swipeActions`
 verwenden — `swipeActions` funktioniert dort nicht zuverlässig und täuscht
 eine Geste vor, die nicht greift.
+
+**S45 – Tappbare Flächen geben nach.** Jede tappbare Karte/Zeile nutzt
+`CardButtonStyle` (`.buttonStyle(.card)`) — minimales Einsinken beim
+Berühren, bei Reduce Motion nur Abdunklung. `.plain` bleibt Inline-Elementen
+ohne eigene Flächenwirkung vorbehalten (Chips, Icon-Buttons in Toolbars).
+
+**S46 – Hauptaktion in Daumenreichweite.** Erfassungs- und Erfassen-Flows
+(Quick-Log, Projekt-Detail) haben die primäre Aktion unten in
+`safeAreaInset(edge: .bottom)`, nicht in der Toolbar — beim Klettern mit
+Chalk an den Fingern zählt die untere Zone. Toolbar-Buttons tragen keine
+eigene `.foregroundStyle`; die Farbe kommt aus `.tint(Theme.accent)` am
+`NavigationStack`, sonst überschreibt sie die System-Darstellung für den
+deaktivierten Zustand.
+
+**S47 – Pläne altern.** Vor Umsetzung eines TODO-Punkts: `git log
+<Plan-Basis>..HEAD -- <betroffene Dateien>` prüfen. Widerspricht ein
+neuerer Commit dem Plan, gewinnt der Commit — die Aufgabe wird angepasst,
+die Abweichung im Commit-Text genannt. Anlass: WT-1 (TODO17) hatte die
+Grad-Pflicht aus `039e0d9` überschrieben, weil der Plan auf einem älteren
+Stand basierte und nicht gegen den aktuellen Code geprüft wurde (TODO18
+KR-1).
+
+**S48 – Fertig heißt getestet.** Eine Aufgabe mit expliziter
+Test-Anforderung gilt ohne grün laufende Tests als offen, auch wenn der
+restliche Umfang erledigt ist — im Commit-Text als „OFFEN:" benennen, nie
+stillschweigend weglassen (z. B. TODO18 KR-2: Tests geschrieben, laufen
+mangels verdrahtetem Test-Target aber nicht automatisiert).
 
 ---
 
