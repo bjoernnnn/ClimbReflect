@@ -96,9 +96,6 @@ struct EditAscentAssociationsSheet: View {
                 .foregroundStyle(Theme.textPrimary)
                 .contentTransition(.interpolate)
                 .animation(.snappy, value: gradeRaw)
-            Text(system.label)
-                .font(.caption)
-                .foregroundStyle(Theme.textTertiary)
             GradeRuler(grades: system.grades, selection: $gradeRaw)
         }
     }

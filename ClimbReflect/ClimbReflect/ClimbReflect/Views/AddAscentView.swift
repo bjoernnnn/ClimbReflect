@@ -135,9 +135,6 @@ struct AddAscentView: View {
                 .foregroundStyle(Theme.textPrimary)
                 .contentTransition(.interpolate)
                 .animation(.snappy, value: selectedGrade)
-            Text(gradeSystem.label)
-                .font(.caption)
-                .foregroundStyle(Theme.textTertiary)
             GradeRuler(grades: gradeSystem.grades, selection: $selectedGrade)
                 .onChange(of: gradeSystem) { _, new in
                     if !new.grades.contains(selectedGrade) {
@@ -146,9 +143,6 @@ struct AddAscentView: View {
                 }
             if !recentGrades.isEmpty {
                 HStack(spacing: 6) {
-                    Text("Zuletzt:")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textTertiary)
                     ForEach(recentGrades, id: \.self) { grade in
                         Button {
                             withAnimation(.snappy) { selectedGrade = grade }
@@ -161,8 +155,11 @@ struct AddAscentView: View {
                                 .foregroundStyle(Theme.textSecondary)
                         }
                         .buttonStyle(.plain)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
                 }
+                .frame(maxWidth: .infinity)
             }
         }
     }
