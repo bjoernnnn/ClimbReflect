@@ -66,6 +66,7 @@ struct SessionDetailView: View {
                 .padding(.bottom, 40)
             }
             .scrollDismissesKeyboard(.interactively)
+            .sensoryFeedback(trigger: session.ascents.count, ascentCountFeedback)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -160,6 +161,12 @@ struct SessionDetailView: View {
         } message: {
             Text("Die Session und alle Reflexionsdaten werden unwiderruflich gelöscht.")
         }
+    }
+
+    private func ascentCountFeedback(old: Int, new: Int) -> SensoryFeedback? {
+        if new > old { return .success }
+        if new < old { return .impact(weight: .medium) }
+        return nil
     }
 
     // EF-5: Session-Typ direkt aus dem Header-Menü änderbar (ersetzt typePicker im Kurz-Check).

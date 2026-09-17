@@ -156,6 +156,13 @@ struct ProjectDetailView: View {
         }
         .sensoryFeedback(.impact(weight: .light), trigger: project.isPinned)
         .sensoryFeedback(.impact(weight: .medium), trigger: project.statusRaw)
+        .sensoryFeedback(trigger: project.ascents.count, ascentCountFeedback)
+    }
+
+    private func ascentCountFeedback(old: Int, new: Int) -> SensoryFeedback? {
+        if new > old { return .success }
+        if new < old { return .impact(weight: .medium) }
+        return nil
     }
 
     // MARK: - Header

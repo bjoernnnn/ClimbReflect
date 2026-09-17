@@ -27,7 +27,6 @@ struct AddAscentView: View {
     @State private var selectedShoe: Shoe? = nil
     @State private var showDetails = false
     @State private var lastSavedFeedback: String? = nil
-    @State private var savedCount = 0   // HM-1: Trigger für .sensoryFeedback(.success)
 
     @Query(sort: \Shoe.startYear, order: .reverse) private var allShoes: [Shoe]
     private var activeShoes: [Shoe] { allShoes.filter { !$0.isRetired } }
@@ -110,7 +109,6 @@ struct AddAscentView: View {
             }
         }
         .tint(Theme.accent)
-        .sensoryFeedback(.success, trigger: savedCount)
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(outcome != nil)
         .onAppear {
@@ -417,9 +415,9 @@ struct AddAscentView: View {
         AchievementService.shared.checkNow(context: context)   // EP-3
 
         // VT-3/HM-1: Ein Feier-Kanal (S33) – AchievementUnlockOverlay übernimmt
-        // PB/Erst-Top/Projekt-Top; hier nur die Speicher-Bestätigung.
-        savedCount += 1
-
+        // PB/Erst-Top/Projekt-Top. Die Speicher-Haptik sitzt in SessionDetailView
+        // an session.ascents.count (E23, KR-3) statt hier an einer sich
+        // schließenden View.
         guard keepOpen else { dismiss(); return }
 
         lastSavedFeedback = "\(selectedGrade) · \(outcome.label) gesichert"

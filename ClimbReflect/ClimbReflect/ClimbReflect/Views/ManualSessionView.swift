@@ -17,6 +17,7 @@ struct ManualSessionView: View {
     @State private var temperatureC: Double? = nil
     @State private var createdSession: ClimbSession?
     @State private var navigateToDetail = false
+    @State private var gymChipTap = 0
 
     private static let durationPresets = [60, 90, 120, 150, 180]
 
@@ -106,11 +107,11 @@ struct ManualSessionView: View {
                             .frame(minHeight: 44)
                             .contentShape(Rectangle())
                             .accessibilityAddTraits(selected ? .isSelected : [])
-                            .sensoryFeedback(.selection, trigger: durationMinutes)
                         }
                     }
                     .padding(.vertical, 4)
                 }
+                .sensoryFeedback(.selection, trigger: durationMinutes)
             } header: {
                 Text("Wie lange?").foregroundStyle(Theme.textTertiary)
             }
@@ -130,7 +131,10 @@ struct ManualSessionView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(knownGymNames, id: \.self) { gym in
-                                    Button { gymName = gym } label: {
+                                    Button {
+                                        gymName = gym
+                                        gymChipTap += 1
+                                    } label: {
                                         Text(gym)
                                             .font(.caption.weight(.semibold))
                                             .padding(.horizontal, 12)
@@ -145,7 +149,7 @@ struct ManualSessionView: View {
                             }
                             .padding(.vertical, 4)
                         }
-                        .sensoryFeedback(.selection, trigger: gymName)
+                        .sensoryFeedback(.selection, trigger: gymChipTap)
                     }
                 }
             } header: {
