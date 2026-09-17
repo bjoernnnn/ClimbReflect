@@ -67,9 +67,6 @@ struct ProjectDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     headerCard
-                    if !project.isAbandoned {
-                        addAscentButton
-                    }
                     ProjectDayTimeline(project: project)
                     betaNotesCard
                     mediaGallery
@@ -83,7 +80,12 @@ struct ProjectDetailView: View {
             }
         }
         .navigationTitle(project.name)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
+        .safeAreaInset(edge: .bottom) {
+            if !project.isAbandoned {
+                addAscentButton
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -164,49 +166,36 @@ struct ProjectDetailView: View {
         return nil
     }
 
-    // MARK: - Header
+    // MARK: - Header (PG-8: Ziel-Grad als dominantes Element, kein Kartenhintergrund)
 
     private var headerCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                IconTile(symbol: statusSymbol, tint: statusColor, size: 52)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(statusLabel)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(statusColor)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(statusColor.opacity(0.15)))
-                    // FB-1: Ziel-Grad (Stammdatum) – tappbar; fehlt er → Hinweis-Chip
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                if let grade = project.displayTargetGrade {
                     Button { showGradeEditor = true } label: {
-                        if let grade = project.displayTargetGrade {
-                            Label(grade, systemImage: "chart.bar.fill")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(Theme.accent)
-                        } else {
-                            Label("Grad festlegen", systemImage: "plus.circle")
-                                .font(.caption)
-                                .foregroundStyle(Theme.textTertiary)
-                        }
+                        Text(grade)
+                            .font(Theme.Typo.metricHero)
+                            .foregroundStyle(project.isSent ? Theme.gold : Theme.textPrimary)
                     }
                     .buttonStyle(.plain)
+                } else {
+                    Button("Ziel-Grad festlegen") { showGradeEditor = true }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                 }
                 Spacer()
-                if project.isPinned {
-                    Image(systemName: "pin.fill")
-                        .font(.caption)
-                        .foregroundStyle(Theme.accent)
-                        .symbolEffect(.bounce, value: project.isPinned)
-                }
+                Text(statusLabel)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(statusColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(statusColor.opacity(0.15)))
             }
 
-            HStack(spacing: 12) {
-                let tops = project.ascents.filter { $0.result == .top }.count
-
-                statPill(value: "\(project.distinctDays)", label: "Tage")
-                statPill(value: "\(project.ascents.count)", label: "Begehungen")
-                statPill(value: "\(tops)", label: "Tops")
-            }
+            let tops = project.ascents.filter { $0.result == .top }.count
+            Text("\(project.distinctDays) Klettertag\(project.distinctDays == 1 ? "" : "e") · \(project.ascents.count) Begehung\(project.ascents.count == 1 ? "" : "en") · \(tops) Top\(tops == 1 ? "" : "s")")
+                .font(.caption)
+                .foregroundStyle(Theme.textSecondary)
 
             if project.isAbandoned {
                 Button {
@@ -214,23 +203,21 @@ struct ProjectDetailView: View {
                     try? context.save()
                 } label: {
                     Label("Wieder aktivieren", systemImage: "arrow.uturn.backward.circle")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.accent)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             } else if !project.isSent {
                 Button {
                     project.statusRaw = Project.Status.abandoned.rawValue
                     try? context.save()
                 } label: {
                     Label("Aufgeben", systemImage: "xmark.circle")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.danger)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .tint(Theme.danger)
             }
         }
-        .card()
     }
 
     // MARK: - VT-8: Begehung direkt aus dem Projekt
@@ -239,12 +226,13 @@ struct ProjectDetailView: View {
         Button {
             showSessionChoice = true
         } label: {
-            Label("Begehung erfassen", systemImage: "plus.circle.fill")
-                .frame(maxWidth: .infinity)
+            Label("Begehung erfassen", systemImage: "plus").frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .tint(Theme.accent)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(.bar)
     }
 
     // MARK: - Beta Notes
@@ -511,31 +499,10 @@ struct ProjectDetailView: View {
         return "Aktiv"
     }
 
-    private var statusSymbol: String {
-        if project.isSent { return "checkmark.circle.fill" }
-        if project.isAbandoned { return "xmark.circle" }
-        return "target"
-    }
-
     private var statusColor: Color {
         if project.isSent { return Theme.gold }
         if project.isAbandoned { return Theme.textTertiary }
         return Theme.accent
-    }
-
-    private func statPill(value: String, label: String) -> some View {
-        VStack(spacing: 3) {
-            Text(value)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(Theme.textPrimary)
-                .monospacedDigit()
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(Theme.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(RoundedRectangle.theme(Theme.Radius.small).fill(Theme.surfaceRaised))
     }
 }
 
