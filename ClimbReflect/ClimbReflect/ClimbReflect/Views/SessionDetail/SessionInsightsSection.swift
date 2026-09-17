@@ -8,6 +8,15 @@ struct SessionInsightsSection: View {
     private let ropeTypes: [SessionType] = [.lead, .topRope, .autoBelay]
     private let twoColumns = [GridItem(.flexible()), GridItem(.flexible())]
 
+    // PG-6: Gate für den Aufrufer, ob der ganze „Messwerte"-Block überhaupt etwas zeigt.
+    var hasContent: Bool {
+        let showAlt = ropeTypes.contains(session.sessionType) && session.altitudeTotalGain > 0
+        if session.avgHeartRate != nil || session.activeEnergyKcal != nil || showAlt { return true }
+        guard session.isClimbing else { return false }
+        let insights = StatsEngine.insights(for: session)
+        return insights.hasFullTimeCoverage || insights.hasAttemptTimes || session.durationSeconds > 0
+    }
+
     var body: some View {
         let showAlt = ropeTypes.contains(session.sessionType) && session.altitudeTotalGain > 0
         if session.avgHeartRate != nil || session.activeEnergyKcal != nil || showAlt {

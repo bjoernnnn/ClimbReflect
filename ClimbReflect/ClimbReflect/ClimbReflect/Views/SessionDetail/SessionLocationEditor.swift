@@ -2,77 +2,8 @@ import SwiftUI
 import SwiftData
 
 /// PG-5: aus SessionDetailView ausgelagert (reiner Refactor, keine
-/// Verhaltensänderung) – Kopfzeile (Datum, Dauer, Quelle, Standort-Chip) mit
-/// dem Standort-Editor als Sheet, da beide eng gekoppelt sind.
-struct SessionHeaderRow: View {
-    @Bindable var session: ClimbSession
-    @State private var showLocationEditor = false
-
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "EEEE, dd. MMMM yyyy · HH:mm"
-        return f
-    }()
-
-    var body: some View {
-        HStack(spacing: 16) {
-            IconTile(symbol: session.sessionType.symbol, tint: Theme.accent, size: 52)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(Self.dateFormatter.string(from: session.date))
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textSecondary)
-                HStack(spacing: 10) {
-                    Label(session.durationText, systemImage: "clock")
-                    switch session.source {
-                    case .watch:
-                        Label("Apple Watch", systemImage: "applewatch")
-                            .foregroundStyle(Theme.accent)
-                    case .healthKit:
-                        Label("Apple Health", systemImage: "heart.fill")
-                            .foregroundStyle(Theme.accent)
-                    case .manual:
-                        EmptyView()
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(Theme.textSecondary)
-                // ST-1: Standort-Chip
-                if session.outdoor {
-                    Label("Outdoor", systemImage: "mountain.2.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.accent2)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(Theme.accent2.opacity(0.12)))
-                } else if let gym = session.gymName, !gym.isEmpty {
-                    Label(gym, systemImage: "building.2.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.accent2)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(Theme.accent2.opacity(0.12)))
-                }
-            }
-            Spacer()
-            // ST-2: Standort-Editor öffnen
-            Button {
-                showLocationEditor.toggle()
-            } label: {
-                Image(systemName: "mappin.and.ellipse")
-                    .font(.body)
-                    .foregroundStyle(session.outdoor || (session.gymName != nil) ? Theme.accent2 : Theme.textTertiary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Standort bearbeiten")
-        }
-        .padding(.top, 8)
-        .sheet(isPresented: $showLocationEditor) {
-            SessionLocationEditor(session: session)
-        }
-    }
-}
-
+/// Verhaltensänderung) – Standort-Editor (ST-2). Die frühere Kopfzeile
+/// SessionHeaderRow ist mit PG-6 in SessionSummaryHeader aufgegangen.
 struct SessionLocationEditor: View {
     @Bindable var session: ClimbSession
     @Environment(\.dismiss) private var dismiss

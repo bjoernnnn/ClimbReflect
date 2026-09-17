@@ -80,22 +80,6 @@ struct SessionAscentsCard: View {
                 } message: {
                     Text("Die Begehung wird aus Statistik und Projekt entfernt. Freigeschaltete Erfolge bleiben erhalten.")
                 }
-
-                let tops = sorted.filter { $0.result == .top }
-                if !tops.isEmpty {
-                    HStack(spacing: 16) {
-                        Label("\(tops.count) Top\(tops.count == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(Theme.accent)
-                        let attempts = sorted.filter { $0.result == .attempt }.count
-                        if attempts > 0 {
-                            Label("\(attempts) Versuch\(attempts == 1 ? "" : "e")",
-                                  systemImage: "arrow.clockwise.circle.fill")
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                    }
-                    .font(.caption.weight(.semibold))
-                    .padding(.top, 4)
-                }
             }
         }
         .card()

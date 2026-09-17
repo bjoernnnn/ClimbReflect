@@ -34,7 +34,8 @@ struct SessionDetailView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        overviewSection
+                        SessionSummaryHeader(session: session)
+                            .padding(.top, 8)
                         if !sessionUnlocks.isEmpty {
                             sessionUnlocksCard
                         }
@@ -47,6 +48,11 @@ struct SessionDetailView: View {
                         SessionQuickCheckCard(session: session)
                         SessionReflectionCard(session: session, isExpanded: $reflectionExpanded, isTextFieldFocused: $isTextFieldFocused)
                             .id("reflection")
+                        // E25: Messwerte stehen am Ende – Kontext, kein Einstieg.
+                        if SessionInsightsSection(session: session).hasContent {
+                            SectionHeader("Messwerte")
+                            SessionInsightsSection(session: session)
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 40)
@@ -61,18 +67,8 @@ struct SessionDetailView: View {
                 }
             }
         }
+        .navigationTitle(session.sessionType == .unknown ? "Session" : session.sessionType.label)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                HStack(spacing: 6) {
-                    Image(systemName: session.sessionType.symbol)
-                        .foregroundStyle(Theme.accent)
-                    Text(session.sessionType == .unknown ? "Session" : session.sessionType.label)
-                        .font(.headline)
-                        .foregroundStyle(Theme.textPrimary)
-                }
-            }
-        }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 // VT-5: leere, gerade erst angelegte manuelle Session verwerfen statt
@@ -174,16 +170,6 @@ struct SessionDetailView: View {
             && (session.learned?.isEmpty ?? true) && (session.hardestPart?.isEmpty ?? true)
             && (session.improveNext?.isEmpty ?? true) && session.techniqueFocusesRaw.isEmpty
             && session.focusRating == nil
-    }
-
-    // MARK: - Übersicht (erster Screen)
-
-    private var overviewSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SessionHeaderRow(session: session)
-            SessionInsightsSection(session: session)
-        }
-        .padding(.top, 8)
     }
 
     // MARK: - EP-10: In dieser Session freigeschaltet
