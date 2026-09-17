@@ -108,18 +108,23 @@ struct EditAscentAssociationsSheet: View {
     @ViewBuilder
     private var detailsContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Picker("Grad-System", selection: $systemRaw) {
-                ForEach(GradeSystem.allCases) { s in
-                    Text(s.label).tag(s.rawValue)
+            LabeledContent("Grad-System") {
+                Picker("Grad-System", selection: $systemRaw) {
+                    ForEach(GradeSystem.allCases) { s in
+                        Text(s.label).tag(s.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .onChange(of: systemRaw) { _, _ in
+                    if !system.grades.contains(gradeRaw) {
+                        gradeRaw = system.grades.first ?? Ascent.ungraded
+                    }
                 }
             }
-            .pickerStyle(.menu)
             .foregroundStyle(Theme.textPrimary)
-            .onChange(of: systemRaw) { _, _ in
-                if !system.grades.contains(gradeRaw) {
-                    gradeRaw = system.grades.first ?? Ascent.ungraded
-                }
-            }
+
+            Divider().overlay(Theme.separator)
 
             Stepper("Versuche: \(attempts)", value: $attempts, in: 1...99)
                 .foregroundStyle(Theme.textPrimary)

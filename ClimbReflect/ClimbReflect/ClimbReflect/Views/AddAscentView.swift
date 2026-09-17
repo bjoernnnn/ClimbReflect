@@ -213,30 +213,47 @@ struct AddAscentView: View {
     @ViewBuilder
     private var detailsContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Picker("Grad-System", selection: $gradeSystem) {
-                ForEach(GradeSystem.allCases) { s in
-                    Text(s.label).tag(s)
+            LabeledContent("Grad-System") {
+                Picker("Grad-System", selection: $gradeSystem) {
+                    ForEach(GradeSystem.allCases) { s in
+                        Text(s.label).tag(s)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
-            .pickerStyle(.menu)
             .foregroundStyle(Theme.textPrimary)
 
-            Picker("Ergebnis", selection: resultBinding) {
-                ForEach(AscentResult.allCases) { r in
-                    Label(r.label, systemImage: r.symbol).tag(r)
+            Divider().overlay(Theme.separator)
+
+            LabeledContent("Ergebnis") {
+                Picker("Ergebnis", selection: resultBinding) {
+                    ForEach(AscentResult.allCases) { r in
+                        Label(r.label, systemImage: r.symbol).tag(r)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
             .foregroundStyle(Theme.textPrimary)
 
             if resultBinding.wrappedValue == .top {
-                Picker("Stil", selection: styleBinding) {
-                    Text("—").tag(AscentStyle?.none)
-                    ForEach(AscentStyle.allCases) { s in
-                        Label(s.label, systemImage: s.symbol).tag(AscentStyle?.some(s))
+                Divider().overlay(Theme.separator)
+
+                LabeledContent("Stil") {
+                    Picker("Stil", selection: styleBinding) {
+                        Text("—").tag(AscentStyle?.none)
+                        ForEach(AscentStyle.allCases) { s in
+                            Label(s.label, systemImage: s.symbol).tag(AscentStyle?.some(s))
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
                 }
                 .foregroundStyle(Theme.textPrimary)
             }
+
+            Divider().overlay(Theme.separator)
 
             Stepper("Versuche: \(attempts)", value: $attempts, in: 1...999)
                 .foregroundStyle(Theme.textPrimary)
@@ -252,13 +269,18 @@ struct AddAscentView: View {
                 .foregroundStyle(Theme.textPrimary)
 
             if !activeShoes.isEmpty {
-                Picker("Schuh", selection: $selectedShoe) {
-                    Text("Kein Schuh").tag(Shoe?.none)
-                    ForEach(activeShoes) { s in
-                        Text(s.name).tag(Shoe?.some(s))
+                Divider().overlay(Theme.separator)
+
+                LabeledContent("Schuh") {
+                    Picker("Schuh", selection: $selectedShoe) {
+                        Text("Kein Schuh").tag(Shoe?.none)
+                        ForEach(activeShoes) { s in
+                            Text(s.name).tag(Shoe?.some(s))
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
                 }
-                .pickerStyle(.menu)
                 .foregroundStyle(Theme.textPrimary)
             }
 
