@@ -39,7 +39,7 @@ struct ShoesView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showAddShoe = true } label: {
-                    Image(systemName: "plus").foregroundStyle(Theme.accent)
+                    Image(systemName: "plus")
                 }
                 .accessibilityLabel("Schuh hinzufügen")
             }
@@ -318,7 +318,6 @@ struct ShoeFormView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }
-                        .foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Speichern") {
@@ -328,8 +327,6 @@ struct ShoeFormView: View {
                         dismiss()
                     }
                     .fontWeight(.semibold)
-                    .foregroundStyle(name.trimmingCharacters(in: .whitespaces).isEmpty
-                                     ? Theme.textTertiary : Theme.accent)
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }

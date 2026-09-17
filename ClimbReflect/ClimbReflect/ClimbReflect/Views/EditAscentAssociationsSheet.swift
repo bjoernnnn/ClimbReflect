@@ -69,7 +69,6 @@ struct EditAscentAssociationsSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Fertig") { save(); dismiss() }
                         .fontWeight(.semibold)
-                        .foregroundStyle(Theme.accent)
                 }
             }
             .onAppear(perform: loadIfNeeded)

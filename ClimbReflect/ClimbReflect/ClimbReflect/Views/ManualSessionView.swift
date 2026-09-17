@@ -45,12 +45,10 @@ struct ManualSessionView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }
-                        .foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Weiter") { save() }
                         .fontWeight(.semibold)
-                        .foregroundStyle(Theme.accent)
                 }
             }
             .navigationDestination(isPresented: $navigateToDetail) {

@@ -102,7 +102,6 @@ struct ProjectDetailView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
-                        .foregroundStyle(Theme.textSecondary)
                 }
                 .accessibilityLabel("Weitere Aktionen")
             }
@@ -314,7 +313,6 @@ struct ProjectDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { editingBetaNotes = false }
-                        .foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Speichern") {
@@ -323,7 +321,6 @@ struct ProjectDetailView: View {
                         editingBetaNotes = false
                     }
                     .fontWeight(.semibold)
-                    .foregroundStyle(Theme.accent)
                 }
             }
         }
@@ -423,7 +420,6 @@ struct ProjectDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { editingCaption = nil }
-                        .foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Speichern") {
@@ -432,7 +428,6 @@ struct ProjectDetailView: View {
                         editingCaption = nil
                     }
                     .fontWeight(.semibold)
-                    .foregroundStyle(Theme.accent)
                 }
             }
         }

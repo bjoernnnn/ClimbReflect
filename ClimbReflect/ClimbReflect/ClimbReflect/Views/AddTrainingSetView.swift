@@ -75,12 +75,10 @@ struct AddTrainingSetView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }
-                        .foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Hinzufügen") { save() }
                         .fontWeight(.semibold)
-                        .foregroundStyle(Theme.accent)
                 }
             }
         }

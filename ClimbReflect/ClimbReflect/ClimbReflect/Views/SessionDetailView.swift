@@ -97,7 +97,6 @@ struct SessionDetailView: View {
                 if let onFertig {
                     Button("Fertig", action: onFertig)
                         .fontWeight(.semibold)
-                        .foregroundStyle(Theme.accent)
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -120,7 +119,6 @@ struct SessionDetailView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
-                        .foregroundStyle(Theme.textSecondary)
                 }
                 .accessibilityLabel("Weitere Aktionen")
             }
@@ -470,7 +468,6 @@ struct SessionDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Fertig") { showLocationEditor = false }
-                        .foregroundStyle(Theme.accent)
                 }
             }
         }

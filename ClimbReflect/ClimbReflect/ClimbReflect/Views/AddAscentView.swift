@@ -92,12 +92,10 @@ struct AddAscentView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }
-                        .foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Sichern") { save(keepOpen: false) }
                         .fontWeight(.semibold)
-                        .foregroundStyle(Theme.accent)
                         .disabled(outcome == nil || isSaving)
                 }
             }

@@ -277,7 +277,6 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Fertig") { dismiss() }
-                        .foregroundStyle(Theme.accent)
                 }
             }
             .alert("Apple Health", isPresented: .constant(importMessage != nil), presenting: importMessage) { _ in
