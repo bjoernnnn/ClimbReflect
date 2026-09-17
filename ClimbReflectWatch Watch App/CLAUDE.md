@@ -436,7 +436,8 @@ aber Zufall der Leiterlänge. Ein Fallback ohne echte Grundlage sollte
 **erkennbar** falsch sein (z. B. Index 0 = niedrigster Grad), nicht zufällig
 einen glaubwürdigen Wert treffen — sonst bleibt der Nutzer-Fehler unbemerkt.
 Gilt allgemein für jeden „Mitte der Range"-Default über echten fachlichen
-Werten (Grade, Prozentsätze, Datumsbereiche).
+Werten (Grade, Prozentsätze, Datumsbereiche). Auf der Watch gilt statt eines
+Fallbacks die Grad-Pflicht (`gradeIndex = nil` bis zur aktiven Wahl, E5′).
 
 **S38 – CloudKit-Voraussetzungen sind ein Schema-Umbau, kein Schalter.**
 `ModelConfiguration(cloudKitDatabase:)` „einschalten" allein crasht/verliert
