@@ -271,13 +271,12 @@ struct SessionDetailView: View {
                 "figure.climbing", Theme.accent) : nil,
             insights.avgAttemptSeconds.map { ("Ø Versuch",
                 formatSeconds($0), "timer", Theme.accent2) },
-            insights.load.map { ("Belastung (sRPE)",
-                "\($0)", "gauge.medium", Theme.gold) },
-            insights.successRate.map { ("Erfolgsquote",
-                "\(Int($0 * 100))%", "percent", Theme.textSecondary) },
+            (insights.ascentCount >= ProgressEngine.minSampleSize ? insights.successRate : nil).map {
+                ("Erfolgsquote", "\(Int($0 * 100)) % · n=\(insights.ascentCount)", "percent", Theme.textSecondary)
+            },
             insights.hardestTopGrade.map { ("Top-Grad",
                 GradeConverter.display(grade: $0, storedIn: insights.hardestTopGradeSystem ?? .fontainebleau),
-                "trophy", Theme.gold) },   // RP-17
+                "trophy", Theme.accent) },   // RP-17/KR-9: Gold nur für tatsächlich Erreichtes (E19)
         ]
         let valid = items.compactMap { $0 }
         if !valid.isEmpty {
