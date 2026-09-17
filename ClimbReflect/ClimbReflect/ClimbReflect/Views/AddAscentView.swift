@@ -27,6 +27,7 @@ struct AddAscentView: View {
     @State private var selectedShoe: Shoe? = nil
     @State private var showDetails = false
     @State private var lastSavedFeedback: String? = nil
+    @State private var feedbackID = 0   // PG-4: robuster Feedback-Timer statt loser Task
 
     @Query(sort: \Shoe.startYear, order: .reverse) private var allShoes: [Shoe]
     private var activeShoes: [Shoe] { allShoes.filter { !$0.isRetired } }
@@ -93,11 +94,6 @@ struct AddAscentView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Sichern") { save(keepOpen: false) }
-                        .fontWeight(.semibold)
-                        .disabled(outcome == nil || isSaving)
-                }
             }
             .safeAreaInset(edge: .bottom) { bottomBar }
             .alert("Neues Projekt", isPresented: $showNewProjectAlert) {
@@ -109,6 +105,11 @@ struct AddAscentView: View {
         .tint(Theme.accent)
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(outcome != nil)
+        .task(id: feedbackID) {
+            guard feedbackID > 0 else { return }
+            try? await Task.sleep(for: .seconds(2))
+            lastSavedFeedback = nil
+        }
         .onAppear {
             // VT-4/E4: Projekt → letzte Begehung der Session → letzte Begehung der
             // Disziplin → niedrigster Grad (S37 – kein plausibel wirkender Default).
@@ -375,29 +376,43 @@ struct AddAscentView: View {
 
     private var bottomBar: some View {
         VStack(spacing: 8) {
-            if let lastSavedFeedback {
-                HStack {
-                    Label(lastSavedFeedback, systemImage: "checkmark.circle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
-                    Spacer()
-                    Text("\(session.ascents.count) in dieser Session")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textTertiary)
-                        .contentTransition(.numericText())
+            feedbackLine
+            HStack(spacing: 10) {
+                Button { save(keepOpen: true) } label: {
+                    Text("Nächste").frame(maxWidth: .infinity)
                 }
-                .transition(.opacity)
-            }
-            Button("Sichern & nächste") { save(keepOpen: true) }
                 .buttonStyle(.bordered)
-                .frame(maxWidth: .infinity)
-                .controlSize(.large)
-                .disabled(outcome == nil || isSaving)
+
+                Button { save(keepOpen: false) } label: {
+                    Text("Sichern").fontWeight(.semibold).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .controlSize(.large)
+            .disabled(outcome == nil || isSaving)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.bar)
         .animation(.snappy, value: lastSavedFeedback)
+    }
+
+    @ViewBuilder
+    private var feedbackLine: some View {
+        if let lastSavedFeedback {
+            HStack {
+                Label(lastSavedFeedback, systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.accent)
+                Spacer()
+                let n = session.ascents.count
+                Text("\(n) Begehung\(n == 1 ? "" : "en") in dieser Session")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                    .contentTransition(.numericText())
+            }
+            .transition(.opacity)
+        }
     }
 
     // MARK: - Speichern
@@ -438,10 +453,7 @@ struct AddAscentView: View {
         guard keepOpen else { dismiss(); return }
 
         lastSavedFeedback = "\(selectedGrade) · \(outcome.label) gesichert"
-        Task {
-            try? await Task.sleep(for: .seconds(2))
-            lastSavedFeedback = nil
-        }
+        feedbackID += 1
         // Grad, System, Projekt, Schuh, Set bleiben für die nächste Begehung erhalten.
         self.outcome = nil
         note = ""
