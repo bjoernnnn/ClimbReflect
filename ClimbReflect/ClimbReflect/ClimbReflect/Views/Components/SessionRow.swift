@@ -18,21 +18,15 @@ struct SessionRow: View {
 
     var body: some View {
         layout {
-            ZStack {
-                RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
-                    .fill(Theme.surfaceRaised)
-                    .frame(width: 44, height: 44)
-                Image(systemName: session.sessionType.symbol)
-                    .font(.title3)
-                    .foregroundStyle(Theme.accent)
-            }
-            .overlay(alignment: .topTrailing) {
-                if !session.reflectionCompleted && session.isClimbing {
-                    Circle()
-                        .fill(Theme.accent)
-                        .frame(width: 8, height: 8)
+            IconTile(symbol: session.sessionType.symbol, tint: Theme.accent, size: 40)
+                .overlay(alignment: .topTrailing) {
+                    if !session.reflectionCompleted && session.isClimbing {
+                        Circle()
+                            .fill(Theme.accent)
+                            .frame(width: 8, height: 8)
+                            .offset(x: 3, y: -3)
+                    }
                 }
-            }
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 0) {

@@ -16,12 +16,7 @@ struct MonthRecapCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(Theme.accent.opacity(0.12)).frame(width: 36, height: 36)
-                    Image(systemName: "calendar")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
-                }
+                IconTile(symbol: "calendar", tint: Theme.accent, size: 40)
                 Text("Dein \(monthName)")
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)

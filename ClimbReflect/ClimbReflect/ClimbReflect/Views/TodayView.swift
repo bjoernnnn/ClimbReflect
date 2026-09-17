@@ -137,12 +137,7 @@ struct TodayView: View {
                     // VT-6: tappbar statt totem Text; keine attempts-Anzeige (S32).
                     NavigationLink(destination: ProjectDetailView(project: project)) {
                         HStack(spacing: 12) {
-                            ZStack {
-                                Circle().fill(Theme.accent.opacity(0.12)).frame(width: 36, height: 36)
-                                Image(systemName: "target")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Theme.accent)
-                            }
+                            IconTile(symbol: "target", tint: Theme.accent, size: 40)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(project.name)
                                     .font(.subheadline.weight(.semibold))
@@ -164,7 +159,7 @@ struct TodayView: View {
                                 .foregroundStyle(Theme.textTertiary)
                         }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.card)
                 }
             }
             .card()
@@ -198,7 +193,7 @@ struct TodayView: View {
                     NavigationLink(destination: SessionDetailView(session: session)) {
                         SessionRow(session: session)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.card)
                     .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                 }
             }

@@ -161,20 +161,15 @@ struct ProjectsView: View {
     private func projectRow(_ project: Project, showSentDate: Bool) -> some View {
         NavigationLink(destination: ProjectDetailView(project: project)) {
             HStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(project.isSent ? Theme.gold.opacity(0.15) : Theme.surfaceRaised)
-                        .frame(width: 44, height: 44)
-                    Image(systemName: project.isSent ? "trophy.fill"
-                          : project.isAbandoned ? "xmark.circle"
-                          : project.isPinned ? "pin.fill" : "target")
-                        .font(.title3)
-                        .foregroundStyle(project.isSent ? Theme.gold
-                                         : project.isAbandoned ? Theme.textTertiary
-                                         : project.isPinned ? Theme.accent
-                                         : Theme.textSecondary)
-                        .symbolEffect(.bounce, value: project.isPinned)
-                }
+                IconTile(
+                    symbol: project.isSent ? "trophy.fill"
+                        : project.isAbandoned ? "xmark.circle"
+                        : project.isPinned ? "pin.fill" : "target",
+                    tint: project.isSent ? Theme.gold
+                        : project.isAbandoned ? Theme.textTertiary
+                        : Theme.accent
+                )
+                .symbolEffect(.bounce, value: project.isPinned)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(project.name)
@@ -222,7 +217,7 @@ struct ProjectsView: View {
             .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surface))
         }
         .opacity(project.isAbandoned ? 0.6 : 1)
-        .buttonStyle(.plain)
+        .buttonStyle(.card)
         .contextMenu {
             if project.isActive {
                 Button {

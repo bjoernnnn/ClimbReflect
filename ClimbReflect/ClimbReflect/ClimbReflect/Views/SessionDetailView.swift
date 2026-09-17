@@ -314,14 +314,7 @@ struct SessionDetailView: View {
 
     private var sessionHeader: some View {
         HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Theme.surfaceRaised)
-                    .frame(width: 56, height: 56)
-                Image(systemName: session.sessionType.symbol)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Theme.accent)
-            }
+            IconTile(symbol: session.sessionType.symbol, tint: Theme.accent, size: 52)
             VStack(alignment: .leading, spacing: 4) {
                 Text(Self.dateFormatter.string(from: session.date))
                     .font(.subheadline)

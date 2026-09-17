@@ -126,9 +126,9 @@ struct LevelHeroCard: View {
                         .foregroundStyle(Theme.textTertiary)
                 }
             }
+            .card()
         }
-        .buttonStyle(.plain)
-        .card()
+        .buttonStyle(.card)
         .animation(.snappy, value: pb?.grade)
         .accessibilityHint("Öffnet Fortschritt")
     }

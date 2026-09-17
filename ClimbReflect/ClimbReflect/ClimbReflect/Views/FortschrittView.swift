@@ -174,7 +174,7 @@ struct FortschrittView: View {
             .padding(16)
             .background(RoundedRectangle(cornerRadius: Theme.Radius.medium).fill(Theme.surfaceRaised))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.card)
     }
 
     private var emptyState: some View {

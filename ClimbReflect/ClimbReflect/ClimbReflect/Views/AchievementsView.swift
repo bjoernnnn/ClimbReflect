@@ -111,7 +111,7 @@ struct AchievementsView: View {
                     MilestoneRow(achievement: data)
                         .card()
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.card)
             }
         }
     }

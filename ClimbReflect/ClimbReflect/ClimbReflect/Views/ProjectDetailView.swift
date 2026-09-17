@@ -169,14 +169,7 @@ struct ProjectDetailView: View {
     private var headerCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(statusColor.opacity(0.15))
-                        .frame(width: 48, height: 48)
-                    Image(systemName: statusSymbol)
-                        .font(.title3)
-                        .foregroundStyle(statusColor)
-                }
+                IconTile(symbol: statusSymbol, tint: statusColor, size: 52)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(statusLabel)
                         .font(.caption.weight(.semibold))
